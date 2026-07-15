@@ -16,7 +16,7 @@ const navItems = [
   { name: "Contact", path: "/contact" },
 ];
 
-export default function Navbar() {
+export default function Navbar({ onOpenAuth }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -61,11 +61,18 @@ export default function Navbar() {
             <Search className="h-5 w-5" />
           </button>
 
-          <button className="rounded-full p-2 hover:bg-gray-100">
+          <button
+            onClick={() => onOpenAuth("login")}
+            className="rounded-full p-2 hover:bg-gray-100 text-slate-700 hover:text-blue-600 transition-colors"
+            title="Account"
+          >
             <UserCircle className="h-7 w-7" />
           </button>
 
-          <button className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 transition">
+          <button
+            onClick={() => onOpenAuth("login")}
+            className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 transition"
+          >
             Login
           </button>
         </div>
@@ -103,7 +110,13 @@ export default function Navbar() {
               </li>
             ))}
 
-            <button className="mt-4 w-full rounded-lg bg-blue-600 py-2 text-white hover:bg-blue-700">
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenAuth("login");
+              }}
+              className="mt-4 w-full rounded-lg bg-blue-600 py-2 text-white hover:bg-blue-700"
+            >
               Login
             </button>
           </ul>

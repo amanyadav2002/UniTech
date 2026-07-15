@@ -40,7 +40,7 @@ const features = [
   },
 ];
 
-export default function Home() {
+export default function Home({ onOpenAuth }) {
   return (
     <div className="bg-slate-50">
 
@@ -59,11 +59,14 @@ export default function Home() {
           </p>
 
           <div className="mt-10 flex justify-center gap-5">
-            <button className="rounded-xl bg-white px-7 py-3 font-semibold text-blue-700 shadow-lg hover:bg-slate-100">
+            <button
+              onClick={() => onOpenAuth("signup")}
+              className="rounded-xl bg-white px-7 py-3 font-semibold text-blue-700 shadow-lg hover:bg-slate-100 transition-all duration-200 active:scale-[0.98]"
+            >
               Get Started
             </button>
 
-            <button className="rounded-xl border border-white px-7 py-3 font-semibold hover:bg-white hover:text-blue-700">
+            <button className="rounded-xl border border-white px-7 py-3 font-semibold hover:bg-white hover:text-blue-700 transition-all duration-200 active:scale-[0.98]">
               Learn More
             </button>
           </div>
