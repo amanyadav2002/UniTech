@@ -9,7 +9,14 @@ import {
   GraduationCap,
   Briefcase,
   Shield,
+  Calendar,
+  Phone,
+  Hash,
+  Building,
+  Droplet,
+  BookOpen,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export default function AuthModal({ isOpen, onClose, defaultTab = "login", defaultRole = "student" }) {
   const [tab, setTab] = useState(defaultTab);
@@ -17,7 +24,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Form states
+  // Form states - Auth fields
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,11 +32,44 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // Synchronize initial tab and role when modal opens
+  // Form states - Custom profile fields
+  const [customId, setCustomId] = useState("");
+  const [age, setAge] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dob, setDob] = useState("");
+  const [usn, setUsn] = useState("");
+  const [year, setYear] = useState("");
+  const [semester, setSemester] = useState("");
+  const [blood, setBlood] = useState("");
+  const [department, setDepartment] = useState("");
+  const [salary, setSalary] = useState("");
+
+  // Auth Context hooks
+  const { login, signup } = useAuth();
+  const [localError, setLocalError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // Synchronize initial tab and role when modal opens, and clear previous fields/errors
   useEffect(() => {
     if (isOpen) {
       setTab(defaultTab);
       setRole(defaultRole);
+      setLocalError(null);
+      setName("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setAgreeTerms(false);
+      setCustomId("");
+      setAge("");
+      setPhone("");
+      setDob("");
+      setUsn("");
+      setYear("");
+      setSemester("");
+      setBlood("");
+      setDepartment("");
+      setSalary("");
     }
   }, [isOpen, defaultTab, defaultRole]);
 
@@ -58,21 +98,49 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLocalError(null);
+
     if (tab === "signup" && password !== confirmPassword) {
-      alert("Passwords do not match!");
+      setLocalError("Passwords do not match!");
       return;
     }
-    // Simulate submission
-    const data =
-      tab === "login"
-        ? { email, password, role, rememberMe }
-        : { name, email, password, role, agreeTerms };
-    
-    console.log(`${tab === "login" ? "Login" : "Sign Up"} submission:`, data);
-    alert(`${tab === "login" ? "Logged in" : "Registered"} successfully as ${role}!`);
-    onClose();
+
+    setLoading(true);
+    try {
+      if (tab === "login") {
+        await login(email, password, role);
+      } else {
+        const signupData = {
+          name,
+          email,
+          password,
+          role,
+          id: customId,
+          age: Number(age),
+          phone,
+          dob,
+        };
+
+        if (role === "student") {
+          signupData.usn = usn;
+          signupData.year = year;
+          signupData.semester = semester;
+          signupData.blood = blood;
+        } else if (role === "faculty") {
+          signupData.department = department;
+          signupData.salary = Number(salary);
+        }
+
+        await signup(signupData);
+      }
+      onClose();
+    } catch (err) {
+      setLocalError(err.message || "Authentication failed. Please check your inputs.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const roles = [
@@ -102,7 +170,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
       <div className="absolute inset-0" onClick={onClose}></div>
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+      <div className={`relative w-full transition-all duration-300 ${tab === "signup" ? "max-w-2xl" : "max-w-md"} max-h-[90vh] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200`}>
         
         {/* Header decoration banner */}
         <div className="h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 shrink-0"></div>
@@ -139,6 +207,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
             <button
               onClick={() => {
                 setTab("login");
+                setLocalError(null);
                 // Reset role to student if current role was admin and we switch tabs
                 if (role === "admin") setRole("student");
               }}
@@ -153,6 +222,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
             <button
               onClick={() => {
                 setTab("signup");
+                setLocalError(null);
                 setRole("student");
               }}
               className={`flex-1 py-1.5 text-sm font-semibold rounded-lg transition-all ${
@@ -166,6 +236,12 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
+            {localError && (
+              <div className="bg-red-50 text-red-600 text-xs font-semibold p-3 rounded-xl border border-red-100">
+                {localError}
+              </div>
+            )}
+
             {/* Role Selection */}
             <div>
               <span className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
@@ -190,117 +266,87 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
               </div>
             </div>
 
-            {/* Name Input (Sign Up Only) */}
-            {tab === "signup" && (
+            {/* Input Form layout */}
+            <div className={tab === "signup" ? "grid grid-cols-1 md:grid-cols-2 gap-4 pt-2" : "space-y-3"}>
+              {/* Name Input (Sign Up Only) */}
+              {tab === "signup" && (
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                      <User className="h-5 w-5" />
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      placeholder="John Doe"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Email Input */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">
-                  Full Name
+                  Email Address
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                    <User className="h-5 w-5" />
+                    <Mail className="h-5 w-5" />
                   </span>
                   <input
-                    type="text"
+                    type="email"
                     required
-                    placeholder="John Doe"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    placeholder="name@university.edu"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
                   />
                 </div>
               </div>
-            )}
 
-            {/* Email Input */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">
-                Email Address
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                  <Mail className="h-5 w-5" />
-                </span>
-                <input
-                  type="email"
-                  required
-                  placeholder="name@university.edu"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
-                />
-              </div>
-            </div>
-
-            {/* Password Input */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-sm font-semibold text-slate-700">
-                  Password
-                </label>
-                {tab === "login" && (
-                  <a
-                    href="#forgot"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      alert("Forgot password mechanism is not implemented.");
-                    }}
-                    className="text-xs text-blue-600 hover:text-blue-700 hover:underline font-semibold"
-                  >
-                    Forgot Password?
-                  </a>
-                )}
-              </div>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                  <Lock className="h-5 w-5" />
-                </span>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 pl-10 pr-10 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Confirm Password (Sign Up Only) */}
-            {tab === "signup" && (
+              {/* Password Input */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">
-                  Confirm Password
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Password
+                  </label>
+                  {tab === "login" && (
+                    <a
+                      href="#forgot"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        alert("Forgot password mechanism is not implemented.");
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-700 hover:underline font-semibold"
+                    >
+                      Forgot Password?
+                    </a>
+                  )}
+                </div>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                     <Lock className="h-5 w-5" />
                   </span>
                   <input
-                    type={showConfirmPassword ? "text" : "password"}
+                    type={showPassword ? "text" : "password"}
                     required
                     placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 pl-10 pr-10 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    onClick={() => setShowPassword(!showPassword)}
                     className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
                   >
-                    {showConfirmPassword ? (
+                    {showPassword ? (
                       <EyeOff className="h-5 w-5" />
                     ) : (
                       <Eye className="h-5 w-5" />
@@ -308,11 +354,286 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                   </button>
                 </div>
               </div>
-            )}
+
+              {/* Confirm Password (Sign Up Only) */}
+              {tab === "signup" && (
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                      <Lock className="h-5 w-5" />
+                    </span>
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      required
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 pl-10 pr-10 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Profile fields (Sign Up Only) */}
+              {tab === "signup" && (
+                <>
+                  {/* Custom ID */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">
+                      {role === "student" ? "Student ID" : "Employee ID"}
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                        <Hash className="h-5 w-5" />
+                      </span>
+                      <input
+                        type="text"
+                        required
+                        placeholder={role === "student" ? "e.g. STU123" : "e.g. EMP123"}
+                        value={customId}
+                        onChange={(e) => setCustomId(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Age */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">
+                      Age
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                        <Hash className="h-5 w-5" />
+                      </span>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        placeholder="e.g. 20"
+                        value={age}
+                        onChange={(e) => setAge(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">
+                      Phone Number
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                        <Phone className="h-5 w-5" />
+                      </span>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="e.g. 9876543210"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Date of Birth */}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">
+                      Date of Birth
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                        <Calendar className="h-5 w-5" />
+                      </span>
+                      <input
+                        type="date"
+                        required
+                        value={dob}
+                        onChange={(e) => setDob(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Student Specific Fields */}
+                  {role === "student" && (
+                    <>
+                      {/* USN */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">
+                          USN
+                        </label>
+                        <div className="relative">
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <GraduationCap className="h-5 w-5" />
+                          </span>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. 1RV21CS001"
+                            value={usn}
+                            onChange={(e) => setUsn(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Year */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">
+                          Year
+                        </label>
+                        <div className="relative">
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <BookOpen className="h-5 w-5" />
+                          </span>
+                          <select
+                            required
+                            value={year}
+                            onChange={(e) => setYear(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                          >
+                            <option value="" disabled>Select Year</option>
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Semester */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">
+                          Semester
+                        </label>
+                        <div className="relative">
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <BookOpen className="h-5 w-5" />
+                          </span>
+                          <select
+                            required
+                            value={semester}
+                            onChange={(e) => setSemester(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                          >
+                            <option value="" disabled>Select Semester</option>
+                            <option value="1st Sem">1st Sem</option>
+                            <option value="2nd Sem">2nd Sem</option>
+                            <option value="3rd Sem">3rd Sem</option>
+                            <option value="4th Sem">4th Sem</option>
+                            <option value="5th Sem">5th Sem</option>
+                            <option value="6th Sem">6th Sem</option>
+                            <option value="7th Sem">7th Sem</option>
+                            <option value="8th Sem">8th Sem</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Blood Group */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">
+                          Blood Group
+                        </label>
+                        <div className="relative">
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <Droplet className="h-5 w-5 text-red-500" />
+                          </span>
+                          <select
+                            required
+                            value={blood}
+                            onChange={(e) => setBlood(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                          >
+                            <option value="" disabled>Select Blood Group</option>
+                            <option value="A+">A+</option>
+                            <option value="A-">A-</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B-</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O-</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB-</option>
+                          </select>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Teacher Specific Fields */}
+                  {role === "faculty" && (
+                    <>
+                      {/* Department */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">
+                          Department
+                        </label>
+                        <div className="relative">
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <Building className="h-5 w-5" />
+                          </span>
+                          <select
+                            required
+                            value={department}
+                            onChange={(e) => setDepartment(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                          >
+                            <option value="" disabled>Select Department</option>
+                            <option value="Computer Science">Computer Science</option>
+                            <option value="Information Science">Information Science</option>
+                            <option value="Electronics & Communication">Electronics & Communication</option>
+                            <option value="Electrical & Electronics">Electrical & Electronics</option>
+                            <option value="Mechanical Engineering">Mechanical Engineering</option>
+                            <option value="Civil Engineering">Civil Engineering</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Salary */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">
+                          Monthly Salary (INR)
+                        </label>
+                        <div className="relative">
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <Hash className="h-5 w-5" />
+                          </span>
+                          <input
+                            type="number"
+                            required
+                            min="0"
+                            placeholder="e.g. 85000"
+                            value={salary}
+                            onChange={(e) => setSalary(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
 
             {/* Remember Me / Terms & Conditions */}
             {tab === "login" ? (
-              <div className="flex items-center">
+              <div className="flex items-center pt-1">
                 <input
                   id="remember-me"
                   type="checkbox"
@@ -328,7 +649,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                 </label>
               </div>
             ) : (
-              <div className="flex items-start">
+              <div className="flex items-start pt-1">
                 <input
                   id="terms"
                   type="checkbox"
@@ -370,9 +691,10 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-indigo-500/30 transition duration-200 active:scale-[0.98] text-sm mt-1"
+              disabled={loading}
+              className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-indigo-500/30 transition duration-200 active:scale-[0.98] text-sm mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {tab === "login" ? "Sign In" : "Create Account"}
+              {loading ? "Processing..." : tab === "login" ? "Sign In" : "Create Account"}
             </button>
           </form>
 
