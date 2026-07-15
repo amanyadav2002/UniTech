@@ -12,7 +12,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-export default function Students() {
+export default function Students({ onOpenAuth }) {
   const stats = [
     { title: "Total Students", value: "5,240+", icon: <Users size={36} /> },
     { title: "Departments", value: "12", icon: <GraduationCap size={36} /> },
@@ -212,7 +212,10 @@ export default function Students() {
           with everything happening at UniTech.
         </p>
 
-        <button className="mt-8 rounded-xl bg-white px-8 py-3 font-semibold text-blue-700 transition hover:bg-slate-100">
+        <button
+          onClick={() => onOpenAuth("login", "student")}
+          className="mt-8 rounded-xl bg-white px-8 py-3 font-semibold text-blue-700 transition hover:bg-slate-100 duration-200 active:scale-[0.98]"
+        >
           Student Login
         </button>
 

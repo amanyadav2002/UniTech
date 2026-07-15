@@ -11,9 +11,9 @@ import {
   Shield,
 } from "lucide-react";
 
-export default function AuthModal({ isOpen, onClose, defaultTab = "login" }) {
+export default function AuthModal({ isOpen, onClose, defaultTab = "login", defaultRole = "student" }) {
   const [tab, setTab] = useState(defaultTab);
-  const [role, setRole] = useState("student");
+  const [role, setRole] = useState(defaultRole);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -25,12 +25,13 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login" }) {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // Synchronize initial tab when modal opens
+  // Synchronize initial tab and role when modal opens
   useEffect(() => {
     if (isOpen) {
       setTab(defaultTab);
+      setRole(defaultRole);
     }
-  }, [isOpen, defaultTab]);
+  }, [isOpen, defaultTab, defaultRole]);
 
   // Lock scrolling when modal is active
   useEffect(() => {

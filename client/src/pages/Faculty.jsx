@@ -13,7 +13,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-export default function Faculty() {
+export default function Faculty({ onOpenAuth }) {
   const stats = [
     {
       title: "Faculty Members",
@@ -274,7 +274,10 @@ export default function Faculty() {
           education, impactful research, and student success.
         </p>
 
-        <button className="mt-8 rounded-xl bg-white px-8 py-3 font-semibold text-blue-700 transition hover:bg-slate-100">
+        <button
+          onClick={() => onOpenAuth("login", "faculty")}
+          className="mt-8 rounded-xl bg-white px-8 py-3 font-semibold text-blue-700 transition hover:bg-slate-100 duration-200 active:scale-[0.98]"
+        >
           Faculty Login
         </button>
 
