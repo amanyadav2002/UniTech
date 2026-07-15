@@ -13,9 +13,11 @@ import AuthModal from "./components/AuthModal";
 function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState("login");
+  const [authModalRole, setAuthModalRole] = useState("student");
 
-  const openAuthModal = (tab = "login") => {
+  const openAuthModal = (tab = "login", role = "student") => {
     setAuthModalTab(tab);
+    setAuthModalRole(role);
     setIsAuthModalOpen(true);
   };
 
@@ -26,8 +28,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Home onOpenAuth={openAuthModal} />} />
         <Route path="/institutions" element={<Institutions />} />
-        <Route path="/students" element={<Students />} />
-        <Route path="/faculty" element={<Faculty />} />
+        <Route path="/students" element={<Students onOpenAuth={openAuthModal} />} />
+        <Route path="/faculty" element={<Faculty onOpenAuth={openAuthModal} />} />
         <Route path="/contact" element={<Contact />} />
       </Routes>
 
@@ -37,6 +39,7 @@ function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         defaultTab={authModalTab}
+        defaultRole={authModalRole}
       />
     </>
   );
