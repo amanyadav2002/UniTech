@@ -571,17 +571,17 @@ export default function Students({ onOpenAuth }) {
                   {/* Quick stats in card */}
                   <div className="flex gap-4 md:gap-6 shrink-0 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15">
                     <div className="text-center">
-                      <p className="text-[10px] uppercase font-bold text-indigo-200">CGPA</p>
+                      <p className="text-[10px] uppercase font-bold text-indigo-200 flex items-center justify-center gap-1"><span>🎯</span> CGPA</p>
                       <p className="text-lg md:text-xl font-black text-white">3.82</p>
                     </div>
                     <div className="w-[1px] bg-white/20 self-stretch"></div>
                     <div className="text-center">
-                      <p className="text-[10px] uppercase font-bold text-indigo-200">Attendance</p>
+                      <p className="text-[10px] uppercase font-bold text-indigo-200 flex items-center justify-center gap-1"><span>📊</span> Attendance</p>
                       <p className="text-lg md:text-xl font-black text-white">88.3%</p>
                     </div>
                     <div className="w-[1px] bg-white/20 self-stretch"></div>
                     <div className="text-center">
-                      <p className="text-[10px] uppercase font-bold text-indigo-200">Tasks left</p>
+                      <p className="text-[10px] uppercase font-bold text-indigo-200 flex items-center justify-center gap-1"><span>📚</span> Tasks left</p>
                       <p className="text-lg md:text-xl font-black text-white">
                         {tasks.filter(t => !t.completed).length}
                       </p>
@@ -596,7 +596,9 @@ export default function Students({ onOpenAuth }) {
                 {/* Card 1: Attendance Progress */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-slate-500">Overall Attendance</p>
+                    <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                      <span>📊</span> Overall Attendance
+                    </p>
                     <h3 className="text-3xl font-extrabold text-slate-800">88.3%</h3>
                     <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full inline-block">
                       Eligible &bull; Excellent
@@ -632,7 +634,9 @@ export default function Students({ onOpenAuth }) {
                 {/* Card 2: GPA */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-slate-500">Current GPA</p>
+                    <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                      <span>🎯</span> Current GPA
+                    </p>
                     <h3 className="text-3xl font-extrabold text-slate-800">3.82 / 4.0</h3>
                     <span className="text-xs text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full inline-block">
                       Grade A &bull; Top 5%
@@ -644,22 +648,28 @@ export default function Students({ onOpenAuth }) {
                 </div>
 
                 {/* Card 3: Semester Credit Status */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50">
-                  <p className="text-sm font-semibold text-slate-500 mb-2">Graduation Credits</p>
-                  <div className="flex items-baseline justify-between mb-2">
-                    <h3 className="text-3xl font-extrabold text-slate-800">74</h3>
-                    <span className="text-xs text-slate-500 font-medium">Goal: 120 credits</span>
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex flex-col justify-between">
+                  <div className="space-y-2 w-full">
+                    <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                      <span>📚</span> Graduation Credits
+                    </p>
+                    <div className="flex items-baseline justify-between mb-2">
+                      <h3 className="text-3xl font-extrabold text-slate-800">74</h3>
+                      <span className="text-xs text-slate-500 font-medium">Goal: 120 credits</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2">
+                      <div className="bg-indigo-600 h-2 rounded-full" style={{ width: "61%" }}></div>
+                    </div>
+                    <span className="text-xs font-semibold text-slate-500 mt-2 inline-block">61% completed</span>
                   </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div className="bg-indigo-600 h-2 rounded-full" style={{ width: "61%" }}></div>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-500 mt-2 inline-block">61% completed</span>
                 </div>
 
                 {/* Card 4: Subject count */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-slate-500">Registered Subjects</p>
+                    <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                      <span>📖</span> Registered Courses
+                    </p>
                     <h3 className="text-3xl font-extrabold text-slate-800">5 Courses</h3>
                     <span className="text-xs text-slate-600 font-semibold bg-slate-100 px-2 py-0.5 rounded-full inline-block">
                       17 Credit Hours
@@ -927,17 +937,23 @@ export default function Students({ onOpenAuth }) {
               {/* Header metrics */}
               <div className="grid gap-6 md:grid-cols-3">
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50">
-                  <p className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-1">Cumulative GPA (CGPA)</p>
+                  <p className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-1 flex items-center gap-1.5">
+                    <span>🎯</span> Cumulative GPA (CGPA)
+                  </p>
                   <h3 className="text-3xl font-extrabold text-slate-800">3.82 / 4.00</h3>
                   <p className="text-xs text-indigo-600 font-semibold mt-1">Class Rank: 14 / 280 students</p>
                 </div>
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50">
-                  <p className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-1">Previous Semester GPA</p>
+                  <p className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-1 flex items-center gap-1.5">
+                    <span>📈</span> Previous Semester GPA
+                  </p>
                   <h3 className="text-3xl font-extrabold text-slate-800">3.91</h3>
                   <p className="text-xs text-emerald-600 font-semibold mt-1">Semester 5 &bull; Outstanding Performance</p>
                 </div>
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50">
-                  <p className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-1">Total Earned Credits</p>
+                  <p className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-1 flex items-center gap-1.5">
+                    <span>📚</span> Total Earned Credits
+                  </p>
                   <h3 className="text-3xl font-extrabold text-slate-800">74 Units</h3>
                   <p className="text-xs text-slate-500 font-semibold mt-1">Satisfies Year 3 milestones</p>
                 </div>
