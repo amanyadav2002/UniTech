@@ -236,8 +236,69 @@ const getMe = async (req, res) => {
   }
 };
 
+// @desc    Update user profile details
+// @route   PUT /api/auth/profile
+// @access  Private
+const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, phone, age, blood, year, semester, department, salary } = req.body;
+
+    // Find User
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update base user details if provided
+    if (name) {
+      user.name = name.trim();
+      await user.save();
+    }
+
+    let profile = null;
+    if (user.role === "student") {
+      profile = await Student.findOne({ user: userId });
+      if (profile) {
+        if (phone !== undefined) profile.phone = phone.trim();
+        if (age !== undefined) profile.age = Number(age);
+        if (blood !== undefined) profile.blood = blood.trim();
+        if (year !== undefined) profile.year = year.trim();
+        if (semester !== undefined) profile.semester = semester.trim();
+        if (name) profile.name = name.trim();
+        await profile.save();
+      }
+    } else if (user.role === "faculty") {
+      profile = await Teacher.findOne({ user: userId });
+      if (profile) {
+        if (phone !== undefined) profile.phone = phone.trim();
+        if (age !== undefined) profile.age = Number(age);
+        if (department !== undefined) profile.department = department.trim();
+        if (salary !== undefined) profile.salary = Number(salary);
+        if (name) profile.name = name.trim();
+        await profile.save();
+      }
+    }
+
+    res.json({
+      message: "Profile updated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        profile: profile,
+      },
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ message: "Server error occurred during profile update" });
+  }
+};
+
 module.exports = {
   signup,
   login,
   getMe,
+  updateProfile,
 };
