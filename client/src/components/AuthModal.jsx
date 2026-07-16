@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   X,
   Mail,
@@ -19,6 +20,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 
 export default function AuthModal({ isOpen, onClose, defaultTab = "login", defaultRole = "student" }) {
+  const navigate = useNavigate();
   const [tab, setTab] = useState(defaultTab);
   const [role, setRole] = useState(defaultRole);
   const [showPassword, setShowPassword] = useState(false);
@@ -136,6 +138,11 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
         await signup(signupData);
       }
       onClose();
+      if (role === "student") {
+        navigate("/students");
+      } else if (role === "faculty") {
+        navigate("/faculty");
+      }
     } catch (err) {
       setLocalError(err.message || "Authentication failed. Please check your inputs.");
     } finally {

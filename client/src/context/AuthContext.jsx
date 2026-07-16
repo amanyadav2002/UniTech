@@ -114,6 +114,36 @@ export function AuthProvider({ children }) {
     setError(null);
   };
 
+  // Update Profile details handler
+  const updateUserProfile = async (updatedData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/auth/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(updatedData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update profile");
+      }
+
+      setUser(data.user);
+      return data.user;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const value = {
     user,
     token,
@@ -122,6 +152,7 @@ export function AuthProvider({ children }) {
     login,
     signup,
     logout,
+    updateUserProfile,
     clearError: () => setError(null),
   };
 
