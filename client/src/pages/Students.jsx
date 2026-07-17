@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   Users,
@@ -34,10 +35,14 @@ import {
   CalendarDays,
   Hash,
   Bookmark,
+  Building2,
+  Briefcase,
+  FlaskConical,
 } from "lucide-react";
 
 export default function Students({ onOpenAuth }) {
   const { user, logout, updateUserProfile, addBookmark, removeBookmark } = useAuth();
+  const navigate = useNavigate();
   
   // Dashboard navigation tab
   const [activeTab, setActiveTab] = useState("overview");
@@ -45,6 +50,18 @@ export default function Students({ onOpenAuth }) {
   const [bookmarkFilter, setBookmarkFilter] = useState("all");
   const [bookmarkSearch, setBookmarkSearch] = useState("");
   const [selectedResourceCourse, setSelectedResourceCourse] = useState(null);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      const container = document.getElementById("search-container");
+      if (container && !container.contains(e.target)) {
+        setIsSearchFocused(false);
+      }
+    };
+    window.addEventListener("mousedown", handleOutsideClick);
+    return () => window.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -509,23 +526,160 @@ export default function Students({ onOpenAuth }) {
   if (user && user.role === "student") {
     const studentProfile = user.profile || {};
 
-    const filteredCourses = coursesDetails.filter((course) => {
+    const filteredCourses = coursesDetails;
+
+    const filteredTasks = tasks;
+
+    const filteredSchedule = scheduleTimeline;
+
+    const SITE_PAGES = [
+      // --- HOME PAGE ---
+      {
+        title: "UniTech Portal Home",
+        description: "Welcome to UniTech portal - smart university management.",
+        path: "/",
+        category: "Home Page",
+        keywords: ["home", "unitech", "portal", "management", "welcome"]
+      },
+      {
+        title: "Student Management Service",
+        description: "Manage student profiles, records, and enrollments.",
+        path: "/",
+        category: "Home Page Features",
+        keywords: ["student", "management", "record", "profile", "enrollment"]
+      },
+      {
+        title: "Course Management Desk",
+        description: "Departments, semesters, and subjects management.",
+        path: "/students",
+        tab: "courses",
+        category: "Academics",
+        keywords: ["course", "management", "subject", "semester", "department"]
+      },
+      {
+        title: "Placement Rate & Stats",
+        description: "University academic statistics and placement details.",
+        path: "/institutions",
+        category: "About Us",
+        keywords: ["placement", "statistic", "job", "career", "rate"]
+      },
+      {
+        title: "Campus Notice Board Desk",
+        description: "Latest notices, exams, and hackfest announcements.",
+        path: "/students",
+        tab: "notices",
+        category: "Notices",
+        keywords: ["notice", "announcement", "event", "exam", "hackfest", "registration"]
+      },
+
+      // --- INSTITUTIONS PAGE ---
+      {
+        title: "About Our Institution",
+        description: "Commitment to academic excellence, innovation, and research.",
+        path: "/institutions",
+        category: "Institution Details",
+        keywords: ["about", "institution", "university", "excellence", "history"]
+      },
+      {
+        title: "Central Library",
+        description: "Thousands of books, journals, and digital assets.",
+        path: "/institutions",
+        category: "Facilities",
+        keywords: ["library", "book", "journal", "resource", "reading"]
+      },
+      {
+        title: "Computer & Tech Labs",
+        description: "High-performance computing laboratories and software.",
+        path: "/institutions",
+        category: "Facilities",
+        keywords: ["computer", "lab", "technology", "hpc", "software"]
+      },
+      {
+        title: "Vision & Mission",
+        description: "Empowering students through quality education and ethical values.",
+        path: "/institutions",
+        category: "About Us",
+        keywords: ["vision", "mission", "values", "ethics", "goal"]
+      },
+
+      // --- STUDENTS PAGE ---
+      {
+        title: "Student Portal Overview",
+        description: "Student dashboard, tasks list, and daily schedule.",
+        path: "/students",
+        tab: "overview",
+        category: "Students",
+        keywords: ["student", "portal", "dashboard", "overview", "schedule", "task"]
+      },
+      {
+        title: "Student Attendance Tracking",
+        description: "Track course attendance and requirements.",
+        path: "/students",
+        tab: "courses",
+        category: "Students",
+        keywords: ["attendance", "present", "class", "eligibility"]
+      },
+      {
+        title: "Examination Grades & Results",
+        description: "Access examination marks, CGPA, and pass/fail reports.",
+        path: "/students",
+        tab: "grades",
+        category: "Students",
+        keywords: ["grade", "result", "mark", "cgpa", "exam", "performance"]
+      },
+      {
+        title: "Digital Library E-Resources",
+        description: "Access Springer, IEEE, and ACM resources.",
+        path: "/students",
+        tab: "resources",
+        category: "Students",
+        keywords: ["library", "resource", "ieee", "springer", "acm", "journal"]
+      },
+      {
+        title: "E-Learning Workspace",
+        description: "Access notes, e-learning portal, and assignments.",
+        path: "/students",
+        tab: "resources",
+        category: "Students",
+        keywords: ["elearning", "online", "classroom", "notes", "assignment"]
+      },
+      {
+        title: "Clubs & Activities",
+        description: "Technical, cultural, sports, and innovation activities.",
+        path: "/students",
+        category: "Student Life",
+        keywords: ["club", "activity", "sports", "cultural", "event"]
+      },
+
+      // --- CONTACT PAGE ---
+      {
+        title: "Contact Us & Inquiry Form",
+        description: "Get in touch with university admissions or administration.",
+        path: "/contact",
+        category: "Inquiries",
+        keywords: ["contact", "email", "address", "phone", "support", "help"]
+      }
+    ];
+
+    const getSearchResults = () => {
+      if (!globalSearchQuery) return [];
       const query = globalSearchQuery.toLowerCase();
-      return (
-        course.name.toLowerCase().includes(query) ||
-        course.code.toLowerCase().includes(query) ||
-        course.teacher.toLowerCase().includes(query)
-      );
-    });
+      const results = [];
 
-    const filteredTasks = tasks.filter((task) =>
-      task.text.toLowerCase().includes(globalSearchQuery.toLowerCase())
-    );
+      SITE_PAGES.forEach((item) => {
+        const matchesTitle = item.title.toLowerCase().includes(query);
+        const matchesDesc = item.description.toLowerCase().includes(query);
+        const matchesKeywords = item.keywords.some((kw) => kw.includes(query));
 
-    const filteredSchedule = scheduleTimeline.filter((item) =>
-      item.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-      item.code.toLowerCase().includes(globalSearchQuery.toLowerCase())
-    );
+        if (matchesTitle || matchesDesc || matchesKeywords) {
+          results.push(item);
+        }
+      });
+
+      return results;
+    };
+
+    const searchResults = getSearchResults();
     
     return (
       <div className="min-h-screen bg-[#f8fafc] flex flex-col lg:flex-row">
@@ -681,20 +835,73 @@ export default function Students({ onOpenAuth }) {
             {/* Header Right Actions */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               {/* Search Bar */}
-              <div className="relative min-w-[240px] flex-1 sm:flex-initial">
+              <div className="relative min-w-[280px] flex-1 sm:flex-initial" id="search-container">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                   <Search size={18} />
                 </span>
                 <input
                   type="text"
-                  placeholder="Search dashboard data..."
+                  placeholder="Search portal & website..."
                   value={globalSearchQuery}
                   onChange={(e) => {
                     setGlobalSearchQuery(e.target.value);
-                    setNoticeSearch(e.target.value);
                   }}
+                  onFocus={() => setIsSearchFocused(true)}
                   className="w-full rounded-2xl border border-slate-200/60 pl-10 pr-4 py-2.5 text-sm bg-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-semibold text-slate-800 shadow-sm placeholder:text-slate-400"
                 />
+
+                {/* Dropdown Menu */}
+                {isSearchFocused && globalSearchQuery && (
+                  <div className="absolute left-0 right-0 mt-2 z-[60] max-h-[320px] overflow-y-auto bg-white rounded-2xl border border-slate-200/80 shadow-2xl py-2 flex flex-col divide-y divide-slate-50">
+                    {searchResults.length > 0 ? (
+                      searchResults.map((result, idx) => {
+                        let icon = <Search className="h-4 w-4 text-slate-500" />;
+                        if (result.category.startsWith("Home")) icon = <LayoutDashboard className="h-4 w-4 text-indigo-500" />;
+                        else if (result.category === "Institution Details" || result.category === "Facilities") icon = <Building2 className="h-4 w-4 text-sky-500" />;
+                        else if (result.category === "Students" || result.category === "Student Life" || result.category === "Academics") icon = <GraduationCap className="h-4 w-4 text-emerald-500" />;
+                        else if (result.category.startsWith("Faculty")) icon = <Briefcase className="h-4 w-4 text-amber-500" />;
+                        else if (result.category === "Research") icon = <FlaskConical className="h-4 w-4 text-violet-500" />;
+                        else if (result.category === "Notices") icon = <Bell className="h-4 w-4 text-rose-500" />;
+                        else if (result.category === "Inquiries") icon = <Mail className="h-4 w-4 text-pink-500" />;
+
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setIsSearchFocused(false);
+                              if (result.path === "/students") {
+                                if (result.tab) {
+                                  setActiveTab(result.tab);
+                                }
+                                setGlobalSearchQuery("");
+                              } else {
+                                navigate(result.path);
+                              }
+                            }}
+                            className="flex items-start gap-3 px-4 py-2.5 text-left hover:bg-slate-50/80 transition-colors w-full group animate-in fade-in duration-100"
+                          >
+                            <div className="p-1.5 bg-slate-100 rounded-lg group-hover:bg-white transition-colors shrink-0 mt-0.5 animate-in fade-in">
+                              {icon}
+                            </div>
+                            <div className="overflow-hidden flex-1">
+                              <p className="text-xs font-bold text-slate-700 truncate group-hover:text-indigo-600 transition-colors">
+                                {result.title}
+                              </p>
+                              <span className="text-[10px] font-semibold text-slate-400 block mt-0.5 uppercase tracking-wide">
+                                {result.category} &bull; {result.description}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="px-4 py-6 text-center text-slate-500 text-xs font-semibold">
+                        No matches found for "{globalSearchQuery}"
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Notification Bell */}
