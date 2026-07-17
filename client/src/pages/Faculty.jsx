@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
+  LayoutDashboard,
+  Mail,
   GraduationCap,
   Users,
   BookOpen,
@@ -38,11 +41,24 @@ import {
 
 export default function Faculty({ onOpenAuth }) {
   const { user, logout, updateUserProfile } = useAuth();
+  const navigate = useNavigate();
   
   // Dashboard active tab navigation
   const [activeTab, setActiveTab] = useState("overview");
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [noticeSearch, setNoticeSearch] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      const container = document.getElementById("search-container");
+      if (container && !container.contains(e.target)) {
+        setIsSearchFocused(false);
+      }
+    };
+    window.addEventListener("mousedown", handleOutsideClick);
+    return () => window.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
   
   // --- Profile Editing State ---
   const [isEditing, setIsEditing] = useState(false);
@@ -767,14 +783,148 @@ export default function Faculty({ onOpenAuth }) {
   const teacherProfile = user.profile || {};
   
   // Filter courses or list objects for searches
-  const filteredCourses = coursesList.filter(course =>
-    course.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-    course.code.toLowerCase().includes(globalSearchQuery.toLowerCase())
-  );
+  const filteredCourses = coursesList;
 
-  const filteredTasks = tasks.filter(task =>
-    task.text.toLowerCase().includes(globalSearchQuery.toLowerCase())
-  );
+  const filteredTasks = tasks;
+
+  const SITE_PAGES = [
+    // --- HOME PAGE ---
+    {
+      title: "UniTech Portal Home",
+      description: "Welcome to UniTech portal - smart university management.",
+      path: "/",
+      category: "Home Page",
+      keywords: ["home", "unitech", "portal", "management", "welcome"]
+    },
+    {
+      title: "Student Management Info",
+      description: "Manage student profiles, records, and enrollments.",
+      path: "/",
+      category: "Home Page Features",
+      keywords: ["student", "management", "record", "profile", "enrollment"]
+    },
+    {
+      title: "Faculty Portal Info",
+      description: "Faculty dashboard with attendance and course tools.",
+      path: "/faculty",
+      category: "Faculty Portal",
+      keywords: ["faculty", "portal", "dashboard", "attendance", "course", "teacher"]
+    },
+    {
+      title: "Course Management Desk",
+      description: "Departments, semesters, and subjects management.",
+      path: "/faculty",
+      category: "Academics",
+      keywords: ["course", "management", "subject", "semester", "department"]
+    },
+    {
+      title: "Placement Rate & Stats",
+      description: "University academic statistics and placement details.",
+      path: "/institutions",
+      category: "About Us",
+      keywords: ["placement", "statistic", "job", "career", "rate"]
+    },
+
+    // --- INSTITUTIONS PAGE ---
+    {
+      title: "About Our Institution",
+      description: "Commitment to academic excellence, innovation, and research.",
+      path: "/institutions",
+      category: "Institution Details",
+      keywords: ["about", "institution", "university", "excellence", "history"]
+    },
+    {
+      title: "Central Library",
+      description: "Thousands of books, journals, and digital assets.",
+      path: "/institutions",
+      category: "Facilities",
+      keywords: ["library", "book", "journal", "resource", "reading"]
+    },
+    {
+      title: "Computer & Tech Labs",
+      description: "High-performance computing laboratories and software.",
+      path: "/institutions",
+      category: "Facilities",
+      keywords: ["computer", "lab", "technology", "hpc", "software"]
+    },
+    {
+      title: "Vision & Mission",
+      description: "Empowering students through quality education and ethical values.",
+      path: "/institutions",
+      category: "About Us",
+      keywords: ["vision", "mission", "values", "ethics", "goal"]
+    },
+
+    // --- FACULTY PAGE ---
+    {
+      title: "Faculty Dashboard Hub",
+      description: "Track course workload and student assignments.",
+      path: "/faculty",
+      tab: "overview",
+      category: "Faculty",
+      keywords: ["faculty", "dashboard", "workload", "course", "assignment"]
+    },
+    {
+      title: "Faculty Attendance Panel",
+      description: "Mark and manage student attendance.",
+      path: "/faculty",
+      tab: "attendance",
+      category: "Faculty Portal",
+      keywords: ["attendance", "present", "class", "student"]
+    },
+    {
+      title: "Grading & Evaluation Desk",
+      description: "Evaluate assignments and grade submissions.",
+      path: "/faculty",
+      tab: "grading",
+      category: "Faculty Portal",
+      keywords: ["grade", "result", "mark", "grading", "evaluation", "assignment"]
+    },
+    {
+      title: "Research Labs & Portal",
+      description: "Advanced research, publications, and grants.",
+      path: "/faculty",
+      tab: "research",
+      category: "Research",
+      keywords: ["research", "publication", "grant", "paper", "innovation"]
+    },
+    {
+      title: "Academic Departments",
+      description: "CSE, ISE, AIML, ECE, Mechanical, and Civil departments.",
+      path: "/faculty",
+      category: "Academics",
+      keywords: ["department", "cse", "ise", "aiml", "ece", "engineering"]
+    },
+
+    // --- CONTACT PAGE ---
+    {
+      title: "Contact Us & Inquiry Form",
+      description: "Get in touch with university admissions or administration.",
+      path: "/contact",
+      category: "Inquiries",
+      keywords: ["contact", "email", "address", "phone", "support", "help"]
+    }
+  ];
+
+  const getSearchResults = () => {
+    if (!globalSearchQuery) return [];
+    const query = globalSearchQuery.toLowerCase();
+    const results = [];
+
+    SITE_PAGES.forEach((item) => {
+      const matchesTitle = item.title.toLowerCase().includes(query);
+      const matchesDesc = item.description.toLowerCase().includes(query);
+      const matchesKeywords = item.keywords.some((kw) => kw.includes(query));
+
+      if (matchesTitle || matchesDesc || matchesKeywords) {
+        results.push(item);
+      }
+    });
+
+    return results;
+  };
+
+  const searchResults = getSearchResults();
 
   const activeAssignmentObj = assignments.find(a => a.id === selectedAssignForGrading);
   const activeSubmissionsList = submissions[selectedAssignForGrading] || [];
@@ -923,20 +1073,73 @@ export default function Faculty({ onOpenAuth }) {
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Search Input */}
-            <div className="relative min-w-[240px] flex-1 sm:flex-initial">
+            <div className="relative min-w-[280px] flex-1 sm:flex-initial" id="search-container">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <Search size={18} />
               </span>
               <input
                 type="text"
-                placeholder="Search dashboard details..."
+                placeholder="Search portal & website..."
                 value={globalSearchQuery}
                 onChange={(e) => {
                   setGlobalSearchQuery(e.target.value);
-                  setNoticeSearch(e.target.value);
                 }}
-                className="w-full rounded-2xl border border-slate-200/60 pl-10 pr-4 py-2.5 text-sm bg-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-semibold text-slate-800 shadow-sm"
+                onFocus={() => setIsSearchFocused(true)}
+                className="w-full rounded-2xl border border-slate-200/60 pl-10 pr-4 py-2.5 text-sm bg-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-semibold text-slate-800 shadow-sm placeholder:text-slate-400"
               />
+
+              {/* Dropdown Menu */}
+              {isSearchFocused && globalSearchQuery && (
+                <div className="absolute left-0 right-0 mt-2 z-[60] max-h-[320px] overflow-y-auto bg-white rounded-2xl border border-slate-200/80 shadow-2xl py-2 flex flex-col divide-y divide-slate-50">
+                  {searchResults.length > 0 ? (
+                    searchResults.map((result, idx) => {
+                      let icon = <Search className="h-4 w-4 text-slate-500" />;
+                      if (result.category.startsWith("Home")) icon = <LayoutDashboard className="h-4 w-4 text-indigo-500" />;
+                      else if (result.category === "Institution Details" || result.category === "Facilities") icon = <Building2 className="h-4 w-4 text-sky-500" />;
+                      else if (result.category === "Students" || result.category === "Student Life" || result.category === "Academics") icon = <GraduationCap className="h-4 w-4 text-emerald-500" />;
+                      else if (result.category.startsWith("Faculty")) icon = <Briefcase className="h-4 w-4 text-amber-500" />;
+                      else if (result.category === "Research") icon = <FlaskConical className="h-4 w-4 text-violet-500" />;
+                      else if (result.category === "Notices") icon = <Bell className="h-4 w-4 text-rose-500" />;
+                      else if (result.category === "Inquiries") icon = <Mail className="h-4 w-4 text-pink-500" />;
+
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setIsSearchFocused(false);
+                            if (result.path === "/faculty") {
+                              if (result.tab) {
+                                setActiveTab(result.tab);
+                              }
+                              setGlobalSearchQuery("");
+                            } else {
+                              navigate(result.path);
+                            }
+                          }}
+                          className="flex items-start gap-3 px-4 py-2.5 text-left hover:bg-slate-50/80 transition-colors w-full group animate-in fade-in duration-100"
+                        >
+                          <div className="p-1.5 bg-slate-100 rounded-lg group-hover:bg-white transition-colors shrink-0 mt-0.5 animate-in fade-in">
+                            {icon}
+                          </div>
+                          <div className="overflow-hidden flex-1">
+                            <p className="text-xs font-bold text-slate-700 truncate group-hover:text-indigo-600 transition-colors">
+                              {result.title}
+                            </p>
+                            <span className="text-[10px] font-semibold text-slate-400 block mt-0.5 uppercase tracking-wide">
+                              {result.category} &bull; {result.description}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="px-4 py-6 text-center text-slate-500 text-xs font-semibold">
+                      No matches found for "{globalSearchQuery}"
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Notification Icon */}
