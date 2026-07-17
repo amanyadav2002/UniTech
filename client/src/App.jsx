@@ -24,6 +24,8 @@ function App() {
   };
 
   const isStudentLoggedIn = user && user.role === "student";
+  const isFacultyLoggedIn = user && user.role === "faculty";
+  const isAnyDashboardLoggedIn = isStudentLoggedIn || isFacultyLoggedIn;
 
   // If a token exists and we are still fetching user details, show a premium loader
   const token = localStorage.getItem("token");
@@ -40,15 +42,22 @@ function App() {
 
   return (
     <>
-      {!isStudentLoggedIn && <Navbar onOpenAuth={openAuthModal} />}
+      {!isAnyDashboardLoggedIn && <Navbar onOpenAuth={openAuthModal} />}
 
       <Routes>
-        {isStudentLoggedIn ? (
+        {isStudentLoggedIn && (
           <>
             <Route path="/students" element={<Students onOpenAuth={openAuthModal} />} />
             <Route path="*" element={<Navigate to="/students" replace />} />
           </>
-        ) : (
+        )}
+        {isFacultyLoggedIn && (
+          <>
+            <Route path="/faculty" element={<Faculty onOpenAuth={openAuthModal} />} />
+            <Route path="*" element={<Navigate to="/faculty" replace />} />
+          </>
+        )}
+        {!isAnyDashboardLoggedIn && (
           <>
             <Route path="/" element={<Home onOpenAuth={openAuthModal} />} />
             <Route path="/institutions" element={<Institutions />} />
@@ -60,7 +69,7 @@ function App() {
         )}
       </Routes>
 
-      {!isStudentLoggedIn && <Footer />}
+      {!isAnyDashboardLoggedIn && <Footer />}
 
       <AuthModal
         isOpen={isAuthModalOpen}
