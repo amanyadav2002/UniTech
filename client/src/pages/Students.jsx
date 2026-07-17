@@ -489,7 +489,7 @@ export default function Students({ onOpenAuth }) {
                 {activeTab === "profile" && "Student Core Profile"}
               </h2>
               <p className="text-slate-500 mt-1 text-sm font-medium">
-                Academic year: <strong className="text-slate-700">{studentProfile.year || "3rd"} Year</strong> &bull; Semester: <strong className="text-slate-700">{studentProfile.semester || "6th"}</strong>
+                Academic year: <strong className="text-slate-700">{studentProfile.year} </strong> &bull; Semester: <strong className="text-slate-700">{studentProfile.semester}</strong>
               </p>
             </div>
             
