@@ -296,9 +296,95 @@ const updateProfile = async (req, res) => {
   }
 };
 
+// @desc    Add a bookmark to student profile
+// @route   POST /api/auth/bookmarks
+// @access  Private
+const addBookmark = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { itemId, type, title, courseCode, courseName, dueDate, category, link, content } = req.body;
+
+    if (!itemId || !type || !title) {
+      return res.status(400).json({ message: "Item ID, type, and title are required for bookmarking" });
+    }
+
+    // Find Student profile
+    const student = await Student.findOne({ user: userId });
+    if (!student) {
+      return res.status(404).json({ message: "Student profile not found" });
+    }
+
+    // Check if already bookmarked
+    const alreadyBookmarked = student.bookmarks.some(b => b.itemId === itemId);
+    if (alreadyBookmarked) {
+      return res.status(400).json({ message: "Item is already bookmarked" });
+    }
+
+    // Add bookmark
+    student.bookmarks.push({ itemId, type, title, courseCode, courseName, dueDate, category, link, content });
+    await student.save();
+
+    // Get base user to return populated user object
+    const user = await User.findById(userId).select("-password");
+
+    res.json({
+      message: "Bookmark added successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        profile: student,
+      }
+    });
+  } catch (error) {
+    console.error("Add bookmark error:", error);
+    res.status(500).json({ message: "Server error occurred adding bookmark" });
+  }
+};
+
+// @desc    Remove a bookmark from student profile
+// @route   DELETE /api/auth/bookmarks/:itemId
+// @access  Private
+const removeBookmark = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { itemId } = req.params;
+
+    // Find Student profile
+    const student = await Student.findOne({ user: userId });
+    if (!student) {
+      return res.status(404).json({ message: "Student profile not found" });
+    }
+
+    // Pull bookmark
+    student.bookmarks = student.bookmarks.filter(b => b.itemId !== itemId);
+    await student.save();
+
+    // Get base user to return populated user object
+    const user = await User.findById(userId).select("-password");
+
+    res.json({
+      message: "Bookmark removed successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        profile: student,
+      }
+    });
+  } catch (error) {
+    console.error("Remove bookmark error:", error);
+    res.status(500).json({ message: "Server error occurred removing bookmark" });
+  }
+};
+
 module.exports = {
   signup,
   login,
   getMe,
   updateProfile,
+  addBookmark,
+  removeBookmark,
 };

@@ -33,14 +33,18 @@ import {
   Heart,
   CalendarDays,
   Hash,
+  Bookmark,
 } from "lucide-react";
 
 export default function Students({ onOpenAuth }) {
-  const { user, logout, updateUserProfile } = useAuth();
+  const { user, logout, updateUserProfile, addBookmark, removeBookmark } = useAuth();
   
   // Dashboard navigation tab
   const [activeTab, setActiveTab] = useState("overview");
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+  const [bookmarkFilter, setBookmarkFilter] = useState("all");
+  const [bookmarkSearch, setBookmarkSearch] = useState("");
+  const [selectedResourceCourse, setSelectedResourceCourse] = useState(null);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -220,6 +224,154 @@ export default function Students({ onOpenAuth }) {
     const matchesCategory = noticeCategory === "all" || n.category === noticeCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // --- Mock Notes & Assignments Data ---
+  const notesList = [
+    {
+      id: "note_1",
+      title: "Unit 1: Introduction to Computer Networks",
+      courseCode: "CS-301",
+      courseName: "Computer Networks",
+      teacher: "Dr. Robert Vance",
+      link: "#",
+      content: "Introduction to layered network architectures, OSI model, TCP/IP protocol suite. Fundamental concepts of packet switching, circuit switching, and network performance metrics like throughput and latency."
+    },
+    {
+      id: "note_2",
+      title: "TCP/IP Protocol Suite & Wireshark Lab Guide",
+      courseCode: "CS-301",
+      courseName: "Computer Networks",
+      teacher: "Dr. Robert Vance",
+      link: "#",
+      content: "Comprehensive lab manual for packet sniffing using Wireshark. Detailed analysis of TCP 3-way handshake, flow control, congestion window adjustments, and IP header options."
+    },
+    {
+      id: "note_3",
+      title: "Process Synchronization & Semaphores Lecture Slides",
+      courseCode: "CS-302",
+      courseName: "Operating Systems",
+      teacher: "Dr. Sarah Jenkins",
+      link: "#",
+      content: "Detailed slides explaining the critical section problem, mutual exclusion, semaphores, mutexes, and classic synchronization problems like dining philosophers and producer-consumer."
+    },
+    {
+      id: "note_4",
+      title: "Memory Management & Virtual Memory Notes",
+      courseCode: "CS-302",
+      courseName: "Operating Systems",
+      teacher: "Dr. Sarah Jenkins",
+      link: "#",
+      content: "Lecture notes on paging, segmentation, page tables, TLB cache, demand paging, page replacement algorithms (FIFO, LRU, Optimal), and thrashing phenomena."
+    },
+    {
+      id: "note_5",
+      title: "SQL Join Queries & Indexing Cheatsheet",
+      courseCode: "CS-303",
+      courseName: "Database Management Systems",
+      teacher: "Prof. Alan Turing",
+      link: "#",
+      content: "Quick reference guide for writing optimized SQL joins (inner, outer, cross, self). Explains B-Tree index structures, clustered vs non-clustered indexes, and query execution plans."
+    },
+    {
+      id: "note_6",
+      title: "Vector Spaces & Linear Transformations Guide",
+      courseCode: "MA-202",
+      courseName: "Linear Algebra",
+      teacher: "Dr. Katherine Johnson",
+      link: "#",
+      content: "Study guide focusing on vector spaces, subspaces, linear independence, basis, dimension, rank-nullity theorem, and matrix representations of linear transformations."
+    },
+    {
+      id: "note_7",
+      title: "Codes of Conduct & Ethical Frameworks Case Study",
+      courseCode: "HU-201",
+      courseName: "Professional Ethics",
+      teacher: "Prof. Marcus Aurelius",
+      link: "#",
+      content: "Reading material on professional codes of ethics (IEEE, ACM), moral responsibility of engineers, intellectual property rights, and whistleblowing case studies."
+    }
+  ];
+
+  const assignmentsList = [
+    {
+      id: "assign_1",
+      title: "Assignment 1: Socket Programming in Python (TCP/UDP)",
+      courseCode: "CS-301",
+      courseName: "Computer Networks",
+      dueDate: "2026-07-25",
+      status: "Pending",
+      content: "Implement a multi-threaded TCP chat server and client in Python. Also write a UDP client-server pair simulating a file transfer protocol with basic packet loss recovery."
+    },
+    {
+      id: "assign_2",
+      title: "Lab Exercise 2: Implementing Producer-Consumer using Mutex",
+      courseCode: "CS-302",
+      courseName: "Operating Systems",
+      dueDate: "2026-07-28",
+      status: "Submitted",
+      content: "Write a C program that simulates the Producer-Consumer problem using POSIX threads, mutexes, and condition variables. Handle buffer overflow and underflow conditions gracefully."
+    },
+    {
+      id: "assign_3",
+      title: "DBMS Project Proposal: Schema Design & Normalization",
+      courseCode: "CS-303",
+      courseName: "Database Management Systems",
+      dueDate: "2026-07-30",
+      status: "Pending",
+      content: "Submit a project proposal detailing your database system design. Must include ER diagram, schemas mapped up to 3NF/BCNF, and a list of at least 10 complex queries you intend to test."
+    },
+    {
+      id: "assign_4",
+      title: "Problem Set 3: Eigenvalues & Eigenvectors",
+      courseCode: "MA-202",
+      courseName: "Linear Algebra",
+      dueDate: "2026-07-22",
+      status: "Pending",
+      content: "Solve the linear equations and compute eigenvalues, eigenvectors, and diagonalization matrices for the 5 given 3x3 matrices in the worksheet."
+    },
+    {
+      id: "assign_5",
+      title: "Case Study Analysis on Whistleblowing & Engineering Ethics",
+      courseCode: "HU-201",
+      courseName: "Professional Ethics",
+      dueDate: "2026-07-29",
+      status: "Submitted",
+      content: "Write a 1500-word analysis on the Space Shuttle Challenger disaster. Focus on the ethical duties of engineers versus managers, and when whistleblowing is morally justified."
+    }
+  ];
+
+  // --- Bookmarking Helper Logic ---
+  const studentProfile = user?.profile || {};
+  const bookmarkedItems = studentProfile.bookmarks || [];
+
+  const isBookmarked = (itemId) => {
+    return bookmarkedItems.some((b) => b.itemId === itemId.toString());
+  };
+
+  const handleToggleBookmark = async (item, type) => {
+    const itemIdStr = (item.id || item.itemId).toString();
+    const isSaved = isBookmarked(itemIdStr);
+    try {
+      if (isSaved) {
+        await removeBookmark(itemIdStr);
+      } else {
+        const bookmarkObj = {
+          itemId: itemIdStr,
+          type: type,
+          title: item.title,
+          courseCode: item.courseCode || "",
+          courseName: item.courseName || item.title || "",
+          dueDate: item.dueDate || "",
+          category: item.category || "",
+          link: item.link || "",
+          content: item.content || "",
+        };
+        await addBookmark(bookmarkObj);
+      }
+    } catch (err) {
+      console.error("Error toggling bookmark:", err);
+    }
+  };
 
   // --- Mock Data ---
   const stats = [
@@ -451,6 +603,37 @@ export default function Students({ onOpenAuth }) {
             </button>
 
             <button
+              onClick={() => setActiveTab("resources")}
+              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
+                activeTab === "resources"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              <Laptop size={20} />
+              Study Resources
+            </button>
+
+            <button
+              onClick={() => setActiveTab("bookmarks")}
+              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
+                activeTab === "bookmarks"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              <div className="relative">
+                <Bookmark size={20} />
+                {bookmarkedItems.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                  </span>
+                )}
+              </div>
+              My Bookmarks
+            </button>
+
+            <button
               onClick={() => setActiveTab("profile")}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
                 activeTab === "profile"
@@ -486,10 +669,12 @@ export default function Students({ onOpenAuth }) {
                 {activeTab === "courses" && "Academics & Attendance"}
                 {activeTab === "grades" && "Academics Performance"}
                 {activeTab === "notices" && "Campus Notification Desk"}
+                {activeTab === "resources" && "Study Materials & Resources"}
+                {activeTab === "bookmarks" && "My Saved Bookmarks"}
                 {activeTab === "profile" && "Student Core Profile"}
               </h2>
               <p className="text-slate-500 mt-1 text-sm font-medium">
-                Academic year: <strong className="text-slate-700">{studentProfile.year || "3rd"} Year</strong> &bull; Semester: <strong className="text-slate-700">{studentProfile.semester || "6th"}</strong>
+                Academic year: <strong className="text-slate-700">{studentProfile.year} </strong> &bull; Semester: <strong className="text-slate-700">{studentProfile.semester}</strong>
               </p>
             </div>
             
@@ -823,6 +1008,113 @@ export default function Students({ onOpenAuth }) {
 
               </div>
 
+              {/* Quick Access Bookmarks Desk & Resource Hub */}
+              <div className="grid gap-8 lg:grid-cols-5 mt-8">
+                
+                {/* Bookmarks Desk (3 columns) */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 lg:col-span-3 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span>📌</span> Quick Bookmarks Desk
+                      </h4>
+                      <button 
+                        onClick={() => setActiveTab("bookmarks")}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                      >
+                        Manage All ({bookmarkedItems.length})
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-400 font-medium mb-5">Your pinned announcements, notes, and tasks for immediate reference.</p>
+
+                    <div className="space-y-3.5 max-h-[220px] overflow-y-auto pr-1">
+                      {bookmarkedItems.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 space-y-2">
+                          <Bookmark size={36} className="mx-auto text-slate-300" />
+                          <p className="text-sm font-medium">No bookmarks pinned yet.</p>
+                          <p className="text-[11px]">Pin notes, assignments, or notices to see them here.</p>
+                        </div>
+                      ) : (
+                        bookmarkedItems.slice(0, 4).map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition">
+                            <div className="flex items-center gap-3 overflow-hidden mr-3">
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded shrink-0 ${
+                                item.type === "note"
+                                  ? "bg-blue-50 text-blue-600 border border-blue-100"
+                                  : item.type === "assignment"
+                                    ? "bg-amber-50 text-amber-600 border border-amber-100"
+                                    : "bg-rose-50 text-rose-600 border border-rose-100"
+                              }`}>
+                                {item.type}
+                              </span>
+                              <p className="text-sm font-semibold text-slate-700 truncate">{item.title}</p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                if (item.type === "announcement") {
+                                  const noticeObj = noticesList.find(n => n.id.toString() === item.itemId);
+                                  if (noticeObj) setSelectedNotice(noticeObj);
+                                  else setSelectedNotice(item);
+                                } else {
+                                  alert(`Quick view for ${item.type}: ${item.title}\n\nDetail: ${item.content || "No details available."}`);
+                                }
+                              }}
+                              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 shrink-0"
+                            >
+                              Open &rarr;
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {bookmarkedItems.length > 4 && (
+                    <div className="text-center pt-3 border-t border-slate-100 text-xs text-slate-400 font-medium">
+                      Showing 4 of {bookmarkedItems.length} bookmarked items.
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Navigation Hub (2 columns) */}
+                <div className="bg-gradient-to-br from-indigo-900 to-indigo-950 rounded-2xl p-6 shadow-sm border border-slate-800 lg:col-span-2 text-white flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-lg font-bold flex items-center gap-2 mb-2">
+                      <span>⚡</span> Resources Registry
+                    </h4>
+                    <p className="text-xs text-indigo-200 font-semibold mb-6">Instantly navigate to the e-learning workspace or search catalog.</p>
+                    
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => setActiveTab("resources")}
+                        className="w-full flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition text-left"
+                      >
+                        <div>
+                          <p className="text-xs font-bold text-white">Lecture Notes Library</p>
+                          <p className="text-[10px] text-indigo-200 font-semibold">Download class presentations & docs</p>
+                        </div>
+                        <ChevronRight size={16} className="text-indigo-300" />
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("resources")}
+                        className="w-full flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition text-left"
+                      >
+                        <div>
+                          <p className="text-xs font-bold text-white">Assignments Desk</p>
+                          <p className="text-[10px] text-indigo-200 font-semibold">Track submission due dates & grades</p>
+                        </div>
+                        <ChevronRight size={16} className="text-indigo-300" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="pt-4 border-t border-white/10 text-[10px] font-bold text-indigo-200 text-center uppercase tracking-wider">
+                    Powered by UniTech LMS v3.2
+                  </div>
+                </div>
+
+              </div>
+
             </div>
           )}
 
@@ -1119,10 +1411,26 @@ export default function Students({ onOpenAuth }) {
                           {notice.category}
                         </span>
 
-                        <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
-                          <Calendar size={12} />
-                          {notice.date}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
+                            <Calendar size={12} />
+                            {notice.date}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleBookmark(notice, "announcement");
+                            }}
+                            className={`p-1.5 rounded-lg border transition-all ${
+                              isBookmarked(notice.id)
+                                ? "bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm"
+                                : "bg-white border-slate-200/40 text-slate-400 hover:text-indigo-600 hover:border-indigo-100"
+                            }`}
+                            title={isBookmarked(notice.id) ? "Remove Bookmark" : "Bookmark Notice"}
+                          >
+                            <Bookmark size={14} fill={isBookmarked(notice.id) ? "currentColor" : "none"} />
+                          </button>
+                        </div>
                       </div>
 
                       <h4 className="font-extrabold text-slate-800 text-lg mb-2 flex items-center gap-2">
@@ -1146,6 +1454,366 @@ export default function Students({ onOpenAuth }) {
                   ))
                 )}
               </div>
+
+            </div>
+          )}
+
+          {/* TAB: STUDY RESOURCES */}
+          {activeTab === "resources" && (
+            <div className="space-y-6 animate-fadeIn">
+              
+              {!selectedResourceCourse ? (
+                // Subject List Grid View
+                <div className="space-y-6">
+                  <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/50 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                      <h3 className="font-extrabold text-slate-800 text-2xl tracking-tight">Registered Subjects Catalog</h3>
+                      <p className="text-sm text-slate-500 font-medium mt-1">Select any subject below to access lecture notes uploaded by faculty and assignments.</p>
+                    </div>
+                    <div className="bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs font-bold px-4 py-2 rounded-2xl">
+                      {coursesDetails.length} Subjects Registered
+                    </div>
+                  </div>
+
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {coursesDetails.map((course) => {
+                      const noteCount = notesList.filter(n => n.courseCode === course.code).length;
+                      const assignCount = assignmentsList.filter(a => a.courseCode === course.code).length;
+                      
+                      return (
+                        <div 
+                          key={course.code}
+                          onClick={() => setSelectedResourceCourse(course)}
+                          className="bg-white rounded-3xl border border-slate-200/50 p-6 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all duration-200 cursor-pointer flex flex-col justify-between group"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between mb-4">
+                              <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-xl uppercase">
+                                {course.code}
+                              </span>
+                              <span className="text-xs text-slate-400 font-semibold">{course.credits} Credits</span>
+                            </div>
+
+                            <h4 className="font-extrabold text-slate-800 text-lg mb-1 leading-snug group-hover:text-indigo-600 transition">
+                              {course.name}
+                            </h4>
+                            <p className="text-xs text-slate-400 font-semibold mb-6">Faculty: {course.teacher}</p>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-4 border-t border-slate-50 text-xs font-bold text-slate-500">
+                            <span className="flex items-center gap-1">
+                              📂 <strong className="text-slate-700">{noteCount}</strong> Notes
+                            </span>
+                            <span className="flex items-center gap-1">
+                              📝 <strong className="text-slate-700">{assignCount}</strong> Assignments
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                // Subject Dashboard Detail View
+                <div className="space-y-6">
+                  {/* Subject Detail Header */}
+                  <div className="bg-white rounded-3xl p-6 border border-slate-200/50 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="flex items-center gap-4">
+                      <button 
+                        onClick={() => setSelectedResourceCourse(null)}
+                        className="p-2.5 rounded-2xl bg-slate-50 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition border border-slate-200/60 font-bold"
+                        title="Back to Subjects"
+                      >
+                        &larr; Back
+                      </button>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-lg uppercase">
+                            {selectedResourceCourse.code}
+                          </span>
+                          <span className="text-xs text-slate-400 font-semibold">Instructor: {selectedResourceCourse.teacher}</span>
+                        </div>
+                        <h3 className="font-extrabold text-slate-800 text-xl tracking-tight mt-1">{selectedResourceCourse.name}</h3>
+                      </div>
+                    </div>
+                    <div className="text-xs font-bold text-slate-500 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
+                      Year {studentProfile.year || "3rd"} &bull; Sem {studentProfile.semester || "6th"}
+                    </div>
+                  </div>
+
+                  {/* Redesigned two column layout: Left for notes uploaded, Right for assignments */}
+                  <div className="grid gap-8 lg:grid-cols-2">
+                    
+                    {/* Faculty Uploaded Notes */}
+                    <div className="space-y-4">
+                      <div className="border-b border-slate-200/60 pb-3 flex justify-between items-center">
+                        <h4 className="text-sm font-extrabold text-slate-700 flex items-center gap-2">
+                          <span className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600"><BookOpen size={16} /></span>
+                          Faculty Uploaded Resources
+                        </h4>
+                        <span className="text-xs text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded-full">
+                          {notesList.filter(n => n.courseCode === selectedResourceCourse.code).length} Items
+                        </span>
+                      </div>
+
+                      <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                        {notesList.filter(n => n.courseCode === selectedResourceCourse.code).length === 0 ? (
+                          <div className="bg-white rounded-2xl border border-slate-200/40 p-8 text-center text-slate-400 font-medium text-xs">
+                            No resources uploaded by the faculty yet.
+                          </div>
+                        ) : (
+                          notesList.filter(n => n.courseCode === selectedResourceCourse.code).map((note) => (
+                            <div key={note.id} className="bg-white rounded-2xl border border-slate-200/50 p-5 hover:shadow-md transition shadow-sm flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-center justify-between mb-3">
+                                  <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                    <span>📄</span> Lecture Material
+                                  </span>
+                                  <button
+                                    onClick={() => handleToggleBookmark(note, "note")}
+                                    className={`p-1.5 rounded-lg border transition-all ${
+                                      isBookmarked(note.id)
+                                        ? "bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm"
+                                        : "bg-white border-slate-200/40 text-slate-400 hover:text-indigo-600 hover:border-indigo-100"
+                                    }`}
+                                    title={isBookmarked(note.id) ? "Remove Bookmark" : "Bookmark Note"}
+                                  >
+                                    <Bookmark size={14} fill={isBookmarked(note.id) ? "currentColor" : "none"} />
+                                  </button>
+                                </div>
+                                <h5 className="font-bold text-slate-800 text-base mb-1.5">{note.title}</h5>
+                                <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-4">{note.content}</p>
+                              </div>
+                              <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">PDF Handout</span>
+                                <button
+                                  onClick={() => alert(`Downloading: ${note.title}`)}
+                                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                                >
+                                  Download Material &rarr;
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Course Assignments */}
+                    <div className="space-y-4">
+                      <div className="border-b border-slate-200/60 pb-3 flex justify-between items-center">
+                        <h4 className="text-sm font-extrabold text-slate-700 flex items-center gap-2">
+                          <span className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600"><FileText size={16} /></span>
+                          Subject Assignments
+                        </h4>
+                        <span className="text-xs text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded-full">
+                          {assignmentsList.filter(a => a.courseCode === selectedResourceCourse.code).length} Items
+                        </span>
+                      </div>
+
+                      <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                        {assignmentsList.filter(a => a.courseCode === selectedResourceCourse.code).length === 0 ? (
+                          <div className="bg-white rounded-2xl border border-slate-200/40 p-8 text-center text-slate-400 font-medium text-xs">
+                            No assignments listed for this subject.
+                          </div>
+                        ) : (
+                          assignmentsList.filter(a => a.courseCode === selectedResourceCourse.code).map((assign) => (
+                            <div key={assign.id} className="bg-white rounded-2xl border border-slate-200/50 p-5 hover:shadow-md transition shadow-sm flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-center justify-between mb-3">
+                                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${
+                                    assign.status === "Submitted"
+                                      ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                                      : "bg-amber-50 text-amber-600 border border-amber-100"
+                                  }`}>
+                                    {assign.status}
+                                  </span>
+                                  <button
+                                    onClick={() => handleToggleBookmark(assign, "assignment")}
+                                    className={`p-1.5 rounded-lg border transition-all ${
+                                      isBookmarked(assign.id)
+                                        ? "bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm"
+                                        : "bg-white border-slate-200/40 text-slate-400 hover:text-indigo-600 hover:border-indigo-100"
+                                    }`}
+                                    title={isBookmarked(assign.id) ? "Remove Bookmark" : "Bookmark Assignment"}
+                                  >
+                                    <Bookmark size={14} fill={isBookmarked(assign.id) ? "currentColor" : "none"} />
+                                  </button>
+                                </div>
+                                <h5 className="font-bold text-slate-800 text-base mb-1">{assign.title}</h5>
+                                <p className="text-[10px] text-rose-500 font-bold mb-3 flex items-center gap-1">
+                                  <Clock size={11} /> Due Date: {assign.dueDate}
+                                </p>
+                                <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-4">{assign.content}</p>
+                              </div>
+                              <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">LMS Submit Portal</span>
+                                <button
+                                  onClick={() => alert(`Opening submission console: ${assign.title}`)}
+                                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                                >
+                                  Submit Assignment &rarr;
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {/* TAB: MY BOOKMARKS */}
+          {activeTab === "bookmarks" && (
+            <div className="space-y-6 animate-fadeIn">
+              
+              {/* Controls bar */}
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/50 flex flex-col md:flex-row gap-4 items-center justify-between">
+                
+                {/* Search bookmarked titles */}
+                <div className="relative w-full md:w-80">
+                  <Search className="absolute left-3.5 top-2.5 text-slate-400 h-5 w-5" />
+                  <input
+                    type="text"
+                    placeholder="Search saved bookmarks..."
+                    value={bookmarkSearch}
+                    onChange={(e) => setBookmarkSearch(e.target.value)}
+                    className="w-full pl-10 rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600 font-semibold"
+                  />
+                </div>
+
+                {/* Filter tabs */}
+                <div className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-xl shrink-0">
+                  {[
+                    { key: "all", label: "All" },
+                    { key: "note", label: "Notes" },
+                    { key: "assignment", label: "Assignments" },
+                    { key: "announcement", label: "Announcements" }
+                  ].map((cat) => {
+                    const count = cat.key === "all" 
+                      ? bookmarkedItems.length 
+                      : bookmarkedItems.filter(b => b.type === cat.key).length;
+                    
+                    return (
+                      <button
+                        key={cat.key}
+                        onClick={() => setBookmarkFilter(cat.key)}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-lg uppercase tracking-wide transition flex items-center gap-1.5 ${
+                          bookmarkFilter === cat.key
+                            ? "bg-white text-indigo-600 shadow-sm"
+                            : "text-slate-500 hover:text-slate-800"
+                        }`}
+                      >
+                        {cat.label}
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                          bookmarkFilter === cat.key ? "bg-indigo-50 text-indigo-600" : "bg-slate-200 text-slate-600"
+                        }`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+              </div>
+
+              {/* Bookmarked Items Grid */}
+              {bookmarkedItems.filter(b => {
+                const matchesSearch = b.title.toLowerCase().includes(bookmarkSearch.toLowerCase()) ||
+                                      (b.content && b.content.toLowerCase().includes(bookmarkSearch.toLowerCase()));
+                const matchesCategory = bookmarkFilter === "all" || b.type === bookmarkFilter;
+                return matchesSearch && matchesCategory;
+              }).length === 0 ? (
+                <div className="bg-white rounded-2xl p-16 shadow-sm border border-slate-200/50 text-center text-slate-400">
+                  <Bookmark size={48} className="mx-auto text-slate-200 mb-3" />
+                  <p className="text-base font-bold">No bookmarks found matching the criteria.</p>
+                  <p className="text-sm mt-1">Items you bookmark across the Portal will show up here.</p>
+                </div>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {bookmarkedItems.filter(b => {
+                    const matchesSearch = b.title.toLowerCase().includes(bookmarkSearch.toLowerCase()) ||
+                                          (b.content && b.content.toLowerCase().includes(bookmarkSearch.toLowerCase()));
+                    const matchesCategory = bookmarkFilter === "all" || b.type === bookmarkFilter;
+                    return matchesSearch && matchesCategory;
+                  }).map((item) => (
+                    <div 
+                      key={item.itemId} 
+                      className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 hover:shadow-md transition duration-200 flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-lg border ${
+                            item.type === "note" 
+                              ? "bg-blue-50 text-blue-600 border-blue-100" 
+                              : item.type === "assignment" 
+                                ? "bg-amber-50 text-amber-600 border-amber-100" 
+                                : "bg-rose-50 text-rose-600 border-rose-100"
+                          }`}>
+                            {item.type}
+                          </span>
+                          
+                          <button
+                            onClick={() => handleToggleBookmark(item, item.type)}
+                            className="p-1.5 rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-600 hover:text-red-600 hover:bg-red-50 hover:border-red-100 transition"
+                            title="Remove Bookmark"
+                          >
+                            <Bookmark size={14} fill="currentColor" />
+                          </button>
+                        </div>
+
+                        <h4 className="font-extrabold text-slate-800 text-base mb-2 leading-snug">
+                          {item.title}
+                        </h4>
+                        
+                        {item.courseCode && (
+                          <p className="text-[10px] text-slate-400 font-semibold mb-3">
+                            Course: {item.courseCode} {item.courseName ? `(${item.courseName})` : ""}
+                          </p>
+                        )}
+
+                        {item.dueDate && (
+                          <p className="text-[10px] text-rose-500 font-bold mb-3 flex items-center gap-1">
+                            <Clock size={12} /> Due: {item.dueDate}
+                          </p>
+                        )}
+
+                        {item.category && (
+                          <p className="text-[10px] text-slate-400 font-semibold mb-3">
+                            Category: <span className="capitalize">{item.category}</span>
+                          </p>
+                        )}
+
+                        <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-4 line-clamp-3">
+                          {item.content}
+                        </p>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-50 flex justify-end">
+                        <button
+                          onClick={() => {
+                            if (item.type === "announcement") {
+                              const noticeObj = noticesList.find(n => n.id.toString() === item.itemId);
+                              if (noticeObj) setSelectedNotice(noticeObj);
+                              else setSelectedNotice(item);
+                            } else {
+                              alert(`Quick view for ${item.type}: ${item.title}\n\nDetail: ${item.content || "No details available."}`);
+                            }
+                          }}
+                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
+                        >
+                          View Details &rarr;
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
             </div>
           )}
