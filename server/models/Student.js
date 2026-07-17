@@ -61,6 +61,19 @@ const StudentSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    bookmarks: [
+      {
+        itemId: { type: String, required: true },
+        type: { type: String, required: true, enum: ["note", "assignment", "announcement"] },
+        title: { type: String, required: true },
+        courseCode: { type: String },
+        courseName: { type: String },
+        dueDate: { type: String },
+        category: { type: String },
+        link: { type: String },
+        content: { type: String },
+      }
+    ],
   },
   {
     timestamps: true,

@@ -236,8 +236,155 @@ const getMe = async (req, res) => {
   }
 };
 
+// @desc    Update user profile details
+// @route   PUT /api/auth/profile
+// @access  Private
+const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, phone, age, blood, year, semester, department, salary } = req.body;
+
+    // Find User
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update base user details if provided
+    if (name) {
+      user.name = name.trim();
+      await user.save();
+    }
+
+    let profile = null;
+    if (user.role === "student") {
+      profile = await Student.findOne({ user: userId });
+      if (profile) {
+        if (phone !== undefined) profile.phone = phone.trim();
+        if (age !== undefined) profile.age = Number(age);
+        if (blood !== undefined) profile.blood = blood.trim();
+        if (year !== undefined) profile.year = year.trim();
+        if (semester !== undefined) profile.semester = semester.trim();
+        if (name) profile.name = name.trim();
+        await profile.save();
+      }
+    } else if (user.role === "faculty") {
+      profile = await Teacher.findOne({ user: userId });
+      if (profile) {
+        if (phone !== undefined) profile.phone = phone.trim();
+        if (age !== undefined) profile.age = Number(age);
+        if (department !== undefined) profile.department = department.trim();
+        if (salary !== undefined) profile.salary = Number(salary);
+        if (name) profile.name = name.trim();
+        await profile.save();
+      }
+    }
+
+    res.json({
+      message: "Profile updated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        profile: profile,
+      },
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ message: "Server error occurred during profile update" });
+  }
+};
+
+// @desc    Add a bookmark to student profile
+// @route   POST /api/auth/bookmarks
+// @access  Private
+const addBookmark = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { itemId, type, title, courseCode, courseName, dueDate, category, link, content } = req.body;
+
+    if (!itemId || !type || !title) {
+      return res.status(400).json({ message: "Item ID, type, and title are required for bookmarking" });
+    }
+
+    // Find Student profile
+    const student = await Student.findOne({ user: userId });
+    if (!student) {
+      return res.status(404).json({ message: "Student profile not found" });
+    }
+
+    // Check if already bookmarked
+    const alreadyBookmarked = student.bookmarks.some(b => b.itemId === itemId);
+    if (alreadyBookmarked) {
+      return res.status(400).json({ message: "Item is already bookmarked" });
+    }
+
+    // Add bookmark
+    student.bookmarks.push({ itemId, type, title, courseCode, courseName, dueDate, category, link, content });
+    await student.save();
+
+    // Get base user to return populated user object
+    const user = await User.findById(userId).select("-password");
+
+    res.json({
+      message: "Bookmark added successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        profile: student,
+      }
+    });
+  } catch (error) {
+    console.error("Add bookmark error:", error);
+    res.status(500).json({ message: "Server error occurred adding bookmark" });
+  }
+};
+
+// @desc    Remove a bookmark from student profile
+// @route   DELETE /api/auth/bookmarks/:itemId
+// @access  Private
+const removeBookmark = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { itemId } = req.params;
+
+    // Find Student profile
+    const student = await Student.findOne({ user: userId });
+    if (!student) {
+      return res.status(404).json({ message: "Student profile not found" });
+    }
+
+    // Pull bookmark
+    student.bookmarks = student.bookmarks.filter(b => b.itemId !== itemId);
+    await student.save();
+
+    // Get base user to return populated user object
+    const user = await User.findById(userId).select("-password");
+
+    res.json({
+      message: "Bookmark removed successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        profile: student,
+      }
+    });
+  } catch (error) {
+    console.error("Remove bookmark error:", error);
+    res.status(500).json({ message: "Server error occurred removing bookmark" });
+  }
+};
+
 module.exports = {
   signup,
   login,
   getMe,
+  updateProfile,
+  addBookmark,
+  removeBookmark,
 };
