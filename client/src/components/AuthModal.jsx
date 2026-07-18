@@ -178,6 +178,50 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
     }, 200);
   };
 
+  // Year and Semester synchronization helpers
+  const getAvailableSemesters = (selectedYear) => {
+    switch (selectedYear) {
+      case "1st Year":
+        return ["1st Sem", "2nd Sem"];
+      case "2nd Year":
+        return ["3rd Sem", "4th Sem"];
+      case "3rd Year":
+        return ["5th Sem", "6th Sem"];
+      case "4th Year":
+        return ["7th Sem", "8th Sem"];
+      default:
+        return ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"];
+    }
+  };
+
+  const handleYearSelection = (selectedYear) => {
+    setYear(selectedYear);
+    // Clear semester if it is incompatible with the newly selected year
+    if (selectedYear === "1st Year" && !["1st Sem", "2nd Sem"].includes(semester)) {
+      setSemester("");
+    } else if (selectedYear === "2nd Year" && !["3rd Sem", "4th Sem"].includes(semester)) {
+      setSemester("");
+    } else if (selectedYear === "3rd Year" && !["5th Sem", "6th Sem"].includes(semester)) {
+      setSemester("");
+    } else if (selectedYear === "4th Year" && !["7th Sem", "8th Sem"].includes(semester)) {
+      setSemester("");
+    }
+  };
+
+  const handleSemesterSelection = (selectedSemester) => {
+    setSemester(selectedSemester);
+    // Automatically select the corresponding year
+    if (["1st Sem", "2nd Sem"].includes(selectedSemester)) {
+      setYear("1st Year");
+    } else if (["3rd Sem", "4th Sem"].includes(selectedSemester)) {
+      setYear("2nd Year");
+    } else if (["5th Sem", "6th Sem"].includes(selectedSemester)) {
+      setYear("3rd Year");
+    } else if (["7th Sem", "8th Sem"].includes(selectedSemester)) {
+      setYear("4th Year");
+    }
+  };
+
   const [usn, setUsn] = useState("");
   const [year, setYear] = useState("");
   const [semester, setSemester] = useState("");
@@ -764,7 +808,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                           <select
                             required
                             value={year}
-                            onChange={(e) => setYear(e.target.value)}
+                            onChange={(e) => handleYearSelection(e.target.value)}
                             className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
                           >
                             <option value="" disabled>Select Year</option>
@@ -788,18 +832,13 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                           <select
                             required
                             value={semester}
-                            onChange={(e) => setSemester(e.target.value)}
+                            onChange={(e) => handleSemesterSelection(e.target.value)}
                             className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
                           >
                             <option value="" disabled>Select Semester</option>
-                            <option value="1st Sem">1st Sem</option>
-                            <option value="2nd Sem">2nd Sem</option>
-                            <option value="3rd Sem">3rd Sem</option>
-                            <option value="4th Sem">4th Sem</option>
-                            <option value="5th Sem">5th Sem</option>
-                            <option value="6th Sem">6th Sem</option>
-                            <option value="7th Sem">7th Sem</option>
-                            <option value="8th Sem">8th Sem</option>
+                            {getAvailableSemesters(year).map((sem) => (
+                              <option key={sem} value={sem}>{sem}</option>
+                            ))}
                           </select>
                         </div>
                       </div>
