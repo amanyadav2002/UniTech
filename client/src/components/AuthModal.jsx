@@ -10,7 +10,6 @@ import {
   GraduationCap,
   Briefcase,
   Shield,
-  Calendar,
   Phone,
   Hash,
   Building,
@@ -39,6 +38,146 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
   const [age, setAge] = useState("");
   const [phone, setPhone] = useState("");
   const [dob, setDob] = useState("");
+  
+  // Custom DOB picker states
+  const [dobDay, setDobDay] = useState("");
+  const [dobMonth, setDobMonth] = useState("");
+  const [dobYear, setDobYear] = useState("");
+  const [isDayOpen, setIsDayOpen] = useState(false);
+  const [isMonthOpen, setIsMonthOpen] = useState(false);
+  const [isYearOpen, setIsYearOpen] = useState(false);
+
+  const monthsList = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  const daysList = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
+  const yearsList = Array.from({ length: 80 }, (_, i) => (new Date().getFullYear() - i).toString());
+
+  // Synchronize separate custom fields with main dob state
+  useEffect(() => {
+    if (dobDay && dobMonth && dobYear) {
+      const monthNum = monthsList.indexOf(dobMonth) + 1;
+      if (monthNum > 0) {
+        const formattedMonth = monthNum.toString().padStart(2, "0");
+        const formattedDay = dobDay.padStart(2, "0");
+        setDob(`${dobYear}-${formattedMonth}-${formattedDay}`);
+      } else {
+        setDob("");
+      }
+    } else {
+      setDob("");
+    }
+  }, [dobDay, dobMonth, dobYear]);
+
+  // DOB validation helper to compute max days
+  const getMaxDays = (monthName, yearString) => {
+    if (!monthName) return 31;
+    const m = monthName.toLowerCase();
+    if (["april", "june", "september", "november"].includes(m)) {
+      return 30;
+    }
+    if (m === "february") {
+      const yr = parseInt(yearString, 10);
+      if (!isNaN(yr) && ((yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0)) {
+        return 29;
+      }
+      return 28;
+    }
+    return 31;
+  };
+
+  // DOB Input Change Handlers
+  const handleDayChange = (val) => {
+    if (val === "") {
+      setDobDay("");
+      return;
+    }
+    if (!/^\d+$/.test(val)) return;
+    const dayNum = parseInt(val, 10);
+    const maxDays = getMaxDays(dobMonth, dobYear);
+    if (dayNum <= maxDays) {
+      setDobDay(val);
+    }
+  };
+
+  const handleMonthChange = (val) => {
+    if (val === "") {
+      setDobMonth("");
+      return;
+    }
+    if (!/^[a-zA-Z]+$/.test(val)) return;
+    setDobMonth(val);
+  };
+
+  const handleYearChange = (val) => {
+    if (val === "") {
+      setDobYear("");
+      return;
+    }
+    if (!/^\d+$/.test(val)) return;
+    if (val.length > 4) return;
+    setDobYear(val);
+  };
+
+  // DOB Input Blur Handlers
+  const handleDayBlur = () => {
+    setTimeout(() => {
+      setIsDayOpen(false);
+      if (dobDay) {
+        const dayNum = parseInt(dobDay, 10);
+        if (isNaN(dayNum) || dayNum < 1) {
+          setDobDay("");
+        } else {
+          setDobDay(dayNum.toString());
+        }
+      }
+    }, 200);
+  };
+
+  const handleMonthBlur = () => {
+    setTimeout(() => {
+      setIsMonthOpen(false);
+      if (dobMonth) {
+        const matchedMonth = monthsList.find(
+          (m) => m.toLowerCase() === dobMonth.toLowerCase()
+        );
+        if (matchedMonth) {
+          setDobMonth(matchedMonth);
+          // Adjust Day if it exceeds new Month's max days
+          const maxDays = getMaxDays(matchedMonth, dobYear);
+          if (dobDay && parseInt(dobDay, 10) > maxDays) {
+            setDobDay(maxDays.toString());
+          }
+        } else {
+          setDobMonth("");
+        }
+      }
+    }, 200);
+  };
+
+  const handleYearBlur = () => {
+    setTimeout(() => {
+      setIsYearOpen(false);
+      if (dobYear) {
+        const yrNum = parseInt(dobYear, 10);
+        const currentYr = new Date().getFullYear();
+        if (isNaN(yrNum) || yrNum < 1900 || yrNum > currentYr) {
+          setDobYear("");
+        } else {
+          setDobYear(yrNum.toString());
+          // Leap year adjustment
+          if (dobMonth.toLowerCase() === "february") {
+            const maxDays = getMaxDays("february", yrNum.toString());
+            if (dobDay && parseInt(dobDay, 10) > maxDays) {
+              setDobDay(maxDays.toString());
+            }
+          }
+        }
+      }
+    }, 200);
+  };
+
   const [usn, setUsn] = useState("");
   const [year, setYear] = useState("");
   const [semester, setSemester] = useState("");
@@ -66,6 +205,12 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
       setAge("");
       setPhone("");
       setDob("");
+      setDobDay("");
+      setDobMonth("");
+      setDobYear("");
+      setIsDayOpen(false);
+      setIsMonthOpen(false);
+      setIsYearOpen(false);
       setUsn("");
       setYear("");
       setSemester("");
@@ -464,17 +609,123 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                     <label className="block text-sm font-semibold text-slate-700 mb-1">
                       Date of Birth
                     </label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                        <Calendar className="h-5 w-5" />
-                      </span>
-                      <input
-                        type="date"
-                        required
-                        value={dob}
-                        onChange={(e) => setDob(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
-                      />
+                    <div className="grid grid-cols-3 gap-3">
+                      {/* Day Input & Dropdown */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Day"
+                          value={dobDay}
+                          onChange={(e) => handleDayChange(e.target.value)}
+                          onFocus={() => setIsDayOpen(true)}
+                          onBlur={handleDayBlur}
+                          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm font-semibold"
+                        />
+                        {isDayOpen && (
+                          <ul className="absolute z-[110] w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                            {daysList
+                              .filter((d) => d.includes(dobDay))
+                              .map((d) => (
+                                <li
+                                  key={d}
+                                  onMouseDown={() => {
+                                    setDobDay(d);
+                                    setIsDayOpen(false);
+                                  }}
+                                  className="px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 cursor-pointer text-xs font-semibold"
+                                >
+                                  {d}
+                                </li>
+                              ))}
+                            {daysList.filter((d) => d.includes(dobDay)).length === 0 && (
+                              <li className="px-3 py-1.5 text-slate-400 text-xs font-semibold">No matches</li>
+                            )}
+                          </ul>
+                        )}
+                      </div>
+
+                      {/* Month Input & Dropdown */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Month"
+                          value={dobMonth}
+                          onChange={(e) => handleMonthChange(e.target.value)}
+                          onFocus={() => setIsMonthOpen(true)}
+                          onBlur={handleMonthBlur}
+                          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm font-semibold"
+                        />
+                        {isMonthOpen && (
+                          <ul className="absolute z-[110] w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                            {monthsList
+                              .filter((m) => m.toLowerCase().includes(dobMonth.toLowerCase()))
+                              .map((m) => (
+                                <li
+                                  key={m}
+                                  onMouseDown={() => {
+                                    setDobMonth(m);
+                                    setIsMonthOpen(false);
+                                    // Cap Day if it exceeds maximum days for selected month
+                                    const maxDays = getMaxDays(m, dobYear);
+                                    if (dobDay && parseInt(dobDay, 10) > maxDays) {
+                                      setDobDay(maxDays.toString());
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 cursor-pointer text-xs font-semibold"
+                                >
+                                  {m}
+                                </li>
+                              ))}
+                            {monthsList.filter((m) => m.toLowerCase().includes(dobMonth.toLowerCase())).length === 0 && (
+                              <li className="px-3 py-1.5 text-slate-400 text-xs font-semibold">No matches</li>
+                            )}
+                          </ul>
+                        )}
+                      </div>
+
+                      {/* Year Input & Dropdown */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Year"
+                          value={dobYear}
+                          onChange={(e) => handleYearChange(e.target.value)}
+                          onFocus={() => setIsYearOpen(true)}
+                          onBlur={handleYearBlur}
+                          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm font-semibold"
+                        />
+                        {isYearOpen && (
+                          <ul className="absolute z-[110] w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                            {yearsList
+                              .filter((y) => y.includes(dobYear))
+                              .map((y) => (
+                                <li
+                                  key={y}
+                                  onMouseDown={() => {
+                                    setDobYear(y);
+                                    setIsYearOpen(false);
+                                    // Adjust Feb day limit if year changes
+                                    if (dobMonth.toLowerCase() === "february") {
+                                      const maxDays = getMaxDays("february", y);
+                                      if (dobDay && parseInt(dobDay, 10) > maxDays) {
+                                        setDobDay(maxDays.toString());
+                                      }
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 cursor-pointer text-xs font-semibold"
+                                >
+                                  {y}
+                                </li>
+                              ))}
+                            {yearsList.filter((y) => y.includes(dobYear)).length === 0 && (
+                              <li className="px-3 py-1.5 text-slate-400 text-xs font-semibold">No matches</li>
+                            )}
+                          </ul>
+                        )}
+                      </div>
                     </div>
                   </div>
 
