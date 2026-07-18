@@ -414,6 +414,135 @@ export default function Faculty({ onOpenAuth }) {
   const [assignCourse, setAssignCourse] = useState(coursesList[0]?.code || "");
   const [assignDueDate, setAssignDueDate] = useState("");
   const [assignDesc, setAssignDesc] = useState("");
+  
+  // Custom Due Date states
+  const [dueDay, setDueDay] = useState("");
+  const [dueMonth, setDueMonth] = useState("");
+  const [dueYear, setDueYear] = useState("");
+  const [isDueDayOpen, setIsDueDayOpen] = useState(false);
+
+  const monthsList = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  const daysList = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
+  const yearsList = Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() + i).toString());
+
+  // Synchronize custom due date values with assignDueDate
+  useEffect(() => {
+    if (dueDay && dueMonth && dueYear) {
+      const monthNum = monthsList.indexOf(dueMonth) + 1;
+      if (monthNum > 0) {
+        const formattedMonth = monthNum.toString().padStart(2, "0");
+        const formattedDay = dueDay.padStart(2, "0");
+        setAssignDueDate(`${dueYear}-${formattedMonth}-${formattedDay}`);
+      } else {
+        setAssignDueDate("");
+      }
+    } else {
+      setAssignDueDate("");
+    }
+  }, [dueDay, dueMonth, dueYear]);
+
+  // Due date validation helper
+  const getDueMaxDays = (monthName, yearString) => {
+    if (!monthName) return 31;
+    const m = monthName.toLowerCase();
+    if (["april", "june", "september", "november"].includes(m)) {
+      return 30;
+    }
+    if (m === "february") {
+      const yr = parseInt(yearString, 10);
+      if (!isNaN(yr) && ((yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0)) {
+        return 29;
+      }
+      return 28;
+    }
+    return 31;
+  };
+
+  const handleDueDayChange = (val) => {
+    setIsDueDayOpen(true);
+    if (val === "") {
+      setDueDay("");
+      return;
+    }
+    if (!/^\d+$/.test(val)) return;
+    const dayNum = parseInt(val, 10);
+    const maxDays = getDueMaxDays(dueMonth, dueYear);
+    if (dayNum <= maxDays) {
+      setDueDay(val);
+    }
+  };
+
+  const handleDueMonthChange = (val) => {
+    if (val === "") {
+      setDueMonth("");
+      return;
+    }
+    if (!/^[a-zA-Z]+$/.test(val)) return;
+    setDueMonth(val);
+  };
+
+  const handleDueYearChange = (val) => {
+    if (val === "") {
+      setDueYear("");
+      return;
+    }
+    if (!/^\d+$/.test(val)) return;
+    if (val.length > 4) return;
+    setDueYear(val);
+  };
+
+  const handleDueDayBlur = () => {
+    setTimeout(() => {
+      setIsDueDayOpen(false);
+      if (dueDay) {
+        const dayNum = parseInt(dueDay, 10);
+        if (isNaN(dayNum) || dayNum < 1) {
+          setDueDay("");
+        } else {
+          setDueDay(dayNum.toString());
+        }
+      }
+    }, 200);
+  };
+
+  const handleDueMonthBlur = () => {
+    if (dueMonth) {
+      const matchedMonth = monthsList.find(
+        (m) => m.toLowerCase() === dueMonth.toLowerCase()
+      );
+      if (matchedMonth) {
+        setDueMonth(matchedMonth);
+        const maxDays = getDueMaxDays(matchedMonth, dueYear);
+        if (dueDay && parseInt(dueDay, 10) > maxDays) {
+          setDueDay(maxDays.toString());
+        }
+      } else {
+        setDueMonth("");
+      }
+    }
+  };
+
+  const handleDueYearBlur = () => {
+    if (dueYear) {
+      const yrNum = parseInt(dueYear, 10);
+      const currentYr = new Date().getFullYear();
+      if (isNaN(yrNum) || yrNum < currentYr || yrNum > currentYr + 20) {
+        setDueYear("");
+      } else {
+        setDueYear(yrNum.toString());
+        if (dueMonth.toLowerCase() === "february") {
+          const maxDays = getDueMaxDays("february", yrNum.toString());
+          if (dueDay && parseInt(dueDay, 10) > maxDays) {
+            setDueDay(maxDays.toString());
+          }
+        }
+      }
+    }
+  };
+
   const [assignSuccess, setAssignSuccess] = useState("");
 
   // Grade Edit Form State
@@ -521,6 +650,9 @@ export default function Faculty({ onOpenAuth }) {
 
     setAssignTitle("");
     setAssignDueDate("");
+    setDueDay("");
+    setDueMonth("");
+    setDueYear("");
     setAssignDesc("");
     setSelectedAssignForGrading(newAssignId);
     setAssignSuccess("Assignment created and published to students!");
@@ -1711,13 +1843,80 @@ export default function Faculty({ onOpenAuth }) {
                       </div>
                       <div>
                         <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Due Date</label>
-                        <input
-                          type="date"
-                          required
-                          value={assignDueDate}
-                          onChange={(e) => setAssignDueDate(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
-                        />
+                        <div className="grid grid-cols-3 gap-2">
+                          {/* Day Input & Dropdown */}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              required
+                              placeholder="Day"
+                              value={dueDay}
+                              onChange={(e) => handleDueDayChange(e.target.value)}
+                              onFocus={() => setIsDueDayOpen(true)}
+                              onBlur={handleDueDayBlur}
+                              className="w-full rounded-xl border border-slate-200 px-2 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
+                            />
+                            {isDueDayOpen && (
+                              <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                                {daysList
+                                  .filter((d) => d.includes(dueDay))
+                                  .map((d) => (
+                                    <li
+                                      key={d}
+                                      onMouseDown={() => {
+                                        setDueDay(d);
+                                        setIsDueDayOpen(false);
+                                      }}
+                                      className="px-2 py-1.5 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer text-xs font-semibold"
+                                    >
+                                      {d}
+                                    </li>
+                                  ))}
+                                {daysList.filter((d) => d.includes(dueDay)).length === 0 && (
+                                  <li className="px-2 py-1.5 text-slate-400 text-xs font-semibold">No matches</li>
+                                )}
+                              </ul>
+                            )}
+                          </div>
+
+                          {/* Month Input & Dropdown */}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              required
+                              placeholder="Month"
+                              list="due-months-list"
+                              value={dueMonth}
+                              onChange={(e) => handleDueMonthChange(e.target.value)}
+                              onBlur={handleDueMonthBlur}
+                              className="w-full rounded-xl border border-slate-200 px-2 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
+                            />
+                            <datalist id="due-months-list">
+                              {monthsList.map((m) => (
+                                <option key={m} value={m} />
+                              ))}
+                            </datalist>
+                          </div>
+
+                          {/* Year Input & Dropdown */}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              required
+                              placeholder="Year"
+                              list="due-years-list"
+                              value={dueYear}
+                              onChange={(e) => handleDueYearChange(e.target.value)}
+                              onBlur={handleDueYearBlur}
+                              className="w-full rounded-xl border border-slate-200 px-2 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
+                            />
+                            <datalist id="due-years-list">
+                              {yearsList.map((y) => (
+                                <option key={y} value={y} />
+                              ))}
+                            </datalist>
+                          </div>
+                        </div>
                       </div>
                     </div>
 

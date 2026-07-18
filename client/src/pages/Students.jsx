@@ -81,6 +81,50 @@ export default function Students({ onOpenAuth }) {
   const [profileErrorMsg, setProfileErrorMsg] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
 
+  // Year and Semester synchronization helpers for profile edit
+  const getAvailableSemesters = (selectedYear) => {
+    switch (selectedYear) {
+      case "1st Year":
+        return ["1st Sem", "2nd Sem"];
+      case "2nd Year":
+        return ["3rd Sem", "4th Sem"];
+      case "3rd Year":
+        return ["5th Sem", "6th Sem"];
+      case "4th Year":
+        return ["7th Sem", "8th Sem"];
+      default:
+        return ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"];
+    }
+  };
+
+  const handleEditYearSelection = (selectedYear) => {
+    setEditYear(selectedYear);
+    // Clear semester if it is incompatible with the newly selected year
+    if (selectedYear === "1st Year" && !["1st Sem", "2nd Sem"].includes(editSemester)) {
+      setEditSemester("");
+    } else if (selectedYear === "2nd Year" && !["3rd Sem", "4th Sem"].includes(editSemester)) {
+      setEditSemester("");
+    } else if (selectedYear === "3rd Year" && !["5th Sem", "6th Sem"].includes(editSemester)) {
+      setEditSemester("");
+    } else if (selectedYear === "4th Year" && !["7th Sem", "8th Sem"].includes(editSemester)) {
+      setEditSemester("");
+    }
+  };
+
+  const handleEditSemesterSelection = (selectedSemester) => {
+    setEditSemester(selectedSemester);
+    // Automatically select the corresponding year
+    if (["1st Sem", "2nd Sem"].includes(selectedSemester)) {
+      setEditYear("1st Year");
+    } else if (["3rd Sem", "4th Sem"].includes(selectedSemester)) {
+      setEditYear("2nd Year");
+    } else if (["5th Sem", "6th Sem"].includes(selectedSemester)) {
+      setEditYear("3rd Year");
+    } else if (["7th Sem", "8th Sem"].includes(selectedSemester)) {
+      setEditYear("4th Year");
+    }
+  };
+
   // Sync profile details into inputs when edit state changes
   useEffect(() => {
     if (user?.profile) {
@@ -2165,13 +2209,13 @@ export default function Students({ onOpenAuth }) {
                       {isEditing ? (
                         <select
                           value={editYear}
-                          onChange={(e) => setEditYear(e.target.value)}
+                          onChange={(e) => handleEditYearSelection(e.target.value)}
                           className="w-full rounded-lg border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
                         >
-                          <option value="1st">1st Year</option>
-                          <option value="2nd">2nd Year</option>
-                          <option value="3rd">3rd Year</option>
-                          <option value="4th">4th Year</option>
+                          <option value="1st Year">1st Year</option>
+                          <option value="2nd Year">2nd Year</option>
+                          <option value="3rd Year">3rd Year</option>
+                          <option value="4th Year">4th Year</option>
                         </select>
                       ) : (
                         <p className="text-sm font-extrabold text-slate-800">{studentProfile.year || "N/A"}</p>
@@ -2187,17 +2231,13 @@ export default function Students({ onOpenAuth }) {
                       {isEditing ? (
                         <select
                           value={editSemester}
-                          onChange={(e) => setEditSemester(e.target.value)}
+                          onChange={(e) => handleEditSemesterSelection(e.target.value)}
                           className="w-full rounded-lg border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
                         >
-                          <option value="1st">1st Semester</option>
-                          <option value="2nd">2nd Semester</option>
-                          <option value="3rd">3rd Semester</option>
-                          <option value="4th">4th Semester</option>
-                          <option value="5th">5th Semester</option>
-                          <option value="6th">6th Semester</option>
-                          <option value="7th">7th Semester</option>
-                          <option value="8th">8th Semester</option>
+                          <option value="" disabled>Select Semester</option>
+                          {getAvailableSemesters(editYear).map((sem) => (
+                            <option key={sem} value={sem}>{sem.replace("Sem", "Semester")}</option>
+                          ))}
                         </select>
                       ) : (
                         <p className="text-sm font-extrabold text-slate-800">{studentProfile.semester || "N/A"}</p>
