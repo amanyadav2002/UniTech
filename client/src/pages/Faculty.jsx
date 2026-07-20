@@ -169,6 +169,153 @@ export default function Faculty({ onOpenAuth }) {
   const [attendanceCourse, setAttendanceCourse] = useState(coursesList[0]?.code || "");
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split("T")[0]);
   const [attendanceSuccess, setAttendanceSuccess] = useState("");
+
+  // Custom Attendance Date states initialized to today
+  const attInitialDate = new Date();
+  const initialAttDay = attInitialDate.getDate().toString();
+  const initialAttMonth = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ][attInitialDate.getMonth()];
+  const initialAttYear = attInitialDate.getFullYear().toString();
+
+  const [attDay, setAttDay] = useState(initialAttDay);
+  const [attMonth, setAttMonth] = useState(initialAttMonth);
+  const [attYear, setAttYear] = useState(initialAttYear);
+  const [isAttDayOpen, setIsAttDayOpen] = useState(false);
+  const [isAttMonthOpen, setIsAttMonthOpen] = useState(false);
+  const [isAttYearOpen, setIsAttYearOpen] = useState(false);
+
+  const attYearsList = Array.from({ length: 10 }, (_, i) => (2026 + i).toString());
+
+  // Synchronize attendance custom date values with attendanceDate
+  useEffect(() => {
+    if (attDay && attMonth && attYear) {
+      const monthNum = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ].indexOf(attMonth) + 1;
+      if (monthNum > 0) {
+        const formattedMonth = monthNum.toString().padStart(2, "0");
+        const formattedDay = attDay.padStart(2, "0");
+        setAttendanceDate(`${attYear}-${formattedMonth}-${formattedDay}`);
+      } else {
+        setAttendanceDate("");
+      }
+    } else {
+      setAttendanceDate("");
+    }
+  }, [attDay, attMonth, attYear]);
+
+  // Attendance date validation helper
+  const getAttMaxDays = (monthName, yearString) => {
+    if (!monthName) return 31;
+    const m = monthName.toLowerCase();
+    if (["april", "june", "september", "november"].includes(m)) {
+      return 30;
+    }
+    if (m === "february") {
+      const yr = parseInt(yearString, 10);
+      if (!isNaN(yr) && ((yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0)) {
+        return 29;
+      }
+      return 28;
+    }
+    return 31;
+  };
+
+  const handleAttDayChange = (val) => {
+    setIsAttDayOpen(true);
+    if (val === "") {
+      setAttDay("");
+      return;
+    }
+    if (!/^\d+$/.test(val)) return;
+    const dayNum = parseInt(val, 10);
+    const maxDays = getAttMaxDays(attMonth, attYear);
+    if (dayNum <= maxDays) {
+      setAttDay(val);
+    }
+  };
+
+  const handleAttMonthChange = (val) => {
+    setIsAttMonthOpen(true);
+    if (val === "") {
+      setAttMonth("");
+      return;
+    }
+    if (!/^[a-zA-Z]+$/.test(val)) return;
+    setAttMonth(val);
+  };
+
+  const handleAttYearChange = (val) => {
+    setIsAttYearOpen(true);
+    if (val === "") {
+      setAttYear("");
+      return;
+    }
+    if (!/^\d+$/.test(val)) return;
+    if (val.length > 4) return;
+    setAttYear(val);
+  };
+
+  const handleAttDayBlur = () => {
+    setTimeout(() => {
+      setIsAttDayOpen(false);
+      if (attDay) {
+        const dayNum = parseInt(attDay, 10);
+        if (isNaN(dayNum) || dayNum < 1) {
+          setAttDay("");
+        } else {
+          setAttDay(dayNum.toString());
+        }
+      }
+    }, 200);
+  };
+
+  const handleAttMonthBlur = () => {
+    setTimeout(() => {
+      setIsAttMonthOpen(false);
+      if (attMonth) {
+        const monthsArr = [
+          "January", "February", "March", "April", "May", "June",
+          "July", "August", "September", "October", "November", "December"
+        ];
+        const matchedMonth = monthsArr.find(
+          (m) => m.toLowerCase() === attMonth.toLowerCase()
+        );
+        if (matchedMonth) {
+          setAttMonth(matchedMonth);
+          const maxDays = getAttMaxDays(matchedMonth, attYear);
+          if (attDay && parseInt(attDay, 10) > maxDays) {
+            setAttDay(maxDays.toString());
+          }
+        } else {
+          setAttMonth("");
+        }
+      }
+    }, 200);
+  };
+
+  const handleAttYearBlur = () => {
+    setTimeout(() => {
+      setIsAttYearOpen(false);
+      if (attYear) {
+        const yrNum = parseInt(attYear, 10);
+        if (isNaN(yrNum) || yrNum < 2026 || yrNum > 2035) {
+          setAttYear("");
+        } else {
+          setAttYear(yrNum.toString());
+          if (attMonth.toLowerCase() === "february") {
+            const maxDays = getAttMaxDays("february", yrNum.toString());
+            if (attDay && parseInt(attDay, 10) > maxDays) {
+              setAttDay(maxDays.toString());
+            }
+          }
+        }
+      }
+    }, 200);
+  };
   
   // Set default attendance course when list loads
   useEffect(() => {
@@ -697,6 +844,136 @@ export default function Faculty({ onOpenAuth }) {
   const [paperStatus, setPaperStatus] = useState("published");
   const [paperSuccess, setPaperSuccess] = useState("");
 
+  // Custom Research Paper Date states
+  const [paperDay, setPaperDay] = useState("");
+  const [paperMonth, setPaperMonth] = useState("");
+  const [paperYear, setPaperYear] = useState("");
+  const [isPaperDayOpen, setIsPaperDayOpen] = useState(false);
+  const [isPaperMonthOpen, setIsPaperMonthOpen] = useState(false);
+  const [isPaperYearOpen, setIsPaperYearOpen] = useState(false);
+
+  const paperYearsList = Array.from({ length: 25 }, (_, i) => (2015 + i).toString());
+
+  // Synchronize custom paper date values with paperDate
+  useEffect(() => {
+    if (paperDay && paperMonth && paperYear) {
+      const formattedDay = paperDay.padStart(2, "0");
+      const formattedMonth = paperMonth.padStart(2, "0");
+      setPaperDate(`${paperYear}-${formattedMonth}-${formattedDay}`);
+    } else {
+      setPaperDate("");
+    }
+  }, [paperDay, paperMonth, paperYear]);
+
+  // Paper date validation helper for numeric MM
+  const getPaperMaxDays = (monthNumStr, yearString) => {
+    if (!monthNumStr) return 31;
+    const m = parseInt(monthNumStr, 10);
+    if ([4, 6, 9, 11].includes(m)) {
+      return 30;
+    }
+    if (m === 2) {
+      const yr = parseInt(yearString, 10);
+      if (!isNaN(yr) && ((yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0)) {
+        return 29;
+      }
+      return 28;
+    }
+    return 31;
+  };
+
+  const handlePaperDayChange = (val) => {
+    setIsPaperDayOpen(true);
+    if (val === "") {
+      setPaperDay("");
+      return;
+    }
+    if (!/^\d+$/.test(val)) return;
+    const dayNum = parseInt(val, 10);
+    const maxDays = getPaperMaxDays(paperMonth, paperYear);
+    if (dayNum <= maxDays) {
+      setPaperDay(val);
+    }
+  };
+
+  const handlePaperMonthChange = (val) => {
+    setIsPaperMonthOpen(true);
+    if (val === "") {
+      setPaperMonth("");
+      return;
+    }
+    if (!/^\d+$/.test(val)) return;
+    const mNum = parseInt(val, 10);
+    if (mNum <= 12) {
+      setPaperMonth(val);
+    }
+  };
+
+  const handlePaperYearChange = (val) => {
+    setIsPaperYearOpen(true);
+    if (val === "") {
+      setPaperYear("");
+      return;
+    }
+    if (!/^\d+$/.test(val)) return;
+    if (val.length > 4) return;
+    setPaperYear(val);
+  };
+
+  const handlePaperDayBlur = () => {
+    setTimeout(() => {
+      setIsPaperDayOpen(false);
+      if (paperDay) {
+        const dayNum = parseInt(paperDay, 10);
+        if (isNaN(dayNum) || dayNum < 1) {
+          setPaperDay("");
+        } else {
+          setPaperDay(dayNum.toString().padStart(2, "0"));
+        }
+      }
+    }, 200);
+  };
+
+  const handlePaperMonthBlur = () => {
+    setTimeout(() => {
+      setIsPaperMonthOpen(false);
+      if (paperMonth) {
+        const mNum = parseInt(paperMonth, 10);
+        if (isNaN(mNum) || mNum < 1 || mNum > 12) {
+          setPaperMonth("");
+        } else {
+          const formattedMonth = mNum.toString().padStart(2, "0");
+          setPaperMonth(formattedMonth);
+          const maxDays = getPaperMaxDays(formattedMonth, paperYear);
+          if (paperDay && parseInt(paperDay, 10) > maxDays) {
+            setPaperDay(maxDays.toString().padStart(2, "0"));
+          }
+        }
+      }
+    }, 200);
+  };
+
+  const handlePaperYearBlur = () => {
+    setTimeout(() => {
+      setIsPaperYearOpen(false);
+      if (paperYear) {
+        const yrNum = parseInt(paperYear, 10);
+        const currentYr = new Date().getFullYear();
+        if (isNaN(yrNum) || yrNum < 1900 || yrNum > currentYr + 15) {
+          setPaperYear("");
+        } else {
+          setPaperYear(yrNum.toString());
+          if (parseInt(paperMonth, 10) === 2) {
+            const maxDays = getPaperMaxDays("02", yrNum.toString());
+            if (paperDay && parseInt(paperDay, 10) > maxDays) {
+              setPaperDay(maxDays.toString().padStart(2, "0"));
+            }
+          }
+        }
+      }
+    }, 200);
+  };
+
   const defaultPapers = [
     { id: "p1", title: "An Optimization Algorithm for Multi-Tenant Cloud Architecture", journal: "International Journal of Cloud Computing", date: "2025-11-20", status: "published" },
     { id: "p2", title: "Machine Learning Approaches in Decentralized Network Synchronization", journal: "IEEE Transactions on Mobile Computing", date: "2026-03-14", status: "under review" },
@@ -739,6 +1016,9 @@ export default function Faculty({ onOpenAuth }) {
     setPaperTitle("");
     setPaperJournal("");
     setPaperDate("");
+    setPaperDay("");
+    setPaperMonth("");
+    setPaperYear("");
     setPaperSuccess("Research publication entry added!");
     
     setTimeout(() => {
@@ -1381,13 +1661,107 @@ export default function Faculty({ onOpenAuth }) {
                 </div>
                 <div>
                   <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Attendance Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={attendanceDate}
-                    onChange={(e) => setAttendanceDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* Day Input & Dropdown */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Day"
+                        value={attDay}
+                        onChange={(e) => handleAttDayChange(e.target.value)}
+                        onFocus={() => setIsAttDayOpen(true)}
+                        onBlur={handleAttDayBlur}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                      />
+                      {isAttDayOpen && (
+                        <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                          {Array.from({ length: getAttMaxDays(attMonth, attYear) }, (_, i) => (i + 1).toString()).map((d) => (
+                            <li
+                              key={d}
+                              onMouseDown={() => {
+                                setAttDay(d);
+                                setIsAttDayOpen(false);
+                              }}
+                              className="px-3 py-1.5 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer text-xs font-semibold"
+                            >
+                              {d}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    {/* Month Input & Dropdown */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Month"
+                        value={attMonth}
+                        onChange={(e) => handleAttMonthChange(e.target.value)}
+                        onFocus={() => setIsAttMonthOpen(true)}
+                        onBlur={handleAttMonthBlur}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                      />
+                      {isAttMonthOpen && (
+                        <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                          {monthsList.map((m) => (
+                            <li
+                              key={m}
+                              onMouseDown={() => {
+                                setAttMonth(m);
+                                setIsAttMonthOpen(false);
+                                const maxDays = getAttMaxDays(m, attYear);
+                                if (attDay && parseInt(attDay, 10) > maxDays) {
+                                  setAttDay(maxDays.toString());
+                                }
+                              }}
+                              className="px-3 py-1.5 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer text-xs font-semibold"
+                            >
+                              {m}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    {/* Year Input & Dropdown */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Year"
+                        value={attYear}
+                        onChange={(e) => handleAttYearChange(e.target.value)}
+                        onFocus={() => setIsAttYearOpen(true)}
+                        onBlur={handleAttYearBlur}
+                        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                      />
+                      {isAttYearOpen && (
+                        <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                          {attYearsList.map((y) => (
+                            <li
+                              key={y}
+                              onMouseDown={() => {
+                                setAttYear(y);
+                                setIsAttYearOpen(false);
+                                if (attMonth.toLowerCase() === "february") {
+                                  const maxDays = getAttMaxDays("february", y);
+                                  if (attDay && parseInt(attDay, 10) > maxDays) {
+                                    setAttDay(maxDays.toString());
+                                  }
+                                }
+                              }}
+                              className="px-3 py-1.5 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer text-xs font-semibold"
+                            >
+                              {y}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1928,14 +2302,108 @@ export default function Faculty({ onOpenAuth }) {
 
                   <div className="grid gap-4 grid-cols-2">
                     <div>
-                      <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Publication Date</label>
-                      <input
-                        type="date"
-                        required
-                        value={paperDate}
-                        onChange={(e) => setPaperDate(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
-                      />
+                      <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Publication Date (DD / MM / YYYY)</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {/* Day Input & Dropdown */}
+                        <div className="relative">
+                          <input
+                            type="text"
+                            required
+                            placeholder="DD"
+                            value={paperDay}
+                            onChange={(e) => handlePaperDayChange(e.target.value)}
+                            onFocus={() => setIsPaperDayOpen(true)}
+                            onBlur={handlePaperDayBlur}
+                            className="w-full rounded-xl border border-slate-200 px-2 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800 text-center"
+                          />
+                          {isPaperDayOpen && (
+                            <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                              {Array.from({ length: getPaperMaxDays(paperMonth, paperYear) }, (_, i) => (i + 1).toString().padStart(2, "0")).map((d) => (
+                                <li
+                                  key={d}
+                                  onMouseDown={() => {
+                                    setPaperDay(d);
+                                    setIsPaperDayOpen(false);
+                                  }}
+                                  className="px-2 py-1.5 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer text-xs font-semibold text-center"
+                                >
+                                  {d}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+
+                        {/* Month Input & Dropdown */}
+                        <div className="relative">
+                          <input
+                            type="text"
+                            required
+                            placeholder="MM"
+                            value={paperMonth}
+                            onChange={(e) => handlePaperMonthChange(e.target.value)}
+                            onFocus={() => setIsPaperMonthOpen(true)}
+                            onBlur={handlePaperMonthBlur}
+                            className="w-full rounded-xl border border-slate-200 px-2 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800 text-center"
+                          />
+                          {isPaperMonthOpen && (
+                            <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                              {Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0")).map((m) => (
+                                <li
+                                  key={m}
+                                  onMouseDown={() => {
+                                    setPaperMonth(m);
+                                    setIsPaperMonthOpen(false);
+                                    const maxDays = getPaperMaxDays(m, paperYear);
+                                    if (paperDay && parseInt(paperDay, 10) > maxDays) {
+                                      setPaperDay(maxDays.toString().padStart(2, "0"));
+                                    }
+                                  }}
+                                  className="px-2 py-1.5 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer text-xs font-semibold text-center"
+                                >
+                                  {m}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+
+                        {/* Year Input & Dropdown */}
+                        <div className="relative">
+                          <input
+                            type="text"
+                            required
+                            placeholder="YYYY"
+                            value={paperYear}
+                            onChange={(e) => handlePaperYearChange(e.target.value)}
+                            onFocus={() => setIsPaperYearOpen(true)}
+                            onBlur={handlePaperYearBlur}
+                            className="w-full rounded-xl border border-slate-200 px-2 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800 text-center"
+                          />
+                          {isPaperYearOpen && (
+                            <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                              {paperYearsList.map((y) => (
+                                <li
+                                  key={y}
+                                  onMouseDown={() => {
+                                    setPaperYear(y);
+                                    setIsPaperYearOpen(false);
+                                    if (parseInt(paperMonth, 10) === 2) {
+                                      const maxDays = getPaperMaxDays("02", y);
+                                      if (paperDay && parseInt(paperDay, 10) > maxDays) {
+                                        setPaperDay(maxDays.toString().padStart(2, "0"));
+                                      }
+                                    }
+                                  }}
+                                  className="px-2 py-1.5 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer text-xs font-semibold text-center"
+                                >
+                                  {y}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Status</label>
