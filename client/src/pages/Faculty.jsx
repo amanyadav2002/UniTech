@@ -49,15 +49,16 @@ export default function Faculty({ onOpenAuth }) {
   const [noticeSearch, setNoticeSearch] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
+  // Click outside search container to close dropdown
   useEffect(() => {
-    const handleOutsideClick = (e) => {
+    const handleClickOutside = (event) => {
       const container = document.getElementById("search-container");
-      if (container && !container.contains(e.target)) {
+      if (container && !container.contains(event.target)) {
         setIsSearchFocused(false);
       }
     };
-    window.addEventListener("mousedown", handleOutsideClick);
-    return () => window.removeEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
   
   // --- Profile Editing State ---
@@ -1241,151 +1242,267 @@ export default function Faculty({ onOpenAuth }) {
   const teacherProfile = user.profile || {};
   
   // Filter courses or list objects for searches
-  const filteredCourses = coursesList;
+  const filteredCourses = coursesList.filter(course =>
+    course.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+    course.code.toLowerCase().includes(globalSearchQuery.toLowerCase())
+  );
 
-  const filteredTasks = tasks;
+  const filteredTasks = tasks.filter(task =>
+    task.text.toLowerCase().includes(globalSearchQuery.toLowerCase())
+  );
 
-  const SITE_PAGES = [
-    // --- HOME PAGE ---
-    {
-      title: "UniTech Portal Home",
-      description: "Welcome to UniTech portal - smart university management.",
-      path: "/",
-      category: "Home Page",
-      keywords: ["home", "unitech", "portal", "management", "welcome"]
-    },
-    {
-      title: "Student Management Info",
-      description: "Manage student profiles, records, and enrollments.",
-      path: "/",
-      category: "Home Page Features",
-      keywords: ["student", "management", "record", "profile", "enrollment"]
-    },
-    {
-      title: "Faculty Portal Info",
-      description: "Faculty dashboard with attendance and course tools.",
-      path: "/faculty",
-      category: "Faculty Portal",
-      keywords: ["faculty", "portal", "dashboard", "attendance", "course", "teacher"]
-    },
-    {
-      title: "Course Management Desk",
-      description: "Departments, semesters, and subjects management.",
-      path: "/faculty",
-      category: "Academics",
-      keywords: ["course", "management", "subject", "semester", "department"]
-    },
-    {
-      title: "Placement Rate & Stats",
-      description: "University academic statistics and placement details.",
-      path: "/institutions",
-      category: "About Us",
-      keywords: ["placement", "statistic", "job", "career", "rate"]
-    },
+  const activeAssignmentObj = assignments.find(a => a.id === selectedAssignForGrading);
+  const activeSubmissionsList = submissions[selectedAssignForGrading] || [];
+  
+  const filteredSubmissionsList = activeSubmissionsList.filter(sub =>
+    sub.studentName.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+    sub.studentId.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+    (sub.file && sub.file.toLowerCase().includes(globalSearchQuery.toLowerCase())) ||
+    (sub.feedback && sub.feedback.toLowerCase().includes(globalSearchQuery.toLowerCase()))
+  );
 
-    // --- INSTITUTIONS PAGE ---
-    {
-      title: "About Our Institution",
-      description: "Commitment to academic excellence, innovation, and research.",
-      path: "/institutions",
-      category: "Institution Details",
-      keywords: ["about", "institution", "university", "excellence", "history"]
-    },
-    {
-      title: "Central Library",
-      description: "Thousands of books, journals, and digital assets.",
-      path: "/institutions",
-      category: "Facilities",
-      keywords: ["library", "book", "journal", "resource", "reading"]
-    },
-    {
-      title: "Computer & Tech Labs",
-      description: "High-performance computing laboratories and software.",
-      path: "/institutions",
-      category: "Facilities",
-      keywords: ["computer", "lab", "technology", "hpc", "software"]
-    },
-    {
-      title: "Vision & Mission",
-      description: "Empowering students through quality education and ethical values.",
-      path: "/institutions",
-      category: "About Us",
-      keywords: ["vision", "mission", "values", "ethics", "goal"]
-    },
+  const filteredResearchPapers = researchPapers.filter(paper =>
+    paper.title.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+    paper.journal.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+    paper.status.toLowerCase().includes(globalSearchQuery.toLowerCase())
+  );
 
-    // --- FACULTY PAGE ---
-    {
-      title: "Faculty Dashboard Hub",
-      description: "Track course workload and student assignments.",
-      path: "/faculty",
-      tab: "overview",
-      category: "Faculty",
-      keywords: ["faculty", "dashboard", "workload", "course", "assignment"]
-    },
-    {
-      title: "Faculty Attendance Panel",
-      description: "Mark and manage student attendance.",
-      path: "/faculty",
-      tab: "attendance",
-      category: "Faculty Portal",
-      keywords: ["attendance", "present", "class", "student"]
-    },
-    {
-      title: "Grading & Evaluation Desk",
-      description: "Evaluate assignments and grade submissions.",
-      path: "/faculty",
-      tab: "grading",
-      category: "Faculty Portal",
-      keywords: ["grade", "result", "mark", "grading", "evaluation", "assignment"]
-    },
-    {
-      title: "Research Labs & Portal",
-      description: "Advanced research, publications, and grants.",
-      path: "/faculty",
-      tab: "research",
-      category: "Research",
-      keywords: ["research", "publication", "grant", "paper", "innovation"]
-    },
-    {
-      title: "Academic Departments",
-      description: "CSE, ISE, AIML, ECE, Mechanical, and Civil departments.",
-      path: "/faculty",
-      category: "Academics",
-      keywords: ["department", "cse", "ise", "aiml", "ece", "engineering"]
-    },
+  const filteredNotices = notices.filter(notice =>
+    notice.title.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+    notice.content.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+    notice.category.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+    notice.author.toLowerCase().includes(globalSearchQuery.toLowerCase())
+  );
 
-    // --- CONTACT PAGE ---
-    {
-      title: "Contact Us & Inquiry Form",
-      description: "Get in touch with university admissions or administration.",
-      path: "/contact",
-      category: "Inquiries",
-      keywords: ["contact", "email", "address", "phone", "support", "help"]
-    }
-  ];
+  const filteredStudentRoster = studentRoster.filter(student =>
+    student.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+    student.id.toLowerCase().includes(globalSearchQuery.toLowerCase())
+  );
 
-  const getSearchResults = () => {
-    if (!globalSearchQuery) return [];
-    const query = globalSearchQuery.toLowerCase();
+  const filteredResources = resources.filter(res =>
+    res.title.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+    res.courseCode.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+    (res.description && res.description.toLowerCase().includes(globalSearchQuery.toLowerCase()))
+  );
+
+  // --- Comprehensive Global Faculty Search Engine ---
+  const getFacultySearchResults = () => {
+    if (!globalSearchQuery || !globalSearchQuery.trim()) return [];
+    const q = globalSearchQuery.toLowerCase().trim();
     const results = [];
 
-    SITE_PAGES.forEach((item) => {
-      const matchesTitle = item.title.toLowerCase().includes(query);
-      const matchesDesc = item.description.toLowerCase().includes(query);
-      const matchesKeywords = item.keywords.some((kw) => kw.includes(query));
-
-      if (matchesTitle || matchesDesc || matchesKeywords) {
-        results.push(item);
+    // 1. Teaching Course Syllabus & Schedule
+    coursesList.forEach((c) => {
+      if (
+        c.name.toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q) ||
+        c.room.toLowerCase().includes(q) ||
+        c.schedule.toLowerCase().includes(q)
+      ) {
+        results.push({
+          type: "Course",
+          category: "Teaching Courses",
+          title: `${c.code} - ${c.name}`,
+          subtitle: `Schedule: ${c.schedule} | Room: ${c.room} (${c.studentsCount} Students)`,
+          action: () => {
+            setActiveTab("overview");
+            setGlobalSearchQuery("");
+            setIsSearchFocused(false);
+          }
+        });
+        results.push({
+          type: "Attendance Sheet",
+          category: "Attendance",
+          title: `Roll Call: ${c.code} (${c.name})`,
+          subtitle: `Open attendance roster sheet for ${c.code}`,
+          action: () => {
+            setAttendanceCourse(c.code);
+            setActiveTab("attendance");
+            setGlobalSearchQuery("");
+            setIsSearchFocused(false);
+          }
+        });
       }
     });
+
+    // 2. Students Roster in Attendance
+    studentRoster.forEach((s) => {
+      if (
+        s.name.toLowerCase().includes(q) ||
+        s.id.toLowerCase().includes(q)
+      ) {
+        results.push({
+          type: "Student",
+          category: "Class Roster",
+          title: `${s.name} (${s.id})`,
+          subtitle: `Status: ${s.present ? "Present" : "Absent"} in active roll call`,
+          action: () => {
+            setActiveTab("attendance");
+            setGlobalSearchQuery("");
+            setIsSearchFocused(false);
+          }
+        });
+      }
+    });
+
+    // 3. Digital Classroom Study Materials & Resources
+    resources.forEach((r) => {
+      if (
+        r.title.toLowerCase().includes(q) ||
+        r.courseCode.toLowerCase().includes(q) ||
+        r.courseName.toLowerCase().includes(q) ||
+        r.description.toLowerCase().includes(q)
+      ) {
+        results.push({
+          type: "Resource",
+          category: "Digital Classroom",
+          title: r.title,
+          subtitle: `Course: ${r.courseCode} | Published: ${r.date}`,
+          action: () => {
+            setActiveTab("resources");
+            setGlobalSearchQuery("");
+            setIsSearchFocused(false);
+          }
+        });
+      }
+    });
+
+    // 4. Assignments & Homework Worksheets
+    assignments.forEach((a) => {
+      if (
+        a.title.toLowerCase().includes(q) ||
+        a.courseCode.toLowerCase().includes(q) ||
+        (a.description && a.description.toLowerCase().includes(q))
+      ) {
+        results.push({
+          type: "Assignment",
+          category: "Grading Hub",
+          title: a.title,
+          subtitle: `Course: ${a.courseCode} | Due: ${a.dueDate}`,
+          action: () => {
+            setSelectedAssignForGrading(a.id);
+            setActiveTab("assignments");
+            setGlobalSearchQuery("");
+            setIsSearchFocused(false);
+          }
+        });
+      }
+    });
+
+    // 5. Student Submissions & Grades
+    Object.keys(submissions).forEach((assignId) => {
+      const assignObj = assignments.find((a) => a.id === assignId);
+      const subList = submissions[assignId] || [];
+      subList.forEach((sub) => {
+        if (
+          sub.studentName.toLowerCase().includes(q) ||
+          sub.studentId.toLowerCase().includes(q) ||
+          (sub.file && sub.file.toLowerCase().includes(q)) ||
+          (sub.feedback && sub.feedback.toLowerCase().includes(q))
+        ) {
+          results.push({
+            type: "Submission",
+            category: "Student Submission",
+            title: `${sub.studentName} - ${assignObj ? assignObj.title : 'Assignment'}`,
+            subtitle: `File: ${sub.file || 'No file'} | Marks: ${sub.marks || 'Un-graded'} | Status: ${sub.status}`,
+            action: () => {
+              setSelectedAssignForGrading(assignId);
+              setActiveTab("assignments");
+              setGlobalSearchQuery("");
+              setIsSearchFocused(false);
+            }
+          });
+        }
+      });
+    });
+
+    // 6. Research Papers & Publications
+    researchPapers.forEach((p) => {
+      if (
+        p.title.toLowerCase().includes(q) ||
+        p.journal.toLowerCase().includes(q) ||
+        p.status.toLowerCase().includes(q)
+      ) {
+        results.push({
+          type: "Research Paper",
+          category: "Research Publications",
+          title: p.title,
+          subtitle: `Journal: ${p.journal} | Status: ${p.status} | Date: ${p.date}`,
+          action: () => {
+            setActiveTab("research");
+            setGlobalSearchQuery("");
+            setIsSearchFocused(false);
+          }
+        });
+      }
+    });
+
+    // 7. Announcements / Department Notices
+    notices.forEach((n) => {
+      if (
+        n.title.toLowerCase().includes(q) ||
+        n.category.toLowerCase().includes(q) ||
+        n.content.toLowerCase().includes(q) ||
+        n.author.toLowerCase().includes(q)
+      ) {
+        results.push({
+          type: "Notice",
+          category: "Announcements Board",
+          title: n.title,
+          subtitle: `Category: ${n.category} | Author: ${n.author} | Date: ${n.date}`,
+          action: () => {
+            setActiveTab("notices");
+            setGlobalSearchQuery("");
+            setIsSearchFocused(false);
+          }
+        });
+      }
+    });
+
+    // 8. Academic Checklist Tasks
+    tasks.forEach((t) => {
+      if (t.text.toLowerCase().includes(q)) {
+        results.push({
+          type: "Task",
+          category: "Academic Checklist",
+          title: t.text,
+          subtitle: `Status: ${t.completed ? "Completed" : "Pending"}`,
+          action: () => {
+            setActiveTab("overview");
+            setGlobalSearchQuery("");
+            setIsSearchFocused(false);
+          }
+        });
+      }
+    });
+
+    // 9. Faculty Core Profile Details
+    if (
+      "profile".includes(q) ||
+      "department".includes(q) ||
+      (teacherProfile.department && teacherProfile.department.toLowerCase().includes(q)) ||
+      (user.name && user.name.toLowerCase().includes(q)) ||
+      (user.email && user.email.toLowerCase().includes(q)) ||
+      "salary".includes(q) ||
+      "phone".includes(q)
+    ) {
+      results.push({
+        type: "Profile",
+        category: "Faculty Profile",
+        title: `${user.name} Profile (${teacherProfile.department || "Computer Science"})`,
+        subtitle: `Email: ${user.email} | ID: ${teacherProfile.id || "N/A"}`,
+        action: () => {
+          setActiveTab("profile");
+          setGlobalSearchQuery("");
+          setIsSearchFocused(false);
+        }
+      });
+    }
 
     return results;
   };
 
-  const searchResults = getSearchResults();
-
-  const activeAssignmentObj = assignments.find(a => a.id === selectedAssignForGrading);
-  const activeSubmissionsList = submissions[selectedAssignForGrading] || [];
+  const searchResults = getFacultySearchResults();
 
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col lg:flex-row animate-fadeIn">
@@ -1537,55 +1654,47 @@ export default function Faculty({ onOpenAuth }) {
               </span>
               <input
                 type="text"
-                placeholder="Search portal & website..."
+                placeholder="Search dashboard details..."
                 value={globalSearchQuery}
                 onChange={(e) => {
                   setGlobalSearchQuery(e.target.value);
+                  setNoticeSearch(e.target.value);
                 }}
                 onFocus={() => setIsSearchFocused(true)}
                 className="w-full rounded-2xl border border-slate-200/60 pl-10 pr-4 py-2.5 text-sm bg-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-semibold text-slate-800 shadow-sm placeholder:text-slate-400"
               />
 
-              {/* Dropdown Menu */}
+              {/* Dropdown Menu for Faculty Portal Search Results */}
               {isSearchFocused && globalSearchQuery && (
-                <div className="absolute left-0 right-0 mt-2 z-[60] max-h-[320px] overflow-y-auto bg-white rounded-2xl border border-slate-200/80 shadow-2xl py-2 flex flex-col divide-y divide-slate-50">
+                <div className="absolute left-0 right-0 sm:min-w-[340px] mt-2 z-[60] max-h-[380px] overflow-y-auto bg-white rounded-2xl border border-slate-200/80 shadow-2xl py-2 flex flex-col divide-y divide-slate-50">
                   {searchResults.length > 0 ? (
                     searchResults.map((result, idx) => {
-                      let icon = <Search className="h-4 w-4 text-slate-500" />;
-                      if (result.category.startsWith("Home")) icon = <LayoutDashboard className="h-4 w-4 text-indigo-500" />;
-                      else if (result.category === "Institution Details" || result.category === "Facilities") icon = <Building2 className="h-4 w-4 text-sky-500" />;
-                      else if (result.category === "Students" || result.category === "Student Life" || result.category === "Academics") icon = <GraduationCap className="h-4 w-4 text-emerald-500" />;
-                      else if (result.category.startsWith("Faculty")) icon = <Briefcase className="h-4 w-4 text-amber-500" />;
-                      else if (result.category === "Research") icon = <FlaskConical className="h-4 w-4 text-violet-500" />;
-                      else if (result.category === "Notices") icon = <Bell className="h-4 w-4 text-rose-500" />;
-                      else if (result.category === "Inquiries") icon = <Mail className="h-4 w-4 text-pink-500" />;
+                      let icon = <Search className="h-4 w-4 text-indigo-500" />;
+                      if (result.category === "Teaching Courses") icon = <BookOpen className="h-4 w-4 text-indigo-500" />;
+                      else if (result.category === "Attendance" || result.category === "Class Roster") icon = <ClipboardCheck className="h-4 w-4 text-emerald-500" />;
+                      else if (result.category === "Digital Classroom") icon = <Laptop className="h-4 w-4 text-sky-500" />;
+                      else if (result.category === "Grading Hub" || result.category === "Student Submission") icon = <FileText className="h-4 w-4 text-amber-500" />;
+                      else if (result.category === "Research Publications") icon = <FlaskConical className="h-4 w-4 text-purple-500" />;
+                      else if (result.category === "Announcements Board") icon = <Bell className="h-4 w-4 text-rose-500" />;
+                      else if (result.category === "Academic Checklist") icon = <CheckSquare className="h-4 w-4 text-teal-500" />;
+                      else if (result.category === "Faculty Profile") icon = <User className="h-4 w-4 text-blue-500" />;
 
                       return (
                         <button
                           key={idx}
                           type="button"
-                          onClick={() => {
-                            setIsSearchFocused(false);
-                            if (result.path === "/faculty") {
-                              if (result.tab) {
-                                setActiveTab(result.tab);
-                              }
-                              setGlobalSearchQuery("");
-                            } else {
-                              navigate(result.path);
-                            }
-                          }}
-                          className="flex items-start gap-3 px-4 py-2.5 text-left hover:bg-slate-50/80 transition-colors w-full group animate-in fade-in duration-100"
+                          onClick={result.action}
+                          className="flex items-start gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors w-full group animate-in fade-in duration-100"
                         >
-                          <div className="p-1.5 bg-slate-100 rounded-lg group-hover:bg-white transition-colors shrink-0 mt-0.5 animate-in fade-in">
+                          <div className="p-1.5 bg-slate-100 rounded-lg group-hover:bg-indigo-50 transition-colors shrink-0 mt-0.5">
                             {icon}
                           </div>
                           <div className="overflow-hidden flex-1">
-                            <p className="text-xs font-bold text-slate-700 truncate group-hover:text-indigo-600 transition-colors">
+                            <p className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
                               {result.title}
                             </p>
                             <span className="text-[10px] font-semibold text-slate-400 block mt-0.5 uppercase tracking-wide">
-                              {result.category} &bull; {result.description}
+                              {result.category} &bull; {result.subtitle}
                             </span>
                           </div>
                         </button>
@@ -1593,7 +1702,7 @@ export default function Faculty({ onOpenAuth }) {
                     })
                   ) : (
                     <div className="px-4 py-6 text-center text-slate-500 text-xs font-semibold">
-                      No matches found for "{globalSearchQuery}"
+                      No faculty portal results found for "{globalSearchQuery}"
                     </div>
                   )}
                 </div>
@@ -2104,25 +2213,33 @@ export default function Faculty({ onOpenAuth }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
-                    {studentRoster.map((student) => (
-                      <tr key={student.id} className="hover:bg-slate-50/50 transition">
-                        <td className="px-6 py-4 text-xs font-mono font-bold text-slate-500">{student.id}</td>
-                        <td className="px-6 py-4 font-bold text-slate-800">{student.name}</td>
-                        <td className="px-6 py-4 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleAttendance(student.id)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-extrabold transition-all border duration-150 ${
-                              student.present
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                                : "bg-red-50 text-red-700 border-red-100"
-                            }`}
-                          >
-                            {student.present ? "Present" : "Absent"}
-                          </button>
+                    {filteredStudentRoster.length === 0 ? (
+                      <tr>
+                        <td colSpan="3" className="px-6 py-8 text-center text-slate-400 text-sm font-semibold">
+                          No matching students found in class roster for "{globalSearchQuery}".
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredStudentRoster.map((student) => (
+                        <tr key={student.id} className="hover:bg-slate-50/50 transition">
+                          <td className="px-6 py-4 text-xs font-mono font-bold text-slate-500">{student.id}</td>
+                          <td className="px-6 py-4 font-bold text-slate-800">{student.name}</td>
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAttendance(student.id)}
+                              className={`px-4 py-1.5 rounded-full text-xs font-extrabold transition-all border duration-150 ${
+                                student.present
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                                  : "bg-red-50 text-red-700 border-red-100"
+                              }`}
+                            >
+                              {student.present ? "Present" : "Absent"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -2231,8 +2348,12 @@ export default function Faculty({ onOpenAuth }) {
                       <p className="font-bold">No digital resources uploaded yet.</p>
                       <p className="text-xs">Fill out the left form to publish materials.</p>
                     </div>
+                  ) : filteredResources.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 font-semibold text-sm">
+                      No matching study resources found for "{globalSearchQuery}".
+                    </div>
                   ) : (
-                    resources.map((res) => (
+                    filteredResources.map((res) => (
                       <div key={res.id} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-indigo-100 transition-all duration-200 flex items-start justify-between gap-4">
                         <div className="space-y-1.5 overflow-hidden">
                           <div className="flex flex-wrap items-center gap-2">
@@ -2504,8 +2625,12 @@ export default function Faculty({ onOpenAuth }) {
                         <FileText size={48} className="mx-auto text-slate-300 mb-3" />
                         <p className="font-bold">No submissions loaded for this assignment.</p>
                       </div>
+                    ) : filteredSubmissionsList.length === 0 ? (
+                      <div className="text-center py-12 text-slate-400 font-semibold text-sm">
+                        No matching student submissions found for "{globalSearchQuery}".
+                      </div>
                     ) : (
-                      activeSubmissionsList.map((sub) => (
+                      filteredSubmissionsList.map((sub) => (
                         <div key={sub.studentId} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-200 transition">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
@@ -2793,32 +2918,42 @@ export default function Faculty({ onOpenAuth }) {
                 </div>
 
                 <div className="space-y-4 max-h-[460px] overflow-y-auto pr-1">
-                  {researchPapers.map((paper) => (
-                    <div key={paper.id} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-indigo-100 transition-all duration-200 flex items-start justify-between gap-4">
-                      <div className="space-y-1.5 overflow-hidden">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
-                            paper.status === "published"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                              : "bg-amber-50 text-amber-700 border border-amber-100"
-                          }`}>
-                            {paper.status}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-semibold">{paper.date}</span>
-                        </div>
-                        <h4 className="font-bold text-slate-800 text-sm leading-snug">{paper.title}</h4>
-                        <p className="text-xs text-indigo-600 font-bold">{paper.journal}</p>
-                      </div>
-
-                      <button
-                        onClick={() => handleDeletePaper(paper.id)}
-                        className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
-                        title="Remove Publication"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                  {researchPapers.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 font-semibold text-sm">
+                      No research publications logged yet.
                     </div>
-                  ))}
+                  ) : filteredResearchPapers.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 font-semibold text-sm">
+                      No matching research publications found for "{globalSearchQuery}".
+                    </div>
+                  ) : (
+                    filteredResearchPapers.map((paper) => (
+                      <div key={paper.id} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-indigo-100 transition-all duration-200 flex items-start justify-between gap-4">
+                        <div className="space-y-1.5 overflow-hidden">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                              paper.status === "published"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                : "bg-amber-50 text-amber-700 border border-amber-100"
+                            }`}>
+                              {paper.status}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-semibold">{paper.date}</span>
+                          </div>
+                          <h4 className="font-bold text-slate-800 text-sm leading-snug">{paper.title}</h4>
+                          <p className="text-xs text-indigo-600 font-bold">{paper.journal}</p>
+                        </div>
+
+                        <button
+                          onClick={() => handleDeletePaper(paper.id)}
+                          className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
+                          title="Remove Publication"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -2914,40 +3049,50 @@ export default function Faculty({ onOpenAuth }) {
                 </div>
 
                 <div className="space-y-4 max-h-[460px] overflow-y-auto pr-1">
-                  {notices.map((notice) => (
-                    <div key={notice.id} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-indigo-100 transition-all duration-200 flex items-start justify-between gap-4">
-                      <div className="space-y-1.5 overflow-hidden">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
-                            notice.category === "exams"
-                              ? "bg-rose-50 text-rose-700 border border-rose-100"
-                              : notice.category === "events"
-                                ? "bg-amber-50 text-amber-700 border border-amber-100"
-                                : "bg-blue-50 text-blue-700 border border-blue-100"
-                          }`}>
-                            {notice.category}
-                          </span>
-                          {notice.important && (
-                            <span className="text-[9px] font-black uppercase bg-red-100 text-red-700 px-2 py-0.5 rounded border border-red-200 animate-pulse">
-                              Urgent
-                            </span>
-                          )}
-                          <span className="text-[10px] text-slate-400 font-semibold">{notice.date}</span>
-                        </div>
-                        <h4 className="font-bold text-slate-800 text-sm leading-snug">{notice.title}</h4>
-                        <p className="text-xs text-slate-500 leading-relaxed font-semibold">{notice.content}</p>
-                        <p className="text-[10px] text-slate-400 font-bold">Author: {notice.author}</p>
-                      </div>
-
-                      <button
-                        onClick={() => handleDeleteNotice(notice.id)}
-                        className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
-                        title="Delete Notice"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                  {notices.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 font-semibold text-sm">
+                      No notices broadcasted yet.
                     </div>
-                  ))}
+                  ) : filteredNotices.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 font-semibold text-sm">
+                      No matching notices found for "{globalSearchQuery}".
+                    </div>
+                  ) : (
+                    filteredNotices.map((notice) => (
+                      <div key={notice.id} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-indigo-100 transition-all duration-200 flex items-start justify-between gap-4">
+                        <div className="space-y-1.5 overflow-hidden">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                              notice.category === "exams"
+                                ? "bg-rose-50 text-rose-700 border border-rose-100"
+                                : notice.category === "events"
+                                  ? "bg-amber-50 text-amber-700 border border-amber-100"
+                                  : "bg-blue-50 text-blue-700 border border-blue-100"
+                            }`}>
+                              {notice.category}
+                            </span>
+                            {notice.important && (
+                              <span className="text-[9px] font-black uppercase bg-red-100 text-red-700 px-2 py-0.5 rounded border border-red-200 animate-pulse">
+                                Urgent
+                              </span>
+                            )}
+                            <span className="text-[10px] text-slate-400 font-semibold">{notice.date}</span>
+                          </div>
+                          <h4 className="font-bold text-slate-800 text-sm leading-snug">{notice.title}</h4>
+                          <p className="text-xs text-slate-500 leading-relaxed font-semibold">{notice.content}</p>
+                          <p className="text-[10px] text-slate-400 font-bold">Author: {notice.author}</p>
+                        </div>
+
+                        <button
+                          onClick={() => handleDeleteNotice(notice.id)}
+                          className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
+                          title="Delete Notice"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>

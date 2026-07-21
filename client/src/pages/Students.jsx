@@ -570,160 +570,260 @@ export default function Students({ onOpenAuth }) {
   if (user && user.role === "student") {
     const studentProfile = user.profile || {};
 
-    const filteredCourses = coursesDetails;
+    // Filtered lists for in-tab searches across all student portal modules
+    const filteredCourses = coursesDetails.filter((c) =>
+      c.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      c.code.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      c.teacher.toLowerCase().includes(globalSearchQuery.toLowerCase())
+    );
 
-    const filteredTasks = tasks;
+    const filteredGrades = gradesRecord.filter((g) =>
+      g.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      g.code.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      g.type.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      g.marks.toLowerCase().includes(globalSearchQuery.toLowerCase())
+    );
 
-    const filteredSchedule = scheduleTimeline;
+    const filteredNotes = notesList.filter((n) =>
+      n.title.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      n.courseCode.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      n.courseName.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      n.teacher.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      n.content.toLowerCase().includes(globalSearchQuery.toLowerCase())
+    );
 
-    const SITE_PAGES = [
-      // --- HOME PAGE ---
-      {
-        title: "UniTech Portal Home",
-        description: "Welcome to UniTech portal - smart university management.",
-        path: "/",
-        category: "Home Page",
-        keywords: ["home", "unitech", "portal", "management", "welcome"]
-      },
-      {
-        title: "Student Management Service",
-        description: "Manage student profiles, records, and enrollments.",
-        path: "/",
-        category: "Home Page Features",
-        keywords: ["student", "management", "record", "profile", "enrollment"]
-      },
-      {
-        title: "Course Management Desk",
-        description: "Departments, semesters, and subjects management.",
-        path: "/students",
-        tab: "courses",
-        category: "Academics",
-        keywords: ["course", "management", "subject", "semester", "department"]
-      },
-      {
-        title: "Placement Rate & Stats",
-        description: "University academic statistics and placement details.",
-        path: "/institutions",
-        category: "About Us",
-        keywords: ["placement", "statistic", "job", "career", "rate"]
-      },
-      {
-        title: "Campus Notice Board Desk",
-        description: "Latest notices, exams, and hackfest announcements.",
-        path: "/students",
-        tab: "notices",
-        category: "Notices",
-        keywords: ["notice", "announcement", "event", "exam", "hackfest", "registration"]
-      },
+    const filteredAssignments = assignmentsList.filter((a) =>
+      a.title.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      a.courseCode.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      a.courseName.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      a.content.toLowerCase().includes(globalSearchQuery.toLowerCase())
+    );
 
-      // --- INSTITUTIONS PAGE ---
-      {
-        title: "About Our Institution",
-        description: "Commitment to academic excellence, innovation, and research.",
-        path: "/institutions",
-        category: "Institution Details",
-        keywords: ["about", "institution", "university", "excellence", "history"]
-      },
-      {
-        title: "Central Library",
-        description: "Thousands of books, journals, and digital assets.",
-        path: "/institutions",
-        category: "Facilities",
-        keywords: ["library", "book", "journal", "resource", "reading"]
-      },
-      {
-        title: "Computer & Tech Labs",
-        description: "High-performance computing laboratories and software.",
-        path: "/institutions",
-        category: "Facilities",
-        keywords: ["computer", "lab", "technology", "hpc", "software"]
-      },
-      {
-        title: "Vision & Mission",
-        description: "Empowering students through quality education and ethical values.",
-        path: "/institutions",
-        category: "About Us",
-        keywords: ["vision", "mission", "values", "ethics", "goal"]
-      },
+    const filteredTasks = tasks.filter((t) =>
+      t.text.toLowerCase().includes(globalSearchQuery.toLowerCase())
+    );
 
-      // --- STUDENTS PAGE ---
-      {
-        title: "Student Portal Overview",
-        description: "Student dashboard, tasks list, and daily schedule.",
-        path: "/students",
-        tab: "overview",
-        category: "Students",
-        keywords: ["student", "portal", "dashboard", "overview", "schedule", "task"]
-      },
-      {
-        title: "Student Attendance Tracking",
-        description: "Track course attendance and requirements.",
-        path: "/students",
-        tab: "courses",
-        category: "Students",
-        keywords: ["attendance", "present", "class", "eligibility"]
-      },
-      {
-        title: "Examination Grades & Results",
-        description: "Access examination marks, CGPA, and pass/fail reports.",
-        path: "/students",
-        tab: "grades",
-        category: "Students",
-        keywords: ["grade", "result", "mark", "cgpa", "exam", "performance"]
-      },
-      {
-        title: "Digital Library E-Resources",
-        description: "Access Springer, IEEE, and ACM resources.",
-        path: "/students",
-        tab: "resources",
-        category: "Students",
-        keywords: ["library", "resource", "ieee", "springer", "acm", "journal"]
-      },
-      {
-        title: "E-Learning Workspace",
-        description: "Access notes, e-learning portal, and assignments.",
-        path: "/students",
-        tab: "resources",
-        category: "Students",
-        keywords: ["elearning", "online", "classroom", "notes", "assignment"]
-      },
-      {
-        title: "Clubs & Activities",
-        description: "Technical, cultural, sports, and innovation activities.",
-        path: "/students",
-        category: "Student Life",
-        keywords: ["club", "activity", "sports", "cultural", "event"]
-      },
+    const filteredSchedule = scheduleTimeline.filter((s) =>
+      s.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      s.code.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      s.room.toLowerCase().includes(globalSearchQuery.toLowerCase())
+    );
 
-      // --- CONTACT PAGE ---
-      {
-        title: "Contact Us & Inquiry Form",
-        description: "Get in touch with university admissions or administration.",
-        path: "/contact",
-        category: "Inquiries",
-        keywords: ["contact", "email", "address", "phone", "support", "help"]
-      }
-    ];
+    const filteredBookmarks = bookmarkedItems.filter((b) => {
+      const matchesGlobal = !globalSearchQuery ||
+        (b.title && b.title.toLowerCase().includes(globalSearchQuery.toLowerCase())) ||
+        (b.courseCode && b.courseCode.toLowerCase().includes(globalSearchQuery.toLowerCase())) ||
+        (b.content && b.content.toLowerCase().includes(globalSearchQuery.toLowerCase()));
+      const matchesSearch = !bookmarkSearch ||
+        (b.title && b.title.toLowerCase().includes(bookmarkSearch.toLowerCase())) ||
+        (b.courseCode && b.courseCode.toLowerCase().includes(bookmarkSearch.toLowerCase()));
+      const matchesCategory = bookmarkCategory === "all" || b.type === bookmarkCategory;
+      return matchesGlobal && matchesSearch && matchesCategory;
+    });
 
-    const getSearchResults = () => {
-      if (!globalSearchQuery) return [];
-      const query = globalSearchQuery.toLowerCase();
+    // --- Dynamic Student Portal Search Engine ---
+    const getStudentSearchResults = () => {
+      if (!globalSearchQuery || !globalSearchQuery.trim()) return [];
+      const q = globalSearchQuery.toLowerCase().trim();
       const results = [];
 
-      SITE_PAGES.forEach((item) => {
-        const matchesTitle = item.title.toLowerCase().includes(query);
-        const matchesDesc = item.description.toLowerCase().includes(query);
-        const matchesKeywords = item.keywords.some((kw) => kw.includes(query));
-
-        if (matchesTitle || matchesDesc || matchesKeywords) {
-          results.push(item);
+      // 1. Enrolled Courses & Attendance
+      coursesDetails.forEach((c) => {
+        if (
+          c.name.toLowerCase().includes(q) ||
+          c.code.toLowerCase().includes(q) ||
+          c.teacher.toLowerCase().includes(q)
+        ) {
+          results.push({
+            type: "Course",
+            category: "Enrolled Courses",
+            title: `${c.code} - ${c.name}`,
+            description: `Teacher: ${c.teacher} | Attendance: ${c.attendance}% (${c.attended}/${c.held} Classes)`,
+            action: () => {
+              setActiveTab("courses");
+              setGlobalSearchQuery("");
+              setIsSearchFocused(false);
+            }
+          });
         }
       });
+
+      // 2. Examination Grades & Marks
+      gradesRecord.forEach((g) => {
+        if (
+          g.name.toLowerCase().includes(q) ||
+          g.code.toLowerCase().includes(q) ||
+          g.type.toLowerCase().includes(q) ||
+          g.marks.toLowerCase().includes(q)
+        ) {
+          results.push({
+            type: "Grade",
+            category: "Grades & Results",
+            title: `${g.code} ${g.name} (${g.type})`,
+            description: `Marks Obtained: ${g.marks} | Status: ${g.status}`,
+            action: () => {
+              setActiveTab("grades");
+              setGlobalSearchQuery("");
+              setIsSearchFocused(false);
+            }
+          });
+        }
+      });
+
+      // 3. Study Notes & E-Resources
+      notesList.forEach((n) => {
+        if (
+          n.title.toLowerCase().includes(q) ||
+          n.courseCode.toLowerCase().includes(q) ||
+          n.courseName.toLowerCase().includes(q) ||
+          n.teacher.toLowerCase().includes(q) ||
+          n.content.toLowerCase().includes(q)
+        ) {
+          results.push({
+            type: "Note",
+            category: "Study Materials",
+            title: n.title,
+            description: `Course: ${n.courseCode} | Faculty: ${n.teacher}`,
+            action: () => {
+              const courseObj = coursesDetails.find(c => c.code === n.courseCode);
+              if (courseObj) setSelectedResourceCourse(courseObj);
+              setActiveTab("resources");
+              setGlobalSearchQuery("");
+              setIsSearchFocused(false);
+            }
+          });
+        }
+      });
+
+      // 4. Subject Assignments
+      assignmentsList.forEach((a) => {
+        if (
+          a.title.toLowerCase().includes(q) ||
+          a.courseCode.toLowerCase().includes(q) ||
+          a.courseName.toLowerCase().includes(q) ||
+          a.content.toLowerCase().includes(q)
+        ) {
+          results.push({
+            type: "Assignment",
+            category: "Subject Assignments",
+            title: a.title,
+            description: `Course: ${a.courseCode} | Due: ${a.dueDate} | Status: ${a.status}`,
+            action: () => {
+              const courseObj = coursesDetails.find(c => c.code === a.courseCode);
+              if (courseObj) setSelectedResourceCourse(courseObj);
+              setActiveTab("resources");
+              setGlobalSearchQuery("");
+              setIsSearchFocused(false);
+            }
+          });
+        }
+      });
+
+      // 5. Campus Notices
+      noticesList.forEach((n) => {
+        if (
+          n.title.toLowerCase().includes(q) ||
+          n.category.toLowerCase().includes(q) ||
+          n.content.toLowerCase().includes(q)
+        ) {
+          results.push({
+            type: "Notice",
+            category: "Campus Notices",
+            title: n.title,
+            description: `Category: ${n.category} | Date: ${n.date}`,
+            action: () => {
+              setSelectedNotice(n);
+              setActiveTab("notices");
+              setGlobalSearchQuery("");
+              setIsSearchFocused(false);
+            }
+          });
+        }
+      });
+
+      // 6. Class Schedule Timeline
+      scheduleTimeline.forEach((s) => {
+        if (
+          s.name.toLowerCase().includes(q) ||
+          s.code.toLowerCase().includes(q) ||
+          s.room.toLowerCase().includes(q)
+        ) {
+          results.push({
+            type: "Schedule",
+            category: "Class Schedule",
+            title: `${s.code} ${s.name}`,
+            description: `Time: ${s.time} | Room: ${s.room}`,
+            action: () => {
+              setActiveTab("overview");
+              setGlobalSearchQuery("");
+              setIsSearchFocused(false);
+            }
+          });
+        }
+      });
+
+      // 7. Academic Checklist Tasks
+      tasks.forEach((t) => {
+        if (t.text.toLowerCase().includes(q)) {
+          results.push({
+            type: "Task",
+            category: "Academic Checklist",
+            title: t.text,
+            description: `Status: ${t.completed ? "Completed" : "Pending"}`,
+            action: () => {
+              setActiveTab("overview");
+              setGlobalSearchQuery("");
+              setIsSearchFocused(false);
+            }
+          });
+        }
+      });
+
+      // 8. Bookmarks
+      bookmarkedItems.forEach((b) => {
+        if (
+          (b.title && b.title.toLowerCase().includes(q)) ||
+          (b.courseCode && b.courseCode.toLowerCase().includes(q))
+        ) {
+          results.push({
+            type: "Bookmark",
+            category: "Saved Bookmarks",
+            title: b.title,
+            description: `Type: ${b.type} | Course: ${b.courseCode || 'N/A'}`,
+            action: () => {
+              setActiveTab("bookmarks");
+              setGlobalSearchQuery("");
+              setIsSearchFocused(false);
+            }
+          });
+        }
+      });
+
+      // 9. Student Profile
+      if (
+        "profile".includes(q) ||
+        "usn".includes(q) ||
+        (studentProfile.usn && studentProfile.usn.toLowerCase().includes(q)) ||
+        (user.name && user.name.toLowerCase().includes(q)) ||
+        (user.email && user.email.toLowerCase().includes(q))
+      ) {
+        results.push({
+          type: "Profile",
+          category: "Student Profile",
+          title: `${user.name} Profile`,
+          description: `USN: ${studentProfile.usn || "N/A"} | Year: ${studentProfile.year || "3rd"} | Sem: ${studentProfile.semester || "6th"}`,
+          action: () => {
+            setActiveTab("profile");
+            setGlobalSearchQuery("");
+            setIsSearchFocused(false);
+          }
+        });
+      }
 
       return results;
     };
 
-    const searchResults = getSearchResults();
+    const searchResults = getStudentSearchResults();
     
     return (
       <div className="min-h-screen bg-[#f8fafc] flex flex-col lg:flex-row">
@@ -885,7 +985,7 @@ export default function Students({ onOpenAuth }) {
                 </span>
                 <input
                   type="text"
-                  placeholder="Search portal & website..."
+                  placeholder="Search portal & dashboard details..."
                   value={globalSearchQuery}
                   onChange={(e) => {
                     setGlobalSearchQuery(e.target.value);
@@ -894,42 +994,34 @@ export default function Students({ onOpenAuth }) {
                   className="w-full rounded-2xl border border-slate-200/60 pl-10 pr-4 py-2.5 text-sm bg-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-semibold text-slate-800 shadow-sm placeholder:text-slate-400"
                 />
 
-                {/* Dropdown Menu */}
+                {/* Dropdown Menu for Student Portal Search Results */}
                 {isSearchFocused && globalSearchQuery && (
-                  <div className="absolute left-0 right-0 mt-2 z-[60] max-h-[320px] overflow-y-auto bg-white rounded-2xl border border-slate-200/80 shadow-2xl py-2 flex flex-col divide-y divide-slate-50">
+                  <div className="absolute left-0 right-0 sm:min-w-[340px] mt-2 z-[60] max-h-[380px] overflow-y-auto bg-white rounded-2xl border border-slate-200/80 shadow-2xl py-2 flex flex-col divide-y divide-slate-50">
                     {searchResults.length > 0 ? (
                       searchResults.map((result, idx) => {
-                        let icon = <Search className="h-4 w-4 text-slate-500" />;
-                        if (result.category.startsWith("Home")) icon = <LayoutDashboard className="h-4 w-4 text-indigo-500" />;
-                        else if (result.category === "Institution Details" || result.category === "Facilities") icon = <Building2 className="h-4 w-4 text-sky-500" />;
-                        else if (result.category === "Students" || result.category === "Student Life" || result.category === "Academics") icon = <GraduationCap className="h-4 w-4 text-emerald-500" />;
-                        else if (result.category.startsWith("Faculty")) icon = <Briefcase className="h-4 w-4 text-amber-500" />;
-                        else if (result.category === "Research") icon = <FlaskConical className="h-4 w-4 text-violet-500" />;
-                        else if (result.category === "Notices") icon = <Bell className="h-4 w-4 text-rose-500" />;
-                        else if (result.category === "Inquiries") icon = <Mail className="h-4 w-4 text-pink-500" />;
+                        let icon = <Search className="h-4 w-4 text-indigo-500" />;
+                        if (result.category === "Enrolled Courses") icon = <BookOpen className="h-4 w-4 text-indigo-500" />;
+                        else if (result.category === "Grades & Results") icon = <Award className="h-4 w-4 text-emerald-500" />;
+                        else if (result.category === "Study Materials") icon = <Laptop className="h-4 w-4 text-sky-500" />;
+                        else if (result.category === "Subject Assignments") icon = <FileText className="h-4 w-4 text-amber-500" />;
+                        else if (result.category === "Campus Notices") icon = <Bell className="h-4 w-4 text-rose-500" />;
+                        else if (result.category === "Class Schedule") icon = <Clock className="h-4 w-4 text-purple-500" />;
+                        else if (result.category === "Academic Checklist") icon = <CheckSquare className="h-4 w-4 text-teal-500" />;
+                        else if (result.category === "Saved Bookmarks") icon = <Bookmark className="h-4 w-4 text-indigo-500" />;
+                        else if (result.category === "Student Profile") icon = <User className="h-4 w-4 text-blue-500" />;
 
                         return (
                           <button
                             key={idx}
                             type="button"
-                            onClick={() => {
-                              setIsSearchFocused(false);
-                              if (result.path === "/students") {
-                                if (result.tab) {
-                                  setActiveTab(result.tab);
-                                }
-                                setGlobalSearchQuery("");
-                              } else {
-                                navigate(result.path);
-                              }
-                            }}
-                            className="flex items-start gap-3 px-4 py-2.5 text-left hover:bg-slate-50/80 transition-colors w-full group animate-in fade-in duration-100"
+                            onClick={result.action}
+                            className="flex items-start gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors w-full group animate-in fade-in duration-100"
                           >
-                            <div className="p-1.5 bg-slate-100 rounded-lg group-hover:bg-white transition-colors shrink-0 mt-0.5 animate-in fade-in">
+                            <div className="p-1.5 bg-slate-100 rounded-lg group-hover:bg-indigo-50 transition-colors shrink-0 mt-0.5">
                               {icon}
                             </div>
                             <div className="overflow-hidden flex-1">
-                              <p className="text-xs font-bold text-slate-700 truncate group-hover:text-indigo-600 transition-colors">
+                              <p className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
                                 {result.title}
                               </p>
                               <span className="text-[10px] font-semibold text-slate-400 block mt-0.5 uppercase tracking-wide">
@@ -941,7 +1033,7 @@ export default function Students({ onOpenAuth }) {
                       })
                     ) : (
                       <div className="px-4 py-6 text-center text-slate-500 text-xs font-semibold">
-                        No matches found for "{globalSearchQuery}"
+                        No student portal results found for "{globalSearchQuery}"
                       </div>
                     )}
                   </div>
@@ -1570,23 +1662,31 @@ export default function Students({ onOpenAuth }) {
                         </tr>
                       </thead>
                       <tbody className="text-sm font-semibold text-slate-700 divide-y divide-slate-100">
-                        {gradesRecord.map((record, index) => (
-                          <tr key={index} className="hover:bg-slate-50/50 transition">
-                            <td className="py-3.5 pl-2">
-                              <span className="bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded font-bold">
-                                {record.code}
-                              </span>
-                            </td>
-                            <td className="py-3.5">{record.name}</td>
-                            <td className="py-3.5 text-slate-500 font-medium">{record.type}</td>
-                            <td className="py-3.5 text-slate-800 font-extrabold">{record.marks}</td>
-                            <td className="py-3.5 pr-2">
-                              <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block font-bold">
-                                {record.status}
-                              </span>
+                        {filteredGrades.length === 0 ? (
+                          <tr>
+                            <td colSpan="5" className="py-8 text-center text-slate-400 text-sm font-semibold">
+                              No matching examination marks found for "{globalSearchQuery}".
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          filteredGrades.map((record, index) => (
+                            <tr key={index} className="hover:bg-slate-50/50 transition">
+                              <td className="py-3.5 pl-2">
+                                <span className="bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded font-bold">
+                                  {record.code}
+                                </span>
+                              </td>
+                              <td className="py-3.5">{record.name}</td>
+                              <td className="py-3.5 text-slate-500 font-medium">{record.type}</td>
+                              <td className="py-3.5 text-slate-800 font-extrabold">{record.marks}</td>
+                              <td className="py-3.5 pr-2">
+                                <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block font-bold">
+                                  {record.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1974,12 +2074,7 @@ export default function Students({ onOpenAuth }) {
               </div>
 
               {/* Bookmarked Items Grid */}
-              {bookmarkedItems.filter(b => {
-                const matchesSearch = b.title.toLowerCase().includes(bookmarkSearch.toLowerCase()) ||
-                                      (b.content && b.content.toLowerCase().includes(bookmarkSearch.toLowerCase()));
-                const matchesCategory = bookmarkFilter === "all" || b.type === bookmarkFilter;
-                return matchesSearch && matchesCategory;
-              }).length === 0 ? (
+              {filteredBookmarks.length === 0 ? (
                 <div className="bg-white rounded-2xl p-16 shadow-sm border border-slate-200/50 text-center text-slate-400">
                   <Bookmark size={48} className="mx-auto text-slate-200 mb-3" />
                   <p className="text-base font-bold">No bookmarks found matching the criteria.</p>
@@ -1987,12 +2082,7 @@ export default function Students({ onOpenAuth }) {
                 </div>
               ) : (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {bookmarkedItems.filter(b => {
-                    const matchesSearch = b.title.toLowerCase().includes(bookmarkSearch.toLowerCase()) ||
-                                          (b.content && b.content.toLowerCase().includes(bookmarkSearch.toLowerCase()));
-                    const matchesCategory = bookmarkFilter === "all" || b.type === bookmarkFilter;
-                    return matchesSearch && matchesCategory;
-                  }).map((item) => (
+                  {filteredBookmarks.map((item) => (
                     <div 
                       key={item.itemId} 
                       className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 hover:shadow-md transition duration-200 flex flex-col justify-between"
