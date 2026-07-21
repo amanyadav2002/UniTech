@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
+  LayoutDashboard,
+  Mail,
   GraduationCap,
   Users,
   BookOpen,
@@ -38,11 +41,24 @@ import {
 
 export default function Faculty({ onOpenAuth }) {
   const { user, logout, updateUserProfile } = useAuth();
+  const navigate = useNavigate();
   
   // Dashboard active tab navigation
   const [activeTab, setActiveTab] = useState("overview");
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [noticeSearch, setNoticeSearch] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      const container = document.getElementById("search-container");
+      if (container && !container.contains(e.target)) {
+        setIsSearchFocused(false);
+      }
+    };
+    window.addEventListener("mousedown", handleOutsideClick);
+    return () => window.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Click outside search container to close dropdown
@@ -1237,34 +1253,14 @@ export default function Faculty({ onOpenAuth }) {
   // --- RENDER 2: Logged-in Faculty Dashboard Layout ---
   const teacherProfile = user.profile || {};
   
-  // Filter lists for in-tab searches across all faculty modules
+  // Filter courses or list objects for searches
   const filteredCourses = coursesList.filter(course =>
     course.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-    course.code.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-    course.room.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-    course.schedule.toLowerCase().includes(globalSearchQuery.toLowerCase())
+    course.code.toLowerCase().includes(globalSearchQuery.toLowerCase())
   );
 
   const filteredTasks = tasks.filter(task =>
     task.text.toLowerCase().includes(globalSearchQuery.toLowerCase())
-  );
-
-  const filteredStudentRoster = studentRoster.filter(s =>
-    s.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-    s.id.toLowerCase().includes(globalSearchQuery.toLowerCase())
-  );
-
-  const filteredResources = resources.filter(r =>
-    r.title.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-    r.courseCode.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-    r.courseName.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-    r.description.toLowerCase().includes(globalSearchQuery.toLowerCase())
-  );
-
-  const filteredAssignments = assignments.filter(a =>
-    a.title.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-    a.courseCode.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-    a.description.toLowerCase().includes(globalSearchQuery.toLowerCase())
   );
 
   const activeAssignmentObj = assignments.find(a => a.id === selectedAssignForGrading);
@@ -1659,59 +1655,14 @@ export default function Faculty({ onOpenAuth }) {
               </span>
               <input
                 type="text"
-                placeholder="Search portal & dashboard details..."
+                placeholder="Search dashboard details..."
                 value={globalSearchQuery}
                 onChange={(e) => {
                   setGlobalSearchQuery(e.target.value);
                   setNoticeSearch(e.target.value);
                 }}
-                onFocus={() => setIsSearchFocused(true)}
-                className="w-full rounded-2xl border border-slate-200/60 pl-10 pr-4 py-2.5 text-sm bg-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-semibold text-slate-800 shadow-sm placeholder:text-slate-400"
+                className="w-full rounded-2xl border border-slate-200/60 pl-10 pr-4 py-2.5 text-sm bg-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-semibold text-slate-800 shadow-sm"
               />
-
-              {/* Dropdown Menu for Faculty Portal Search Results */}
-              {isSearchFocused && globalSearchQuery && (
-                <div className="absolute left-0 right-0 sm:min-w-[340px] mt-2 z-[60] max-h-[380px] overflow-y-auto bg-white rounded-2xl border border-slate-200/80 shadow-2xl py-2 flex flex-col divide-y divide-slate-50">
-                  {searchResults.length > 0 ? (
-                    searchResults.map((result, idx) => {
-                      let icon = <Search className="h-4 w-4 text-indigo-500" />;
-                      if (result.category === "Teaching Courses") icon = <BookOpen className="h-4 w-4 text-indigo-500" />;
-                      else if (result.category === "Attendance" || result.category === "Class Roster") icon = <ClipboardCheck className="h-4 w-4 text-emerald-500" />;
-                      else if (result.category === "Digital Classroom") icon = <Laptop className="h-4 w-4 text-sky-500" />;
-                      else if (result.category === "Grading Hub" || result.category === "Student Submission") icon = <FileText className="h-4 w-4 text-amber-500" />;
-                      else if (result.category === "Research Publications") icon = <FlaskConical className="h-4 w-4 text-purple-500" />;
-                      else if (result.category === "Announcements Board") icon = <Bell className="h-4 w-4 text-rose-500" />;
-                      else if (result.category === "Academic Checklist") icon = <CheckSquare className="h-4 w-4 text-teal-500" />;
-                      else if (result.category === "Faculty Profile") icon = <User className="h-4 w-4 text-blue-500" />;
-
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={result.action}
-                          className="flex items-start gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors w-full group animate-in fade-in duration-100"
-                        >
-                          <div className="p-1.5 bg-slate-100 rounded-lg group-hover:bg-indigo-50 transition-colors shrink-0 mt-0.5">
-                            {icon}
-                          </div>
-                          <div className="overflow-hidden flex-1">
-                            <p className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
-                              {result.title}
-                            </p>
-                            <span className="text-[10px] font-semibold text-slate-400 block mt-0.5 uppercase tracking-wide">
-                              {result.category} &bull; {result.subtitle}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <div className="px-4 py-6 text-center text-slate-500 text-xs font-semibold">
-                      No faculty portal results found for "{globalSearchQuery}"
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Notification Icon */}
