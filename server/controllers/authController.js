@@ -296,7 +296,7 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// @desc    Add a bookmark to student profile
+// @desc    Add a bookmark to user profile
 // @route   POST /api/auth/bookmarks
 // @access  Private
 const addBookmark = async (req, res) => {
@@ -308,24 +308,36 @@ const addBookmark = async (req, res) => {
       return res.status(400).json({ message: "Item ID, type, and title are required for bookmarking" });
     }
 
-    // Find Student profile
-    const student = await Student.findOne({ user: userId });
-    if (!student) {
-      return res.status(404).json({ message: "Student profile not found" });
+    // Get user
+    const user = await User.findById(userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    let profile;
+    if (user.role === "student") {
+      profile = await Student.findOne({ user: userId });
+      if (!profile) {
+        return res.status(404).json({ message: "Student profile not found" });
+      }
+    } else if (user.role === "faculty") {
+      profile = await Teacher.findOne({ user: userId });
+      if (!profile) {
+        return res.status(404).json({ message: "Faculty profile not found" });
+      }
+    } else {
+      return res.status(400).json({ message: "Invalid role for bookmarking" });
     }
 
     // Check if already bookmarked
-    const alreadyBookmarked = student.bookmarks.some(b => b.itemId === itemId);
+    const alreadyBookmarked = profile.bookmarks.some(b => b.itemId === itemId);
     if (alreadyBookmarked) {
       return res.status(400).json({ message: "Item is already bookmarked" });
     }
 
     // Add bookmark
-    student.bookmarks.push({ itemId, type, title, courseCode, courseName, dueDate, category, link, content });
-    await student.save();
-
-    // Get base user to return populated user object
-    const user = await User.findById(userId).select("-password");
+    profile.bookmarks.push({ itemId, type, title, courseCode, courseName, dueDate, category, link, content });
+    await profile.save();
 
     res.json({
       message: "Bookmark added successfully",
@@ -334,7 +346,7 @@ const addBookmark = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        profile: student,
+        profile: profile,
       }
     });
   } catch (error) {
@@ -343,7 +355,7 @@ const addBookmark = async (req, res) => {
   }
 };
 
-// @desc    Remove a bookmark from student profile
+// @desc    Remove a bookmark from user profile
 // @route   DELETE /api/auth/bookmarks/:itemId
 // @access  Private
 const removeBookmark = async (req, res) => {
@@ -351,18 +363,30 @@ const removeBookmark = async (req, res) => {
     const userId = req.user.id;
     const { itemId } = req.params;
 
-    // Find Student profile
-    const student = await Student.findOne({ user: userId });
-    if (!student) {
-      return res.status(404).json({ message: "Student profile not found" });
+    // Get user
+    const user = await User.findById(userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    let profile;
+    if (user.role === "student") {
+      profile = await Student.findOne({ user: userId });
+      if (!profile) {
+        return res.status(404).json({ message: "Student profile not found" });
+      }
+    } else if (user.role === "faculty") {
+      profile = await Teacher.findOne({ user: userId });
+      if (!profile) {
+        return res.status(404).json({ message: "Faculty profile not found" });
+      }
+    } else {
+      return res.status(400).json({ message: "Invalid role for bookmarking" });
     }
 
     // Pull bookmark
-    student.bookmarks = student.bookmarks.filter(b => b.itemId !== itemId);
-    await student.save();
-
-    // Get base user to return populated user object
-    const user = await User.findById(userId).select("-password");
+    profile.bookmarks = profile.bookmarks.filter(b => b.itemId !== itemId);
+    await profile.save();
 
     res.json({
       message: "Bookmark removed successfully",
@@ -371,7 +395,7 @@ const removeBookmark = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        profile: student,
+        profile: profile,
       }
     });
   } catch (error) {
