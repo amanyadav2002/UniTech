@@ -40,6 +40,8 @@ import {
   FlaskConical,
 } from "lucide-react";
 
+import studentService from "../services/studentService";
+
 export default function Students({ onOpenAuth }) {
   const { user, logout, updateUserProfile, addBookmark, removeBookmark } = useAuth();
   const navigate = useNavigate();
@@ -136,56 +138,122 @@ export default function Students({ onOpenAuth }) {
     }
   }, [user, isEditing]);
 
-  // --- Task Manager State (Persisted) ---
+  // --- Real-time MongoDB Portal States ---
   const [tasks, setTasks] = useState([]);
   const [newTaskText, setNewTaskText] = useState("");
+  const [coursesDetails, setCoursesDetails] = useState([]);
+  const [attendanceStats, setAttendanceStats] = useState({
+    overallPercent: 88,
+    totalHeld: 0,
+    totalPresent: 0,
+    totalAbsent: 0,
+    totalLate: 0,
+  });
+  const [gradesRecord, setGradesRecord] = useState([]);
+  const [cgpa, setCgpa] = useState(3.82);
+  const [totalEarnedCredits, setTotalEarnedCredits] = useState(74);
+  const [gpaHistory, setGpaHistory] = useState([]);
+  const [noticesList, setNoticesList] = useState([]);
+  const [notesList, setNotesList] = useState([]);
+  const [assignmentsList, setAssignmentsList] = useState([]);
+  const [scheduleTimeline, setScheduleTimeline] = useState([]);
+  const [loadingPortal, setLoadingPortal] = useState(true);
+  const [errorPortal, setErrorPortal] = useState(null);
+
+  const loadAllData = async () => {
+    if (!user || user.role !== "student") return;
+    setLoadingPortal(true);
+    setErrorPortal(null);
+    try {
+      // Fetch resources
+      const resources = await studentService.getResources();
+      const notes = resources.filter(r => r.type === "note").map(r => ({
+        id: r._id,
+        title: r.title,
+        courseCode: r.subject,
+        courseName: r.subjectName,
+        teacher: r.uploadedBy,
+        link: r.fileUrl,
+        content: r.description
+      }));
+      const assigns = resources.filter(r => r.type === "assignment").map(r => ({
+        id: r._id,
+        title: r.title,
+        courseCode: r.subject,
+        courseName: r.subjectName,
+        dueDate: r.dueDate || r.uploadedDate,
+        status: "Pending",
+        content: r.description
+      }));
+      setNotesList(notes);
+      setAssignmentsList(assigns);
+
+      // Fetch attendance
+      const att = await studentService.getAttendance();
+      setAttendanceStats(att);
+      setCoursesDetails(att.coursesDetails || []);
+
+      // Fetch grades
+      const gr = await studentService.getGrades();
+      setGradesRecord(gr.gradesRecord || []);
+      setCgpa(gr.cgpa || 3.82);
+      setTotalEarnedCredits(gr.totalEarnedCredits || 74);
+      setGpaHistory(gr.gpaHistory || []);
+
+      // Fetch notices
+      const nt = await studentService.getNotices();
+      setNoticesList(nt);
+
+      // Fetch tasks
+      const tk = await studentService.getTasks();
+      setTasks(tk);
+
+      // Fetch schedule
+      const sc = await studentService.getSchedule();
+      setScheduleTimeline(sc);
+
+    } catch (err) {
+      console.error("Error loading student portal data:", err);
+      setErrorPortal(err.message || "Failed to load portal data.");
+    } finally {
+      setLoadingPortal(false);
+    }
+  };
 
   useEffect(() => {
-    if (user?.id) {
-      const savedTasks = localStorage.getItem(`unitech_tasks_${user.id}`);
-      if (savedTasks) {
-        setTasks(JSON.parse(savedTasks));
-      } else {
-        // Default tasks for new student
-        const defaultTasks = [
-          { id: "1", text: "Submit Physics Lab Report", completed: false },
-          { id: "2", text: "Register for semester electives", completed: true },
-          { id: "3", text: "Return 'Operating Systems' book to library", completed: false },
-        ];
-        setTasks(defaultTasks);
-        localStorage.setItem(`unitech_tasks_${user.id}`, JSON.stringify(defaultTasks));
-      }
-    }
+    loadAllData();
   }, [user]);
 
-  const saveTasks = (updatedTasks) => {
-    setTasks(updatedTasks);
-    if (user?.id) {
-      localStorage.setItem(`unitech_tasks_${user.id}`, JSON.stringify(updatedTasks));
+  const handleAddTask = async (e) => {
+    e.preventDefault();
+    if (!newTaskText.trim()) return;
+    try {
+      const updatedTasks = await studentService.createTask(newTaskText.trim());
+      setTasks(updatedTasks);
+      setNewTaskText("");
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  const handleAddTask = (e) => {
-    e.preventDefault();
-    if (!newTaskText.trim()) return;
-    const updated = [
-      ...tasks,
-      { id: Date.now().toString(), text: newTaskText.trim(), completed: false },
-    ];
-    saveTasks(updated);
-    setNewTaskText("");
+  const handleToggleTask = async (id) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    try {
+      const updatedTasks = await studentService.toggleTask(id, !task.completed);
+      setTasks(updatedTasks);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleToggleTask = (id) => {
-    const updated = tasks.map((t) =>
-      t.id === id ? { ...t, completed: !t.completed } : t
-    );
-    saveTasks(updated);
-  };
-
-  const handleDeleteTask = (id) => {
-    const updated = tasks.filter((t) => t.id !== id);
-    saveTasks(updated);
+  const handleDeleteTask = async (id) => {
+    try {
+      const updatedTasks = await studentService.deleteTask(id);
+      setTasks(updatedTasks);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // --- Attendance request details ---
@@ -244,162 +312,14 @@ export default function Students({ onOpenAuth }) {
   const [noticeCategory, setNoticeCategory] = useState("all");
   const [selectedNotice, setSelectedNotice] = useState(null);
 
-  const noticesList = [
-    {
-      id: 1,
-      title: "Mid-Term Examination Timetable Released",
-      date: "2026-07-14",
-      category: "exams",
-      content: "The mid-term examinations for the 6th semester are scheduled to start from August 3rd, 2026. The detailed subject-wise timetable is uploaded on the official university examination branch website. Students must fetch their hall tickets before July 30th.",
-      important: true,
-    },
-    {
-      id: 2,
-      title: "Annual Hackfest Registration Deadline Extended",
-      date: "2026-07-12",
-      category: "events",
-      content: "Excellent news for innovators! Registration for the UniTech Annual Hackfest has been extended until July 22nd. Assemble teams of 2 to 4 members. Prizes worth $10,000 up for grabs. Mentorship from global tech industry leaders will be provided.",
-      important: false,
-    },
-    {
-      id: 3,
-      title: "New Digital Library Credentials Emailed",
-      date: "2026-07-10",
-      category: "academic",
-      content: "We have upgraded our e-resources portal subscriptions to IEEE, Springer, and ACM digital library assets. All students have been sent automated access credentials on their official student emails (@student.unitech.edu).",
-      important: false,
-    },
-    {
-      id: 4,
-      title: "Declaration of Re-evaluation Results",
-      date: "2026-07-08",
-      category: "exams",
-      content: "Re-evaluation results for the 5th semester examinations held in Dec 2025/Jan 2026 are declared. Check the student dashboard database or view the physical list posted on the department lobby notices boards.",
-      important: true,
-    },
-  ];
-
-  const filteredNotices = noticesList.filter((n) => {
+  const filteredNotices = (noticesList || []).filter((n) => {
     const matchesSearch = n.title.toLowerCase().includes(noticeSearch.toLowerCase()) || 
                           n.content.toLowerCase().includes(noticeSearch.toLowerCase());
     const matchesCategory = noticeCategory === "all" || n.category === noticeCategory;
     return matchesSearch && matchesCategory;
   });
 
-  // --- Mock Notes & Assignments Data ---
-  const notesList = [
-    {
-      id: "note_1",
-      title: "Unit 1: Introduction to Computer Networks",
-      courseCode: "CS-301",
-      courseName: "Computer Networks",
-      teacher: "Dr. Robert Vance",
-      link: "#",
-      content: "Introduction to layered network architectures, OSI model, TCP/IP protocol suite. Fundamental concepts of packet switching, circuit switching, and network performance metrics like throughput and latency."
-    },
-    {
-      id: "note_2",
-      title: "TCP/IP Protocol Suite & Wireshark Lab Guide",
-      courseCode: "CS-301",
-      courseName: "Computer Networks",
-      teacher: "Dr. Robert Vance",
-      link: "#",
-      content: "Comprehensive lab manual for packet sniffing using Wireshark. Detailed analysis of TCP 3-way handshake, flow control, congestion window adjustments, and IP header options."
-    },
-    {
-      id: "note_3",
-      title: "Process Synchronization & Semaphores Lecture Slides",
-      courseCode: "CS-302",
-      courseName: "Operating Systems",
-      teacher: "Dr. Sarah Jenkins",
-      link: "#",
-      content: "Detailed slides explaining the critical section problem, mutual exclusion, semaphores, mutexes, and classic synchronization problems like dining philosophers and producer-consumer."
-    },
-    {
-      id: "note_4",
-      title: "Memory Management & Virtual Memory Notes",
-      courseCode: "CS-302",
-      courseName: "Operating Systems",
-      teacher: "Dr. Sarah Jenkins",
-      link: "#",
-      content: "Lecture notes on paging, segmentation, page tables, TLB cache, demand paging, page replacement algorithms (FIFO, LRU, Optimal), and thrashing phenomena."
-    },
-    {
-      id: "note_5",
-      title: "SQL Join Queries & Indexing Cheatsheet",
-      courseCode: "CS-303",
-      courseName: "Database Management Systems",
-      teacher: "Prof. Alan Turing",
-      link: "#",
-      content: "Quick reference guide for writing optimized SQL joins (inner, outer, cross, self). Explains B-Tree index structures, clustered vs non-clustered indexes, and query execution plans."
-    },
-    {
-      id: "note_6",
-      title: "Vector Spaces & Linear Transformations Guide",
-      courseCode: "MA-202",
-      courseName: "Linear Algebra",
-      teacher: "Dr. Katherine Johnson",
-      link: "#",
-      content: "Study guide focusing on vector spaces, subspaces, linear independence, basis, dimension, rank-nullity theorem, and matrix representations of linear transformations."
-    },
-    {
-      id: "note_7",
-      title: "Codes of Conduct & Ethical Frameworks Case Study",
-      courseCode: "HU-201",
-      courseName: "Professional Ethics",
-      teacher: "Prof. Marcus Aurelius",
-      link: "#",
-      content: "Reading material on professional codes of ethics (IEEE, ACM), moral responsibility of engineers, intellectual property rights, and whistleblowing case studies."
-    }
-  ];
-
-  const assignmentsList = [
-    {
-      id: "assign_1",
-      title: "Assignment 1: Socket Programming in Python (TCP/UDP)",
-      courseCode: "CS-301",
-      courseName: "Computer Networks",
-      dueDate: "2026-07-25",
-      status: "Pending",
-      content: "Implement a multi-threaded TCP chat server and client in Python. Also write a UDP client-server pair simulating a file transfer protocol with basic packet loss recovery."
-    },
-    {
-      id: "assign_2",
-      title: "Lab Exercise 2: Implementing Producer-Consumer using Mutex",
-      courseCode: "CS-302",
-      courseName: "Operating Systems",
-      dueDate: "2026-07-28",
-      status: "Submitted",
-      content: "Write a C program that simulates the Producer-Consumer problem using POSIX threads, mutexes, and condition variables. Handle buffer overflow and underflow conditions gracefully."
-    },
-    {
-      id: "assign_3",
-      title: "DBMS Project Proposal: Schema Design & Normalization",
-      courseCode: "CS-303",
-      courseName: "Database Management Systems",
-      dueDate: "2026-07-30",
-      status: "Pending",
-      content: "Submit a project proposal detailing your database system design. Must include ER diagram, schemas mapped up to 3NF/BCNF, and a list of at least 10 complex queries you intend to test."
-    },
-    {
-      id: "assign_4",
-      title: "Problem Set 3: Eigenvalues & Eigenvectors",
-      courseCode: "MA-202",
-      courseName: "Linear Algebra",
-      dueDate: "2026-07-22",
-      status: "Pending",
-      content: "Solve the linear equations and compute eigenvalues, eigenvectors, and diagonalization matrices for the 5 given 3x3 matrices in the worksheet."
-    },
-    {
-      id: "assign_5",
-      title: "Case Study Analysis on Whistleblowing & Engineering Ethics",
-      courseCode: "HU-201",
-      courseName: "Professional Ethics",
-      dueDate: "2026-07-29",
-      status: "Submitted",
-      content: "Write a 1500-word analysis on the Space Shuttle Challenger disaster. Focus on the ethical duties of engineers versus managers, and when whistleblowing is morally justified."
-    }
-  ];
+  // Notes and assignments are fetched dynamically from studentService
 
   // --- Bookmarking Helper Logic ---
   const studentProfile = user?.profile || {};
@@ -475,28 +395,7 @@ export default function Students({ onOpenAuth }) {
     },
   ];
 
-  const coursesDetails = [
-    { code: "CS-301", name: "Computer Networks", credits: 4, teacher: "Dr. Robert Vance", attended: 32, held: 35, attendance: 91 },
-    { code: "CS-302", name: "Operating Systems", credits: 4, teacher: "Dr. Sarah Jenkins", attended: 29, held: 36, attendance: 80 },
-    { code: "CS-303", name: "Database Management Systems", credits: 4, teacher: "Prof. Alan Turing", attended: 34, held: 34, attendance: 100 },
-    { code: "MA-202", name: "Linear Algebra", credits: 3, teacher: "Dr. Katherine Johnson", attended: 21, held: 28, attendance: 75 },
-    { code: "HU-201", name: "Professional Ethics", credits: 2, teacher: "Prof. Marcus Aurelius", attended: 11, held: 17, attendance: 64 },
-  ];
-
-  const gradesRecord = [
-    { code: "CS-301", name: "Computer Networks", type: "Internal IA-1", marks: "45/50", status: "Pass" },
-    { code: "CS-302", name: "Operating Systems", type: "Internal IA-1", marks: "38/50", status: "Pass" },
-    { code: "CS-303", name: "Database Management Systems", type: "Internal IA-1", marks: "48/50", status: "Pass" },
-    { code: "CS-301", name: "Computer Networks", type: "Mid-Term", marks: "88/100", status: "Pass" },
-    { code: "CS-302", name: "Operating Systems", type: "Mid-Term", marks: "76/100", status: "Pass" },
-    { code: "CS-303", name: "Database Management Systems", type: "Mid-Term", marks: "94/100", status: "Pass" },
-  ];
-
-  const scheduleTimeline = [
-    { time: "09:00 AM - 10:30 AM", code: "CS-301", name: "Computer Networks", room: "Room 402, Block C", active: false, completed: true },
-    { time: "11:00 AM - 12:30 PM", code: "CS-302", name: "Operating Systems", room: "Room 405, Block C", active: true, completed: false },
-    { time: "02:00 PM - 03:30 PM", code: "MA-202", name: "Linear Algebra", room: "Room 201, Block A", active: false, completed: false },
-  ];
+  // Courses details, grades record and schedule timeline are loaded dynamically from studentService
 
   // Handle profile edit submission
   const handleSaveProfile = async (e) => {
@@ -1100,12 +999,12 @@ export default function Students({ onOpenAuth }) {
                   <div className="flex gap-4 md:gap-6 shrink-0 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15">
                     <div className="text-center">
                       <p className="text-[10px] uppercase font-bold text-indigo-200 flex items-center justify-center gap-1"><span>🎯</span> CGPA</p>
-                      <p className="text-lg md:text-xl font-black text-white">3.82</p>
+                      <p className="text-lg md:text-xl font-black text-white">{cgpa}</p>
                     </div>
                     <div className="w-[1px] bg-white/20 self-stretch"></div>
                     <div className="text-center">
                       <p className="text-[10px] uppercase font-bold text-indigo-200 flex items-center justify-center gap-1"><span>📊</span> Attendance</p>
-                      <p className="text-lg md:text-xl font-black text-white">88.3%</p>
+                      <p className="text-lg md:text-xl font-black text-white">{attendanceStats.overallPercent}%</p>
                     </div>
                     <div className="w-[1px] bg-white/20 self-stretch"></div>
                     <div className="text-center">
@@ -1127,9 +1026,9 @@ export default function Students({ onOpenAuth }) {
                     <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
                       <span>📊</span> Overall Attendance
                     </p>
-                    <h3 className="text-3xl font-extrabold text-slate-800">88.3%</h3>
+                    <h3 className="text-3xl font-extrabold text-slate-800">{attendanceStats.overallPercent}%</h3>
                     <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full inline-block">
-                      Eligible &bull; Excellent
+                      {attendanceStats.overallPercent >= 75 ? "Eligible • Excellent" : "Not Eligible • Shortage"}
                     </span>
                   </div>
                   
@@ -1146,7 +1045,7 @@ export default function Students({ onOpenAuth }) {
                       <path
                         className="text-indigo-600"
                         strokeWidth="3.5"
-                        strokeDasharray="88, 100"
+                        strokeDasharray={`${attendanceStats.overallPercent}, 100`}
                         strokeLinecap="round"
                         stroke="currentColor"
                         fill="none"
@@ -1154,7 +1053,7 @@ export default function Students({ onOpenAuth }) {
                       />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-700">
-                      88%
+                      {attendanceStats.overallPercent}%
                     </div>
                   </div>
                 </div>
@@ -1165,9 +1064,9 @@ export default function Students({ onOpenAuth }) {
                     <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
                       <span>🎯</span> Current GPA
                     </p>
-                    <h3 className="text-3xl font-extrabold text-slate-800">3.82 / 4.0</h3>
+                    <h3 className="text-3xl font-extrabold text-slate-800">{cgpa} / 4.0</h3>
                     <span className="text-xs text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full inline-block">
-                      Grade A &bull; Top 5%
+                      Grade {cgpa >= 3.6 ? "A" : "B"} &bull; Top {cgpa >= 3.8 ? "5%" : "15%"}
                     </span>
                   </div>
                   <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600 shrink-0">
@@ -1182,13 +1081,15 @@ export default function Students({ onOpenAuth }) {
                       <span>📚</span> Graduation Credits
                     </p>
                     <div className="flex items-baseline justify-between mb-2">
-                      <h3 className="text-3xl font-extrabold text-slate-800">74</h3>
+                      <h3 className="text-3xl font-extrabold text-slate-800">{totalEarnedCredits}</h3>
                       <span className="text-xs text-slate-500 font-medium">Goal: 120 credits</span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2">
-                      <div className="bg-indigo-600 h-2 rounded-full" style={{ width: "61%" }}></div>
+                      <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${Math.min(100, Math.round((totalEarnedCredits / 120) * 100))}%` }}></div>
                     </div>
-                    <span className="text-xs font-semibold text-slate-500 mt-2 inline-block">61% completed</span>
+                    <span className="text-xs font-semibold text-slate-500 mt-2 inline-block">
+                      {Math.min(100, Math.round((totalEarnedCredits / 120) * 100))}% completed
+                    </span>
                   </div>
                 </div>
 
@@ -1198,9 +1099,9 @@ export default function Students({ onOpenAuth }) {
                     <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
                       <span>📖</span> Registered Courses
                     </p>
-                    <h3 className="text-3xl font-extrabold text-slate-800">5 Courses</h3>
+                    <h3 className="text-3xl font-extrabold text-slate-800">{coursesDetails.length} Courses</h3>
                     <span className="text-xs text-slate-600 font-semibold bg-slate-100 px-2 py-0.5 rounded-full inline-block">
-                      17 Credit Hours
+                      {coursesDetails.reduce((acc, c) => acc + c.credits, 0)} Credit Hours
                     </span>
                   </div>
                   <div className="p-3 bg-amber-50 rounded-xl text-amber-600 shrink-0">
@@ -1575,21 +1476,25 @@ export default function Students({ onOpenAuth }) {
                   <p className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-1 flex items-center gap-1.5">
                     <span>🎯</span> Cumulative GPA (CGPA)
                   </p>
-                  <h3 className="text-3xl font-extrabold text-slate-800">3.82 / 4.00</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800">{cgpa} / 4.00</h3>
                   <p className="text-xs text-indigo-600 font-semibold mt-1">Class Rank: 14 / 280 students</p>
                 </div>
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50">
                   <p className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-1 flex items-center gap-1.5">
                     <span>📈</span> Previous Semester GPA
                   </p>
-                  <h3 className="text-3xl font-extrabold text-slate-800">3.91</h3>
-                  <p className="text-xs text-emerald-600 font-semibold mt-1">Semester 5 &bull; Outstanding Performance</p>
+                  <h3 className="text-3xl font-extrabold text-slate-800">
+                    {gpaHistory.length > 0 ? gpaHistory[gpaHistory.length - 1].gpa : "3.91"}
+                  </h3>
+                  <p className="text-xs text-emerald-600 font-semibold mt-1">
+                    Semester {gpaHistory.length > 0 ? gpaHistory[gpaHistory.length - 1].semester : "5"} &bull; Outstanding Performance
+                  </p>
                 </div>
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50">
                   <p className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-1 flex items-center gap-1.5">
                     <span>📚</span> Total Earned Credits
                   </p>
-                  <h3 className="text-3xl font-extrabold text-slate-800">74 Units</h3>
+                  <h3 className="text-3xl font-extrabold text-slate-800">{totalEarnedCredits} Units</h3>
                   <p className="text-xs text-slate-500 font-semibold mt-1">Satisfies Year 3 milestones</p>
                 </div>
               </div>
@@ -1635,14 +1540,38 @@ export default function Students({ onOpenAuth }) {
                   </div>
 
                   {/* Simulator Result */}
-                  <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs uppercase font-extrabold text-slate-400">Simulated GPA</p>
-                      <p className="text-xs text-slate-400 font-semibold">Based on target grades above</p>
+                  <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs uppercase font-extrabold text-slate-400">Simulated GPA</p>
+                        <p className="text-xs text-slate-400 font-semibold">Based on target grades above</p>
+                      </div>
+                      <span className="text-3xl font-black text-indigo-600 bg-indigo-50 px-4 py-2 rounded-2xl">
+                        {calculateSimulatedGpa()}
+                      </span>
                     </div>
-                    <span className="text-3xl font-black text-indigo-600 bg-indigo-50 px-4 py-2 rounded-2xl">
-                      {calculateSimulatedGpa()}
-                    </span>
+                    <button
+                      onClick={async () => {
+                        const simGpa = calculateSimulatedGpa();
+                        try {
+                          const updated = await studentService.saveGPA({
+                            semester: studentProfile.semester || "6th Sem",
+                            gpa: Number(simGpa),
+                            earnedCredits: 18,
+                            remarks: "Simulated & Saved",
+                          });
+                          setCgpa(updated.cgpa);
+                          setTotalEarnedCredits(updated.totalEarnedCredits);
+                          setGpaHistory(updated.gpaHistory);
+                          alert("Simulated GPA saved successfully!");
+                        } catch (err) {
+                          alert("Failed to save GPA: " + err.message);
+                        }
+                      }}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl text-xs shadow-md transition"
+                    >
+                      Save GPA to History
+                    </button>
                   </div>
                 </div>
 

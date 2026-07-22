@@ -29,14 +29,6 @@ export function AuthProvider({ children }) {
         const data = await response.json();
 
         if (response.ok) {
-          if (data && data.role === "student") {
-            const profile = data.profile || {};
-            if (!profile.bookmarks) {
-              const savedBookmarks = localStorage.getItem(`unitech_bookmarks_${data.id}`);
-              profile.bookmarks = savedBookmarks ? JSON.parse(savedBookmarks) : [];
-            }
-            data.profile = profile;
-          }
           setUser(data);
         } else {
           // Token expired or invalid
@@ -74,16 +66,6 @@ export function AuthProvider({ children }) {
 
       localStorage.setItem("token", data.token);
       setToken(data.token);
-
-      const loggedInUser = data.user;
-      if (loggedInUser && loggedInUser.role === "student") {
-        const profile = loggedInUser.profile || {};
-        if (!profile.bookmarks) {
-          const savedBookmarks = localStorage.getItem(`unitech_bookmarks_${loggedInUser.id}`);
-          profile.bookmarks = savedBookmarks ? JSON.parse(savedBookmarks) : [];
-        }
-        loggedInUser.profile = profile;
-      }
 
       setUser(loggedInUser);
       return loggedInUser;
@@ -196,24 +178,6 @@ export function AuthProvider({ children }) {
       setUser(data.user);
       return data.user;
     } catch (err) {
-      console.warn("Server bookmarking failed, falling back to local simulation:", err.message);
-      // Fallback local update simulation if backend server update triggers an error or is offline
-      if (user && user.role === "student") {
-        const studentProfile = user.profile || {};
-        const currentBookmarks = studentProfile.bookmarks || [];
-        const alreadyExists = currentBookmarks.some(b => b.itemId === bookmark.itemId);
-        
-        if (!alreadyExists) {
-          const updatedBookmarks = [...currentBookmarks, bookmark];
-          const updatedProfile = { ...studentProfile, bookmarks: updatedBookmarks };
-          const updatedUser = { ...user, profile: updatedProfile };
-          
-          setUser(updatedUser);
-          // Persist in localStorage
-          localStorage.setItem(`unitech_bookmarks_${user.id}`, JSON.stringify(updatedBookmarks));
-          return updatedUser;
-        }
-      }
       throw err;
     }
   };
@@ -238,20 +202,6 @@ export function AuthProvider({ children }) {
       setUser(data.user);
       return data.user;
     } catch (err) {
-      console.warn("Server bookmarking removal failed, falling back to local simulation:", err.message);
-      // Fallback local update simulation if backend server update triggers an error or is offline
-      if (user && user.role === "student") {
-        const studentProfile = user.profile || {};
-        const currentBookmarks = studentProfile.bookmarks || [];
-        const updatedBookmarks = currentBookmarks.filter(b => b.itemId !== itemId);
-        const updatedProfile = { ...studentProfile, bookmarks: updatedBookmarks };
-        const updatedUser = { ...user, profile: updatedProfile };
-        
-        setUser(updatedUser);
-        // Persist in localStorage
-        localStorage.setItem(`unitech_bookmarks_${user.id}`, JSON.stringify(updatedBookmarks));
-        return updatedUser;
-      }
       throw err;
     }
   };
