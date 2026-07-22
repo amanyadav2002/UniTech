@@ -39,6 +39,9 @@ import {
   DollarSign
 } from "lucide-react";
 
+import facultyService from "../services/facultyService";
+import studentService from "../services/studentService";
+
 export default function Faculty({ onOpenAuth }) {
   const { user, logout, updateUserProfile } = useAuth();
   const navigate = useNavigate();
@@ -85,108 +88,145 @@ export default function Faculty({ onOpenAuth }) {
     }
   }, [user, isEditing]);
 
-  // --- Dynamic Courses based on Faculty Department ---
-  const getCoursesForDept = (dept) => {
-    const d = dept ? dept.toLowerCase() : "";
-    if (d.includes("computer") || d.includes("science")) {
-      return [
-        { code: "CS-301", name: "Computer Networks", credits: 4, schedule: "Mon, Wed 09:00 AM", room: "Room 402, Block C", studentsCount: 45 },
-        { code: "CS-302", name: "Operating Systems", credits: 4, schedule: "Tue, Thu 11:00 AM", room: "Room 405, Block C", studentsCount: 42 },
-        { code: "CS-303", name: "Database Management Systems", credits: 4, schedule: "Mon, Wed 02:00 PM", room: "Room 301, Block B", studentsCount: 48 },
-      ];
-    } else if (d.includes("information")) {
-      return [
-        { code: "IS-304", name: "Web Technologies", credits: 4, schedule: "Mon, Wed 10:30 AM", room: "Room 102, Block A", studentsCount: 38 },
-        { code: "IS-305", name: "Cloud Computing", credits: 3, schedule: "Tue, Fri 09:00 AM", room: "Room 108, Block A", studentsCount: 35 },
-      ];
-    } else if (d.includes("electronics")) {
-      return [
-        { code: "EC-201", name: "Microcontrollers", credits: 4, schedule: "Mon, Thu 11:00 AM", room: "Room 205, Block B", studentsCount: 50 },
-        { code: "EC-202", name: "Digital Signal Processing", credits: 4, schedule: "Tue, Fri 02:00 PM", room: "Room 206, Block B", studentsCount: 44 },
-      ];
-    } else if (d.includes("electrical")) {
-      return [
-        { code: "EE-301", name: "Control Systems", credits: 4, schedule: "Mon, Wed 09:00 AM", room: "Room 312, Block C", studentsCount: 30 },
-        { code: "EE-302", name: "Power Electronics", credits: 4, schedule: "Thu, Fri 11:00 AM", room: "Room 314, Block C", studentsCount: 28 },
-      ];
-    } else if (d.includes("mechanical")) {
-      return [
-        { code: "ME-201", name: "Thermodynamics", credits: 4, schedule: "Tue, Thu 09:00 AM", room: "Room 105, Workshop Block", studentsCount: 52 },
-        { code: "ME-202", name: "Fluid Mechanics", credits: 4, schedule: "Mon, Wed 11:00 AM", room: "Room 106, Workshop Block", studentsCount: 49 },
-      ];
-    } else if (d.includes("civil")) {
-      return [
-        { code: "CV-301", name: "Structural Analysis", credits: 4, schedule: "Mon, Wed 02:00 PM", room: "Room 204, Block D", studentsCount: 25 },
-        { code: "CV-302", name: "Surveying", credits: 3, schedule: "Fri 09:00 AM", room: "Surveying Lab, Ground Floor", studentsCount: 27 },
-      ];
-    } else {
-      // General default courses
-      return [
-        { code: "UN-101", name: "Introduction to Engineering", credits: 3, schedule: "Mon 09:00 AM", room: "Main Seminar Hall", studentsCount: 120 },
-        { code: "UN-201", name: "Advanced Professional Skills", credits: 2, schedule: "Fri 03:00 PM", room: "Room 101, Block A", studentsCount: 60 },
-      ];
-    }
-  };
-
-  const facultyDept = user?.profile?.department || "Computer Science";
-  const coursesList = getCoursesForDept(facultyDept);
-
-  // --- Task Manager State (Persisted) ---
+  // --- Real-time MongoDB Faculty States ---
+  const [coursesList, setCoursesList] = useState([]);
+  const [scheduleTimeline, setScheduleTimeline] = useState([]);
+  const [notices, setNotices] = useState([]);
+  const [resources, setResources] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [newTaskText, setNewTaskText] = useState("");
+  const [loadingPortal, setLoadingPortal] = useState(true);
+  const [errorPortal, setErrorPortal] = useState(null);
 
-  useEffect(() => {
-    if (user?.id) {
-      const savedTasks = localStorage.getItem(`unitech_faculty_tasks_${user.id}`);
-      if (savedTasks) {
-        setTasks(JSON.parse(savedTasks));
-      } else {
-        const defaultTasks = [
-          { id: "1", text: "Grade Computer Networks mid-term assignments", completed: false },
-          { id: "2", text: "Upload Unit 3 slides for Database Systems", completed: false },
-          { id: "3", text: "Submit monthly research progress report", completed: true },
-        ];
-        setTasks(defaultTasks);
-        localStorage.setItem(`unitech_faculty_tasks_${user.id}`, JSON.stringify(defaultTasks));
-      }
-    }
-  }, [user]);
-
-  const saveTasks = (updatedTasks) => {
-    setTasks(updatedTasks);
-    if (user?.id) {
-      localStorage.setItem(`unitech_faculty_tasks_${user.id}`, JSON.stringify(updatedTasks));
-    }
-  };
-
-  const handleAddTask = (e) => {
-    e.preventDefault();
-    if (!newTaskText.trim()) return;
-    const updated = [
-      ...tasks,
-      { id: Date.now().toString(), text: newTaskText.trim(), completed: false },
-    ];
-    saveTasks(updated);
-    setNewTaskText("");
-  };
-
-  const handleToggleTask = (id) => {
-    const updated = tasks.map((t) =>
-      t.id === id ? { ...t, completed: !t.completed } : t
-    );
-    saveTasks(updated);
-  };
-
-  const handleDeleteTask = (id) => {
-    const updated = tasks.filter((t) => t.id !== id);
-    saveTasks(updated);
-  };
-
-  // --- Attendance Management State ---
-  const [attendanceCourse, setAttendanceCourse] = useState(coursesList[0]?.code || "");
+  // Active student roster for attendance/grading
+  const [studentRoster, setStudentRoster] = useState([]);
+  const [attendanceCourse, setAttendanceCourse] = useState("");
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split("T")[0]);
   const [attendanceSuccess, setAttendanceSuccess] = useState("");
   const [showAttendanceConfirmModal, setShowAttendanceConfirmModal] = useState(false);
+
+  const loadAllFacultyData = async () => {
+    if (!user || user.role !== "faculty") return;
+    setLoadingPortal(true);
+    setErrorPortal(null);
+    try {
+      // Fetch classes
+      const cl = await facultyService.getClasses();
+      const mappedClasses = cl.map(c => ({
+        code: c.subjectCode,
+        name: c.subjectName,
+        schedule: c.schedule,
+        room: c.room,
+        studentsCount: c.studentsCount,
+        department: c.department,
+        semester: c.semester,
+      }));
+      setCoursesList(mappedClasses);
+
+      if (mappedClasses.length > 0) {
+        setAttendanceCourse(mappedClasses[0].code);
+      }
+
+      // Fetch schedule
+      const sc = await facultyService.getSchedule();
+      setScheduleTimeline(sc);
+
+      // Fetch notices
+      const nt = await facultyService.getNotices();
+      setNotices(nt);
+
+      // Fetch tasks
+      const tk = await studentService.getTasks(); // Tasks collection is shared
+      setTasks(tk);
+
+      // Fetch resources
+      const res = await facultyService.getResources();
+      const notes = res.filter(r => r.type === "note").map(r => ({
+        id: r._id,
+        title: r.title,
+        courseCode: r.subject,
+        courseName: r.subjectName,
+        link: r.fileUrl,
+        content: r.description
+      }));
+      const assigns = res.filter(r => r.type === "assignment").map(r => ({
+        id: r._id,
+        title: r.title,
+        courseCode: r.subject,
+        courseName: r.subjectName,
+        dueDate: r.dueDate,
+        content: r.description
+      }));
+      setResources(notes);
+      setAssignments(assigns);
+
+    } catch (err) {
+      console.error("Error loading faculty dashboard data:", err);
+      setErrorPortal(err.message || "Failed to load portal data.");
+    } finally {
+      setLoadingPortal(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAllFacultyData();
+  }, [user]);
+
+  // Load attendance roster dynamically when class or date changes
+  const loadAttendanceRoster = async () => {
+    if (!attendanceCourse || !attendanceDate || coursesList.length === 0) return;
+    try {
+      const activeClass = coursesList.find(c => c.code === attendanceCourse);
+      if (!activeClass) return;
+
+      const roster = await facultyService.getAttendanceRoster({
+        department: activeClass.department,
+        semester: activeClass.semester,
+        subjectCode: attendanceCourse,
+        date: attendanceDate,
+      });
+      setStudentRoster(roster);
+    } catch (err) {
+      console.error("Error loading attendance roster:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadAttendanceRoster();
+  }, [attendanceCourse, attendanceDate, coursesList]);
+
+  const handleAddTask = async (e) => {
+    e.preventDefault();
+    if (!newTaskText.trim()) return;
+    try {
+      const updatedTasks = await studentService.createTask(newTaskText.trim());
+      setTasks(updatedTasks);
+      setNewTaskText("");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleTask = async (id) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    try {
+      const updatedTasks = await studentService.toggleTask(id, !task.completed);
+      setTasks(updatedTasks);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteTask = async (id) => {
+    try {
+      const updatedTasks = await studentService.deleteTask(id);
+      setTasks(updatedTasks);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Custom Attendance Date states initialized dynamically to today's date
   const attInitialDate = new Date();
@@ -362,29 +402,28 @@ export default function Faculty({ onOpenAuth }) {
     }
   }, [coursesList, attendanceCourse]);
 
-  const initialStudents = [
-    { id: "1RV21CS001", name: "Aman Yadav", present: true },
-    { id: "1RV21CS002", name: "John Doe", present: true },
-    { id: "1RV21CS003", name: "Jane Smith", present: true },
-    { id: "1RV21CS004", name: "Bob Johnson", present: false },
-    { id: "1RV21CS005", name: "Alice Brown", present: true },
-    { id: "1RV21CS006", name: "Charlie Wilson", present: true },
-    { id: "1RV21CS007", name: "David Miller", present: true },
-    { id: "1RV21CS008", name: "Eva Green", present: false },
-  ];
-
-  const [studentRoster, setStudentRoster] = useState(initialStudents);
-
   const handleToggleAttendance = (studentId) => {
     setStudentRoster(prev =>
-      prev.map(student =>
-        student.id === studentId ? { ...student, present: !student.present } : student
-      )
+      prev.map(student => {
+        if (student.id === studentId) {
+          const newPresent = !student.present;
+          return {
+            ...student,
+            present: newPresent,
+            status: newPresent ? "Present" : "Absent",
+          };
+        }
+        return student;
+      })
     );
   };
 
   const handleMarkAll = (status) => {
-    setStudentRoster(prev => prev.map(s => ({ ...s, present: status })));
+    setStudentRoster(prev => prev.map(s => ({
+      ...s,
+      present: status,
+      status: status ? "Present" : "Absent",
+    })));
   };
 
   const handleSubmitAttendance = (e) => {
@@ -400,136 +439,80 @@ export default function Faculty({ onOpenAuth }) {
     setShowAttendanceConfirmModal(true);
   };
 
-  const handleFinalSubmitAttendance = () => {
+  const handleFinalSubmitAttendance = async () => {
     setShowAttendanceConfirmModal(false);
-    const courseObj = coursesList.find(c => c.code === attendanceCourse);
-    const presentCount = studentRoster.filter(s => s.present).length;
-    
-    setAttendanceSuccess(
-      `Attendance for ${courseObj?.name || attendanceCourse} on ${attendanceDate} successfully submitted! (${presentCount}/${studentRoster.length} students present)`
-    );
-    
-    setTimeout(() => {
-      setAttendanceSuccess("");
-    }, 4000);
+    try {
+      const activeClass = coursesList.find(c => c.code === attendanceCourse);
+      const records = studentRoster.map(s => ({
+        studentUsn: s.id,
+        present: s.present,
+        status: s.status || (s.present ? "Present" : "Absent")
+      }));
+
+      await facultyService.submitAttendance({
+        subjectCode: attendanceCourse,
+        subjectName: activeClass?.name || attendanceCourse,
+        date: attendanceDate,
+        records
+      });
+
+      const presentCount = studentRoster.filter(s => s.present).length;
+      setAttendanceSuccess(
+        `Attendance for ${activeClass?.name || attendanceCourse} on ${attendanceDate} successfully submitted! (${presentCount}/${studentRoster.length} students present)`
+      );
+    } catch (err) {
+      console.error(err);
+      setAttendanceSuccess("Error: Failed to submit attendance to database");
+    } finally {
+      setTimeout(() => {
+        setAttendanceSuccess("");
+      }, 4000);
+    }
   };
 
-  // --- Notice Board State (Persisted) ---
-  const [notices, setNotices] = useState([]);
-  const [newNoticeTitle, setNewNoticeTitle] = useState("");
-  const [newNoticeCategory, setNewNoticeCategory] = useState("academic");
-  const [newNoticeContent, setNewNoticeContent] = useState("");
-  const [newNoticeImportant, setNewNoticeImportant] = useState(false);
-  const [noticeSuccess, setNoticeSuccess] = useState("");
-
-  const defaultNotices = [
-    {
-      id: "1",
-      title: "Vite Project Submission & Oral Evaluation Guidelines",
-      category: "academic",
-      content: "All students must submit their complete codebase links by July 25th. Oral evaluations will be conducted in Lab Block C during regular teaching hours.",
-      date: "2026-07-15",
-      author: "Dr. Robert Vance",
-      important: true,
-    },
-    {
-      id: "2",
-      title: "Makeup Internals for Labs & Seminars",
-      category: "exams",
-      content: "Students who missed Internal IA-1 due to medical emergencies must submit written proof to their coordinators to attend the makeup tests on July 23rd.",
-      date: "2026-07-12",
-      author: "Prof. Alan Turing",
-      important: false,
-    },
-  ];
-
-  useEffect(() => {
-    if (user?.id) {
-      const savedNotices = localStorage.getItem(`unitech_faculty_notices_${user.id}`);
-      if (savedNotices) {
-        setNotices(JSON.parse(savedNotices));
-      } else {
-        setNotices(defaultNotices);
-        localStorage.setItem(`unitech_faculty_notices_${user.id}`, JSON.stringify(defaultNotices));
-      }
-    }
-  }, [user]);
-
-  const handlePostNotice = (e) => {
+  const handlePostNotice = async (e) => {
     e.preventDefault();
     if (!newNoticeTitle.trim() || !newNoticeContent.trim()) return;
 
-    const newNotice = {
-      id: Date.now().toString(),
-      title: newNoticeTitle.trim(),
-      category: newNoticeCategory,
-      content: newNoticeContent.trim(),
-      date: new Date().toISOString().split("T")[0],
-      author: user.name || "Faculty Member",
-      important: newNoticeImportant,
-    };
-
-    const updated = [newNotice, ...notices];
-    setNotices(updated);
-    if (user?.id) {
-      localStorage.setItem(`unitech_faculty_notices_${user.id}`, JSON.stringify(updated));
-    }
-
-    setNewNoticeTitle("");
-    setNewNoticeContent("");
-    setNewNoticeImportant(false);
-    setNoticeSuccess("Campus notice announced successfully!");
-    
-    setTimeout(() => {
-      setNoticeSuccess("");
-    }, 3000);
-  };
-
-  const handleDeleteNotice = (noticeId) => {
-    const updated = notices.filter(n => n.id !== noticeId);
-    setNotices(updated);
-    if (user?.id) {
-      localStorage.setItem(`unitech_faculty_notices_${user.id}`, JSON.stringify(updated));
+    try {
+      const activeClass = coursesList[0];
+      const updated = await facultyService.createNotice({
+        title: newNoticeTitle.trim(),
+        category: newNoticeCategory,
+        content: newNoticeContent.trim(),
+        important: newNoticeImportant,
+        department: activeClass?.department || "Computer Science Department",
+        semester: activeClass?.semester || "All",
+      });
+      setNotices(updated);
+      setNewNoticeTitle("");
+      setNewNoticeContent("");
+      setNewNoticeImportant(false);
+      setNoticeSuccess("Campus notice announced successfully!");
+    } catch (err) {
+      console.error(err);
+      setNoticeSuccess("Error: Failed to announce notice");
+    } finally {
+      setTimeout(() => {
+        setNoticeSuccess("");
+      }, 3000);
     }
   };
 
-  // --- Classroom Digital Resources State (Persisted) ---
-  const [resources, setResources] = useState([]);
+  const handleDeleteNotice = async (noticeId) => {
+    try {
+      const updated = await facultyService.deleteNotice(noticeId);
+      setNotices(updated);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const [resTitle, setResTitle] = useState("");
-  const [resCourse, setResCourse] = useState(coursesList[0]?.code || "");
+  const [resCourse, setResCourse] = useState("");
   const [resLink, setResLink] = useState("");
   const [resDesc, setResDesc] = useState("");
   const [resSuccess, setResSuccess] = useState("");
-
-  const defaultResources = [
-    {
-      id: "res_1",
-      title: "Unit 1: Introduction & Layered Network Reference Models",
-      courseCode: "CS-301",
-      courseName: "Computer Networks",
-      link: "https://unitech.edu/classroom/cs301-unit1",
-      description: "Introductory lecture slides explaining OSI 7-layer structure, TCP/IP reference architectures, and client-server paradigm.",
-      date: "2026-07-05",
-    },
-    {
-      id: "res_2",
-      title: "Wireshark Packet Sniffing & TCP Handshake Lab Manual",
-      courseCode: "CS-301",
-      courseName: "Computer Networks",
-      link: "https://unitech.edu/classroom/cs301-lab1",
-      description: "Guide to sniffing packets on local interface, filtering TCP headers, and studying sequence numbers & 3-way handshakes.",
-      date: "2026-07-08",
-    },
-    {
-      id: "res_3",
-      title: "Process Synchronization & Mutex Slides (Unit 2)",
-      courseCode: "CS-302",
-      courseName: "Operating Systems",
-      link: "https://unitech.edu/classroom/cs302-unit2",
-      description: "Critical section definitions, hardware instructions for mutual exclusion, semaphores, and classic dining philosophers examples.",
-      date: "2026-07-10",
-    },
-  ];
 
   useEffect(() => {
     if (coursesList.length > 0 && !resCourse) {
@@ -537,63 +520,69 @@ export default function Faculty({ onOpenAuth }) {
     }
   }, [coursesList, resCourse]);
 
-  useEffect(() => {
-    if (user?.id) {
-      const savedResources = localStorage.getItem(`unitech_faculty_resources_${user.id}`);
-      if (savedResources) {
-        setResources(JSON.parse(savedResources));
-      } else {
-        setResources(defaultResources);
-        localStorage.setItem(`unitech_faculty_resources_${user.id}`, JSON.stringify(defaultResources));
-      }
-    }
-  }, [user]);
-
-  const handleUploadResource = (e) => {
+  const handleUploadResource = async (e) => {
     e.preventDefault();
     if (!resTitle.trim() || !resLink.trim()) return;
 
-    const courseObj = coursesList.find(c => c.code === resCourse);
-    const newResource = {
-      id: Date.now().toString(),
-      title: resTitle.trim(),
-      courseCode: resCourse,
-      courseName: courseObj?.name || resCourse,
-      link: resLink.startsWith("http") ? resLink : `https://${resLink}`,
-      description: resDesc.trim() || "No details provided.",
-      date: new Date().toISOString().split("T")[0],
-    };
+    try {
+      const courseObj = coursesList.find(c => c.code === resCourse);
+      const updated = await facultyService.uploadResource({
+        title: resTitle.trim(),
+        description: resDesc.trim() || "No details provided.",
+        subjectCode: resCourse,
+        subjectName: courseObj?.name || resCourse,
+        fileUrl: resLink.startsWith("http") ? resLink : `https://${resLink}`,
+        department: courseObj?.department || "Computer Science Department",
+        semester: courseObj?.semester || "6th Sem",
+        type: "note",
+      });
 
-    const updated = [newResource, ...resources];
-    setResources(updated);
-    if (user?.id) {
-      localStorage.setItem(`unitech_faculty_resources_${user.id}`, JSON.stringify(updated));
+      const notes = updated.filter(r => r.type === "note").map(r => ({
+        id: r._id,
+        title: r.title,
+        courseCode: r.subject,
+        courseName: r.subjectName,
+        link: r.fileUrl,
+        content: r.description
+      }));
+      setResources(notes);
+
+      setResTitle("");
+      setResLink("");
+      setResDesc("");
+      setResSuccess("E-Learning study resource uploaded successfully!");
+    } catch (err) {
+      console.error(err);
+      setResSuccess("Error: Failed to upload study resource.");
+    } finally {
+      setTimeout(() => {
+        setResSuccess("");
+      }, 3000);
     }
-
-    setResTitle("");
-    setResLink("");
-    setResDesc("");
-    setResSuccess("E-Learning study resource uploaded successfully!");
-    
-    setTimeout(() => {
-      setResSuccess("");
-    }, 3000);
   };
 
-  const handleDeleteResource = (resId) => {
-    const updated = resources.filter(r => r.id !== resId);
-    setResources(updated);
-    if (user?.id) {
-      localStorage.setItem(`unitech_faculty_resources_${user.id}`, JSON.stringify(updated));
+  const handleDeleteResource = async (resId) => {
+    try {
+      const updated = await facultyService.deleteResource(resId);
+      const notes = updated.filter(r => r.type === "note").map(r => ({
+        id: r._id,
+        title: r.title,
+        courseCode: r.subject,
+        courseName: r.subjectName,
+        link: r.fileUrl,
+        content: r.description
+      }));
+      setResources(notes);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  // --- Assignments & Grading State (Persisted) ---
-  const [assignments, setAssignments] = useState([]);
+  // --- Assignments & Grading State ---
   const [selectedAssignForGrading, setSelectedAssignForGrading] = useState("");
   const [submissions, setSubmissions] = useState({});
   const [assignTitle, setAssignTitle] = useState("");
-  const [assignCourse, setAssignCourse] = useState(coursesList[0]?.code || "");
+  const [assignCourse, setAssignCourse] = useState("");
   const [assignDueDate, setAssignDueDate] = useState("");
   const [assignDesc, setAssignDesc] = useState("");
   
@@ -617,7 +606,6 @@ export default function Faculty({ onOpenAuth }) {
   const daysList = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
   const yearsList = Array.from({ length: 15 }, (_, i) => (2026 + i).toString());
 
-  // Synchronize custom due date values with assignDueDate
   useEffect(() => {
     if (dueDay && dueMonth && dueYear) {
       const formattedDay = dueDay.padStart(2, "0");
@@ -628,7 +616,6 @@ export default function Faculty({ onOpenAuth }) {
     }
   }, [dueDay, dueMonth, dueYear]);
 
-  // Due date validation helper for numeric MM
   const getDueMaxDays = (monthNumStr, yearString) => {
     if (!monthNumStr) return 31;
     const m = parseInt(monthNumStr, 10);
@@ -721,7 +708,6 @@ export default function Faculty({ onOpenAuth }) {
       setIsDueYearOpen(false);
       if (dueYear) {
         const yrNum = parseInt(dueYear, 10);
-        const currentYr = new Date().getFullYear();
         if (isNaN(yrNum) || yrNum < 2026 || yrNum > 2045) {
           setDueYear("");
         } else {
@@ -745,63 +731,11 @@ export default function Faculty({ onOpenAuth }) {
   const [gradingFeedback, setGradingFeedback] = useState("");
   const [gradeSuccess, setGradeSuccess] = useState("");
 
-  const defaultAssignments = [
-    {
-      id: "assign_1",
-      title: "Socket Programming in Python (TCP/UDP)",
-      courseCode: "CS-301",
-      dueDate: "2026-07-25",
-      description: "Implement a multi-threaded TCP server and client chat. Handle errors gracefully.",
-    },
-    {
-      id: "assign_2",
-      title: "Lab 2: POSIX Threads & Producer-Consumer Semaphores",
-      courseCode: "CS-302",
-      dueDate: "2026-07-28",
-      description: "Simulate a shared buffer stack with POSIX mutex locks and semaphores in C.",
-    },
-  ];
-
-  const defaultSubmissions = {
-    "assign_1": [
-      { studentId: "1RV21CS001", studentName: "Aman Yadav", file: "socket_chat_aman.zip", submittedAt: "2026-07-16", status: "Pending", marks: "", feedback: "" },
-      { studentId: "1RV21CS002", studentName: "John Doe", file: "socket_chat_doe.py", submittedAt: "2026-07-15", status: "Pending", marks: "", feedback: "" },
-      { studentId: "1RV21CS003", studentName: "Jane Smith", file: "network_threads.pdf", submittedAt: "2026-07-14", status: "Graded", marks: "9.5", feedback: "Excellent documentation and thread safety handles." },
-      { studentId: "1RV21CS004", studentName: "Bob Johnson", file: "", submittedAt: "", status: "Not Submitted", marks: "", feedback: "" },
-      { studentId: "1RV21CS005", studentName: "Alice Brown", file: "py_sockets_final.zip", submittedAt: "2026-07-15", status: "Graded", marks: "8.0", feedback: "Good effort, but missing handling for multiple clients concurrently." },
-    ],
-    "assign_2": [
-      { studentId: "1RV21CS001", studentName: "Aman Yadav", file: "producer_consumer_v1.c", submittedAt: "2026-07-17", status: "Pending", marks: "", feedback: "" },
-      { studentId: "1RV21CS003", studentName: "Jane Smith", file: "posix_sems.zip", submittedAt: "2026-07-16", status: "Graded", marks: "10.0", feedback: "Flawless code structure and compile execution outputs." },
-    ]
-  };
-
   useEffect(() => {
     if (coursesList.length > 0 && !assignCourse) {
       setAssignCourse(coursesList[0].code);
     }
   }, [coursesList, assignCourse]);
-
-  useEffect(() => {
-    if (user?.id) {
-      const savedAssigns = localStorage.getItem(`unitech_faculty_assigns_${user.id}`);
-      const savedSubmissions = localStorage.getItem(`unitech_faculty_subs_${user.id}`);
-      
-      if (savedAssigns) {
-        setAssignments(JSON.parse(savedAssigns));
-      } else {
-        setAssignments(defaultAssignments);
-        localStorage.setItem(`unitech_faculty_assigns_${user.id}`, JSON.stringify(defaultAssignments));
-      }
-
-      if (savedSubmissions) {
-        setSubmissions(JSON.parse(savedSubmissions));
-      } else {
-        setSubmissions(defaultSubmissions);
-        localStorage.setItem(`unitech_faculty_subs_${user.id}`, JSON.stringify(defaultSubmissions));
-      }
-    }
-  }, [user]);
 
   // Set default grading assignment on mount
   useEffect(() => {
@@ -810,50 +744,85 @@ export default function Faculty({ onOpenAuth }) {
     }
   }, [assignments, selectedAssignForGrading]);
 
-  const handleCreateAssignment = (e) => {
+  // Dynamic submissions loader from MongoDB Grade collection
+  const loadSubmissions = async () => {
+    if (!selectedAssignForGrading || coursesList.length === 0) return;
+    try {
+      const activeAssign = assignments.find(a => a.id === selectedAssignForGrading);
+      const activeClass = coursesList.find(c => c.code === activeAssign?.courseCode);
+      if (!activeClass) return;
+
+      const rosterGrades = await facultyService.getGrades({
+        department: activeClass.department,
+        semester: activeClass.semester,
+        subjectCode: activeClass.code,
+      });
+
+      const mappedSubs = rosterGrades.map(g => ({
+        studentId: g.studentId,
+        studentName: g.studentName,
+        file: g.isGraded ? "assignment_submission.pdf" : "uploaded_file.zip",
+        submittedAt: "2026-07-22",
+        status: g.isGraded ? "Graded" : "Pending",
+        marks: g.assignment ? g.assignment.toString() : "",
+        feedback: g.remarks || "",
+      }));
+
+      setSubmissions(prev => ({
+        ...prev,
+        [selectedAssignForGrading]: mappedSubs,
+      }));
+    } catch (err) {
+      console.error("Error loading submissions:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadSubmissions();
+  }, [selectedAssignForGrading, assignments, coursesList]);
+
+  const handleCreateAssignment = async (e) => {
     e.preventDefault();
     if (!assignTitle.trim() || !assignDueDate) return;
 
-    const newAssignId = "assign_" + Date.now();
-    const newAssignment = {
-      id: newAssignId,
-      title: assignTitle.trim(),
-      courseCode: assignCourse,
-      dueDate: assignDueDate,
-      description: assignDesc.trim() || "No details provided.",
-    };
+    try {
+      const courseObj = coursesList.find(c => c.code === assignCourse);
+      const updated = await facultyService.uploadResource({
+        title: assignTitle.trim(),
+        description: assignDesc.trim() || "No details provided.",
+        subjectCode: assignCourse,
+        subjectName: courseObj?.name || assignCourse,
+        dueDate: assignDueDate,
+        department: courseObj?.department || "Computer Science Department",
+        semester: courseObj?.semester || "6th Sem",
+        type: "assignment",
+      });
 
-    const updatedAssigns = [...assignments, newAssignment];
-    setAssignments(updatedAssigns);
-    
-    // Setup empty mock submissions for this new assignment
-    const updatedSubs = {
-      ...submissions,
-      [newAssignId]: [
-        { studentId: "1RV21CS001", studentName: "Aman Yadav", file: "", submittedAt: "", status: "Not Submitted", marks: "", feedback: "" },
-        { studentId: "1RV21CS002", studentName: "John Doe", file: "", submittedAt: "", status: "Not Submitted", marks: "", feedback: "" },
-        { studentId: "1RV21CS003", studentName: "Jane Smith", file: "", submittedAt: "", status: "Not Submitted", marks: "", feedback: "" },
-      ]
-    };
-    setSubmissions(updatedSubs);
+      const assigns = updated.filter(r => r.type === "assignment").map(r => ({
+        id: r._id,
+        title: r.title,
+        courseCode: r.subject,
+        courseName: r.subjectName,
+        dueDate: r.dueDate,
+        content: r.description
+      }));
+      setAssignments(assigns);
 
-    if (user?.id) {
-      localStorage.setItem(`unitech_faculty_assigns_${user.id}`, JSON.stringify(updatedAssigns));
-      localStorage.setItem(`unitech_faculty_subs_${user.id}`, JSON.stringify(updatedSubs));
+      setAssignTitle("");
+      setAssignDueDate("");
+      setDueDay(initialDueDay);
+      setDueMonth(initialDueMonth);
+      setDueYear(initialDueYear);
+      setAssignDesc("");
+      setAssignSuccess("Assignment created and published to students!");
+    } catch (err) {
+      console.error(err);
+      setAssignSuccess("Error: Failed to create assignment.");
+    } finally {
+      setTimeout(() => {
+        setAssignSuccess("");
+      }, 3000);
     }
-
-    setAssignTitle("");
-    setAssignDueDate("");
-    setDueDay(initialDueDay);
-    setDueMonth(initialDueMonth);
-    setDueYear(initialDueYear);
-    setAssignDesc("");
-    setSelectedAssignForGrading(newAssignId);
-    setAssignSuccess("Assignment created and published to students!");
-
-    setTimeout(() => {
-      setAssignSuccess("");
-    }, 3000);
   };
 
   const handleOpenGradingModal = (sub) => {
@@ -862,41 +831,39 @@ export default function Faculty({ onOpenAuth }) {
     setGradingFeedback(sub.feedback || "");
   };
 
-  const handleSubmitGrade = (e) => {
+  const handleSubmitGrade = async (e) => {
     e.preventDefault();
     if (!selectedAssignForGrading || !gradingStudentId) return;
 
-    const assignmentSubsList = submissions[selectedAssignForGrading] || [];
-    const updatedSubsList = assignmentSubsList.map(sub => {
-      if (sub.studentId === gradingStudentId) {
-        return {
-          ...sub,
-          status: "Graded",
-          marks: gradingMarks,
-          feedback: gradingFeedback.trim(),
-        };
-      }
-      return sub;
-    });
+    try {
+      const activeAssign = assignments.find(a => a.id === selectedAssignForGrading);
+      const activeClass = coursesList.find(c => c.code === activeAssign?.courseCode);
 
-    const updatedAllSubs = {
-      ...submissions,
-      [selectedAssignForGrading]: updatedSubsList
-    };
+      await facultyService.submitGrade({
+        studentUsn: gradingStudentId,
+        subjectCode: activeAssign?.courseCode || activeClass?.code || "CS-301",
+        subjectName: activeAssign?.courseName || activeClass?.name || "Computer Networks",
+        assignment: Number(gradingMarks),
+        remarks: gradingFeedback.trim(),
+        semester: activeClass?.semester || "6th Sem",
+        department: activeClass?.department || "Computer Science Department",
+      });
 
-    setSubmissions(updatedAllSubs);
-    if (user?.id) {
-      localStorage.setItem(`unitech_faculty_subs_${user.id}`, JSON.stringify(updatedAllSubs));
+      setGradingStudentId(null);
+      setGradingMarks("");
+      setGradingFeedback("");
+      setGradeSuccess("Grade updated and posted successfully!");
+      
+      // Reload submissions to refresh status instantly
+      await loadSubmissions();
+    } catch (err) {
+      console.error(err);
+      setGradeSuccess("Error: Failed to post grade.");
+    } finally {
+      setTimeout(() => {
+        setGradeSuccess("");
+      }, 2500);
     }
-
-    setGradingStudentId(null);
-    setGradingMarks("");
-    setGradingFeedback("");
-    setGradeSuccess("Grade updated and posted successfully!");
-    
-    setTimeout(() => {
-      setGradeSuccess("");
-    }, 2500);
   };
 
   // --- Research Papers State (Persisted) ---
@@ -906,7 +873,7 @@ export default function Faculty({ onOpenAuth }) {
   const [paperDate, setPaperDate] = useState("");
   const [paperStatus, setPaperStatus] = useState("published");
   const [paperSuccess, setPaperSuccess] = useState("");
-
+ 
   // Custom Research Paper Date states
   const [paperDay, setPaperDay] = useState("");
   const [paperMonth, setPaperMonth] = useState("");
@@ -914,9 +881,9 @@ export default function Faculty({ onOpenAuth }) {
   const [isPaperDayOpen, setIsPaperDayOpen] = useState(false);
   const [isPaperMonthOpen, setIsPaperMonthOpen] = useState(false);
   const [isPaperYearOpen, setIsPaperYearOpen] = useState(false);
-
+ 
   const paperYearsList = Array.from({ length: 25 }, (_, i) => (2015 + i).toString());
-
+ 
   // Synchronize custom paper date values with paperDate
   useEffect(() => {
     if (paperDay && paperMonth && paperYear) {
@@ -927,7 +894,7 @@ export default function Faculty({ onOpenAuth }) {
       setPaperDate("");
     }
   }, [paperDay, paperMonth, paperYear]);
-
+ 
   // Paper date validation helper for numeric MM
   const getPaperMaxDays = (monthNumStr, yearString) => {
     if (!monthNumStr) return 31;
@@ -944,7 +911,7 @@ export default function Faculty({ onOpenAuth }) {
     }
     return 31;
   };
-
+ 
   const handlePaperDayChange = (val) => {
     setIsPaperDayOpen(true);
     if (val === "") {
@@ -958,7 +925,7 @@ export default function Faculty({ onOpenAuth }) {
       setPaperDay(val);
     }
   };
-
+ 
   const handlePaperMonthChange = (val) => {
     setIsPaperMonthOpen(true);
     if (val === "") {
@@ -971,7 +938,7 @@ export default function Faculty({ onOpenAuth }) {
       setPaperMonth(val);
     }
   };
-
+ 
   const handlePaperYearChange = (val) => {
     setIsPaperYearOpen(true);
     if (val === "") {
@@ -982,7 +949,7 @@ export default function Faculty({ onOpenAuth }) {
     if (val.length > 4) return;
     setPaperYear(val);
   };
-
+ 
   const handlePaperDayBlur = () => {
     setTimeout(() => {
       setIsPaperDayOpen(false);
@@ -996,7 +963,7 @@ export default function Faculty({ onOpenAuth }) {
       }
     }, 200);
   };
-
+ 
   const handlePaperMonthBlur = () => {
     setTimeout(() => {
       setIsPaperMonthOpen(false);
@@ -1015,7 +982,7 @@ export default function Faculty({ onOpenAuth }) {
       }
     }, 200);
   };
-
+ 
   const handlePaperYearBlur = () => {
     setTimeout(() => {
       setIsPaperYearOpen(false);
@@ -1036,12 +1003,12 @@ export default function Faculty({ onOpenAuth }) {
       }
     }, 200);
   };
-
+ 
   const defaultPapers = [
     { id: "p1", title: "An Optimization Algorithm for Multi-Tenant Cloud Architecture", journal: "International Journal of Cloud Computing", date: "2025-11-20", status: "published" },
     { id: "p2", title: "Machine Learning Approaches in Decentralized Network Synchronization", journal: "IEEE Transactions on Mobile Computing", date: "2026-03-14", status: "under review" },
   ];
-
+ 
   useEffect(() => {
     if (user?.id) {
       const savedPapers = localStorage.getItem(`unitech_faculty_papers_${user.id}`);

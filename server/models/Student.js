@@ -74,6 +74,22 @@ const StudentSchema = new mongoose.Schema(
         content: { type: String },
       }
     ],
+    cgpa: {
+      type: Number,
+      default: 0.0,
+    },
+    totalEarnedCredits: {
+      type: Number,
+      default: 0,
+    },
+    gpaHistory: [
+      {
+        semester: { type: String, required: true },
+        gpa: { type: Number, required: true },
+        earnedCredits: { type: Number, required: true },
+        remarks: { type: String, default: "" },
+      }
+    ],
   },
   {
     timestamps: true,
