@@ -617,7 +617,7 @@ export default function Students({ onOpenAuth }) {
       const matchesSearch = !bookmarkSearch ||
         (b.title && b.title.toLowerCase().includes(bookmarkSearch.toLowerCase())) ||
         (b.courseCode && b.courseCode.toLowerCase().includes(bookmarkSearch.toLowerCase()));
-      const matchesCategory = bookmarkCategory === "all" || b.type === bookmarkCategory;
+      const matchesCategory = bookmarkFilter === "all" || b.type === bookmarkFilter;
       return matchesGlobal && matchesSearch && matchesCategory;
     });
 
