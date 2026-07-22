@@ -67,6 +67,15 @@ export function AuthProvider({ children }) {
       localStorage.setItem("token", data.token);
       setToken(data.token);
 
+      const loggedInUser = data.user;
+      if (loggedInUser && loggedInUser.role === "student") {
+        const profile = loggedInUser.profile || {};
+        if (!profile.bookmarks) {
+          profile.bookmarks = [];
+        }
+        loggedInUser.profile = profile;
+      }
+
       setUser(loggedInUser);
       return loggedInUser;
     } catch (err) {
