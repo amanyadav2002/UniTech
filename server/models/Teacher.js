@@ -48,6 +48,19 @@ const TeacherSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    bookmarks: [
+      {
+        itemId: { type: String, required: true },
+        type: { type: String, required: true },
+        title: { type: String, required: true },
+        courseCode: { type: String },
+        courseName: { type: String },
+        dueDate: { type: String },
+        category: { type: String },
+        link: { type: String },
+        content: { type: String },
+      }
+    ],
   },
   {
     timestamps: true,

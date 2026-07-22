@@ -23,6 +23,7 @@ import {
   Trash2,
   Edit,
   User,
+  Bookmark,
   LogOut,
   Calendar,
   AlertTriangle,
@@ -43,7 +44,7 @@ import facultyService from "../services/facultyService";
 import studentService from "../services/studentService";
 
 export default function Faculty({ onOpenAuth }) {
-  const { user, logout, updateUserProfile } = useAuth();
+  const { user, logout, updateUserProfile, addBookmark, removeBookmark } = useAuth();
   const navigate = useNavigate();
   
   // Dashboard active tab navigation
@@ -51,6 +52,17 @@ export default function Faculty({ onOpenAuth }) {
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [noticeSearch, setNoticeSearch] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // --- Bookmark Tab State ---
+  const [bookmarkSearch, setBookmarkSearch] = useState("");
+  const [bookmarkFilter, setBookmarkFilter] = useState("all");
+
+  // --- Notice Form State ---
+  const [newNoticeTitle, setNewNoticeTitle] = useState("");
+  const [newNoticeCategory, setNewNoticeCategory] = useState("academic");
+  const [newNoticeContent, setNewNoticeContent] = useState("");
+  const [newNoticeImportant, setNewNoticeImportant] = useState(false);
+  const [noticeSuccess, setNoticeSuccess] = useState("");
 
   // Click outside search container to close dropdown
   useEffect(() => {
@@ -1235,10 +1247,12 @@ export default function Faculty({ onOpenAuth }) {
   );
 
   const filteredNotices = notices.filter(notice =>
-    notice.title.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-    notice.content.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-    notice.category.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
-    notice.author.toLowerCase().includes(globalSearchQuery.toLowerCase())
+    notice && (
+      (notice.title || "").toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      (notice.content || "").toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      (notice.category || "").toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+      (notice.author || "").toLowerCase().includes(globalSearchQuery.toLowerCase())
+    )
   );
 
   const filteredStudentRoster = studentRoster.filter(student =>
@@ -1251,6 +1265,50 @@ export default function Faculty({ onOpenAuth }) {
     res.courseCode.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
     (res.description && res.description.toLowerCase().includes(globalSearchQuery.toLowerCase()))
   );
+
+  // --- Bookmarking Helper Logic ---
+  const bookmarkedItems = teacherProfile.bookmarks || [];
+
+  const isBookmarked = (itemId) => {
+    return bookmarkedItems.some((b) => b.itemId === itemId.toString());
+  };
+
+  const handleToggleBookmark = async (item, type) => {
+    const itemIdStr = (item.id || item._id || item.itemId).toString();
+    const isSaved = isBookmarked(itemIdStr);
+    try {
+      if (isSaved) {
+        await removeBookmark(itemIdStr);
+      } else {
+        const bookmarkObj = {
+          itemId: itemIdStr,
+          type: type,
+          title: item.title,
+          courseCode: item.courseCode || item.subject || "",
+          courseName: item.courseName || item.subjectName || item.title || "",
+          dueDate: item.dueDate || "",
+          category: item.category || "",
+          link: item.link || item.fileUrl || "",
+          content: item.content || item.description || "",
+        };
+        await addBookmark(bookmarkObj);
+      }
+    } catch (err) {
+      console.error("Error toggling bookmark:", err);
+    }
+  };
+
+  const filteredBookmarks = bookmarkedItems.filter((b) => {
+    const matchesGlobal = !globalSearchQuery ||
+      (b.title && b.title.toLowerCase().includes(globalSearchQuery.toLowerCase())) ||
+      (b.courseCode && b.courseCode.toLowerCase().includes(globalSearchQuery.toLowerCase())) ||
+      (b.content && b.content.toLowerCase().includes(globalSearchQuery.toLowerCase()));
+    const matchesSearch = !bookmarkSearch ||
+      (b.title && b.title.toLowerCase().includes(bookmarkSearch.toLowerCase())) ||
+      (b.courseCode && b.courseCode.toLowerCase().includes(bookmarkSearch.toLowerCase()));
+    const matchesCategory = bookmarkFilter === "all" || b.type === bookmarkFilter;
+    return matchesGlobal && matchesSearch && matchesCategory;
+  });
 
   // --- Comprehensive Global Faculty Search Engine ---
   const getFacultySearchResults = () => {
@@ -1407,10 +1465,12 @@ export default function Faculty({ onOpenAuth }) {
     // 7. Announcements / Department Notices
     notices.forEach((n) => {
       if (
-        n.title.toLowerCase().includes(q) ||
-        n.category.toLowerCase().includes(q) ||
-        n.content.toLowerCase().includes(q) ||
-        n.author.toLowerCase().includes(q)
+        n && (
+          (n.title || "").toLowerCase().includes(q) ||
+          (n.category || "").toLowerCase().includes(q) ||
+          (n.content || "").toLowerCase().includes(q) ||
+          (n.author || "").toLowerCase().includes(q)
+        )
       ) {
         results.push({
           type: "Notice",
@@ -1465,6 +1525,26 @@ export default function Faculty({ onOpenAuth }) {
         }
       });
     }
+
+    // 10. Saved Bookmarks
+    bookmarkedItems.forEach((b) => {
+      if (
+        (b.title && b.title.toLowerCase().includes(q)) ||
+        (b.courseCode && b.courseCode.toLowerCase().includes(q))
+      ) {
+        results.push({
+          type: "Bookmark",
+          category: "Saved Bookmarks",
+          title: b.title,
+          subtitle: `Type: ${b.type} | Course: ${b.courseCode || 'N/A'}`,
+          action: () => {
+            setActiveTab("bookmarks");
+            setGlobalSearchQuery("");
+            setIsSearchFocused(false);
+          }
+        });
+      }
+    });
 
     return results;
   };
@@ -1567,6 +1647,25 @@ export default function Faculty({ onOpenAuth }) {
               </span>
             </div>
             Announcements Board
+          </button>
+
+          <button
+            onClick={() => setActiveTab("bookmarks")}
+            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
+              activeTab === "bookmarks"
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+          >
+            <div className="relative">
+              <Bookmark size={18} />
+              {bookmarkedItems.length > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                </span>
+              )}
+            </div>
+            My Bookmarks
           </button>
 
           <button
@@ -2341,13 +2440,26 @@ export default function Faculty({ onOpenAuth }) {
                           </a>
                         </div>
 
-                        <button
-                          onClick={() => handleDeleteResource(res.id)}
-                          className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
-                          title="Delete Resource"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => handleToggleBookmark(res, "note")}
+                            className={`p-1.5 rounded-lg border transition-all ${
+                              isBookmarked(res.id)
+                                ? "bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm"
+                                : "bg-white border-slate-200/40 text-slate-400 hover:text-indigo-600 hover:border-indigo-100"
+                            }`}
+                            title={isBookmarked(res.id) ? "Remove Bookmark" : "Bookmark Resource"}
+                          >
+                            <Bookmark size={14} fill={isBookmarked(res.id) ? "currentColor" : "none"} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteResource(res.id)}
+                            className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
+                            title="Delete Resource"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -2564,18 +2676,34 @@ export default function Faculty({ onOpenAuth }) {
                       <p className="text-xs text-slate-400 font-semibold mt-1">Review student files and submit numerical grades.</p>
                     </div>
                     
-                    <select
-                      value={selectedAssignForGrading}
-                      onChange={(e) => {
-                        setSelectedAssignForGrading(e.target.value);
-                        setGradingStudentId(null);
-                      }}
-                      className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
-                    >
-                      {assignments.map(a => (
-                        <option key={a.id} value={a.id}>{a.title.substring(0, 25)}...</option>
-                      ))}
-                    </select>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={selectedAssignForGrading}
+                        onChange={(e) => {
+                          setSelectedAssignForGrading(e.target.value);
+                          setGradingStudentId(null);
+                        }}
+                        className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                      >
+                        {assignments.map(a => (
+                          <option key={a.id} value={a.id}>{a.title.substring(0, 25)}...</option>
+                        ))}
+                      </select>
+                      {activeAssignmentObj && (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleBookmark(activeAssignmentObj, "assignment")}
+                          className={`p-1.5 rounded-lg border transition-all ${
+                            isBookmarked(activeAssignmentObj.id)
+                              ? "bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm"
+                              : "bg-white border-slate-200/40 text-slate-400 hover:text-indigo-600 hover:border-indigo-100"
+                          }`}
+                          title={isBookmarked(activeAssignmentObj.id) ? "Remove Bookmark" : "Bookmark Assignment"}
+                        >
+                          <Bookmark size={14} fill={isBookmarked(activeAssignmentObj.id) ? "currentColor" : "none"} />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {gradeSuccess && (
@@ -2911,13 +3039,26 @@ export default function Faculty({ onOpenAuth }) {
                           <p className="text-xs text-indigo-600 font-bold">{paper.journal}</p>
                         </div>
 
-                        <button
-                          onClick={() => handleDeletePaper(paper.id)}
-                          className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
-                          title="Remove Publication"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => handleToggleBookmark(paper, "research")}
+                            className={`p-1.5 rounded-lg border transition-all ${
+                              isBookmarked(paper.id)
+                                ? "bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm"
+                                : "bg-white border-slate-200/40 text-slate-400 hover:text-indigo-600 hover:border-indigo-100"
+                            }`}
+                            title={isBookmarked(paper.id) ? "Remove Bookmark" : "Bookmark Publication"}
+                          >
+                            <Bookmark size={14} fill={isBookmarked(paper.id) ? "currentColor" : "none"} />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePaper(paper.id)}
+                            className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
+                            title="Remove Publication"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -3050,19 +3191,162 @@ export default function Faculty({ onOpenAuth }) {
                           <p className="text-[10px] text-slate-400 font-bold">Author: {notice.author}</p>
                         </div>
 
-                        <button
-                          onClick={() => handleDeleteNotice(notice.id)}
-                          className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
-                          title="Delete Notice"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => handleToggleBookmark(notice, "notice")}
+                            className={`p-1.5 rounded-lg border transition-all ${
+                              isBookmarked(notice.id)
+                                ? "bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm"
+                                : "bg-white border-slate-200/40 text-slate-400 hover:text-indigo-600 hover:border-indigo-100"
+                            }`}
+                            title={isBookmarked(notice.id) ? "Remove Bookmark" : "Bookmark Announcement"}
+                          >
+                            <Bookmark size={14} fill={isBookmarked(notice.id) ? "currentColor" : "none"} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteNotice(notice.id)}
+                            className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
+                            title="Delete Notice"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* --- TAB: MY BOOKMARKS --- */}
+        {activeTab === "bookmarks" && (
+          <div className="space-y-6 animate-fadeIn">
+            
+            {/* Controls bar */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/50 flex flex-col md:flex-row gap-4 items-center justify-between">
+              
+              {/* Search saved bookmarks */}
+              <div className="relative w-full md:w-80">
+                <Search className="absolute left-3.5 top-2.5 text-slate-400 h-5 w-5" />
+                <input
+                  type="text"
+                  placeholder="Search saved bookmarks..."
+                  value={bookmarkSearch}
+                  onChange={(e) => setBookmarkSearch(e.target.value)}
+                  className="w-full pl-10 rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600 font-semibold"
+                />
+              </div>
+
+              {/* Filter tabs */}
+              <div className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-xl shrink-0">
+                {[
+                  { key: "all", label: "All" },
+                  { key: "note", label: "Notes" },
+                  { key: "assignment", label: "Assignments" },
+                  { key: "notice", label: "Announcements" },
+                  { key: "research", label: "Research" }
+                ].map((cat) => {
+                  const count = cat.key === "all" 
+                    ? bookmarkedItems.length 
+                    : bookmarkedItems.filter(b => b.type === cat.key).length;
+                  
+                  return (
+                    <button
+                      key={cat.key}
+                      onClick={() => setBookmarkFilter(cat.key)}
+                      className={`text-xs font-bold px-3 py-1.5 rounded-lg uppercase tracking-wide transition flex items-center gap-1.5 ${
+                        bookmarkFilter === cat.key
+                          ? "bg-white text-indigo-600 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      {cat.label}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                        bookmarkFilter === cat.key ? "bg-indigo-50 text-indigo-600" : "bg-slate-200 text-slate-600"
+                      }`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+            </div>
+
+            {/* Bookmarked Items Grid */}
+            {filteredBookmarks.length === 0 ? (
+              <div className="bg-white rounded-2xl p-16 shadow-sm border border-slate-200/50 text-center text-slate-400">
+                <Bookmark size={48} className="mx-auto text-slate-200 mb-3" />
+                <p className="text-base font-bold">No bookmarks found matching the criteria.</p>
+                <p className="text-sm mt-1">Items you bookmark across the Faculty Portal will show up here.</p>
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredBookmarks.map((item) => (
+                  <div 
+                    key={item.itemId} 
+                    className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 hover:shadow-md transition duration-200 flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-lg border ${
+                          item.type === "note" 
+                            ? "bg-blue-50 text-blue-600 border-blue-100" 
+                            : item.type === "assignment" 
+                              ? "bg-amber-50 text-amber-600 border-amber-100" 
+                              : item.type === "research"
+                                ? "bg-purple-50 text-purple-600 border-purple-100"
+                                : "bg-rose-50 text-rose-600 border-rose-100"
+                        }`}>
+                          {item.type}
+                        </span>
+                        
+                        <button
+                          onClick={() => handleToggleBookmark(item, item.type)}
+                          className="p-1.5 rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-600 hover:text-red-600 hover:bg-red-50 hover:border-red-100 transition"
+                          title="Remove Bookmark"
+                        >
+                          <Bookmark size={14} fill="currentColor" />
+                        </button>
+                      </div>
+
+                      <h4 className="font-extrabold text-slate-800 text-base mb-1.5 leading-snug">{item.title}</h4>
+                      {item.courseCode && (
+                        <p className="text-xs text-indigo-600 font-bold mb-3">Subject: {item.courseCode}</p>
+                      )}
+                      {item.content && (
+                        <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-4 line-clamp-3">{item.content}</p>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-50 flex justify-between items-center text-xs font-bold">
+                      <span className="text-slate-400">
+                        {item.dueDate ? `Due: ${item.dueDate}` : item.category ? `Category: ${item.category}` : ""}
+                      </span>
+                      <button
+                        onClick={() => {
+                          if (item.type === "notice" || item.type === "announcement") {
+                            setActiveTab("notices");
+                          } else if (item.type === "note") {
+                            setActiveTab("resources");
+                          } else if (item.type === "assignment") {
+                            setSelectedAssignForGrading(item.itemId);
+                            setActiveTab("assignments");
+                          } else if (item.type === "research") {
+                            setActiveTab("research");
+                          }
+                        }}
+                        className="text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
+                      >
+                        View &rarr;
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
