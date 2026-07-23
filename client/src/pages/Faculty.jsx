@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { io } from "socket.io-client";
 import {
   LayoutDashboard,
   Mail,
@@ -46,6 +47,16 @@ import studentService from "../services/studentService";
 export default function Faculty({ onOpenAuth }) {
   const { user, logout, updateUserProfile, addBookmark, removeBookmark } = useAuth();
   const navigate = useNavigate();
+  
+  const dateInputRef = useRef(null);
+  const assignDateInputRef = useRef(null);
+
+  const getLocalDateString = (date = new Date()) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
   
   // Dashboard active tab navigation
   const [activeTab, setActiveTab] = useState("overview");
@@ -114,9 +125,136 @@ export default function Faculty({ onOpenAuth }) {
   // Active student roster for attendance/grading
   const [studentRoster, setStudentRoster] = useState([]);
   const [attendanceCourse, setAttendanceCourse] = useState("");
-  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split("T")[0]);
+  const [attendanceDate, setAttendanceDate] = useState(getLocalDateString());
   const [attendanceSuccess, setAttendanceSuccess] = useState("");
   const [showAttendanceConfirmModal, setShowAttendanceConfirmModal] = useState(false);
+
+  // --- Registered Students State ---
+  const [registeredStudents, setRegisteredStudents] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [errorStudents, setErrorStudents] = useState("");
+  const [studentSearchQuery, setStudentSearchQuery] = useState("");
+
+  // Modals for Registered Students
+  const [personalizedCourseModalOpen, setPersonalizedCourseModalOpen] = useState(false);
+  const [selectedStudentForCourse, setSelectedStudentForCourse] = useState(null);
+  const [courseCode, setCourseCode] = useState("");
+  const [courseName, setCourseName] = useState("");
+  const [courseDescription, setCourseDescription] = useState("");
+  const [courseCredits, setCourseCredits] = useState(4);
+  const [courseSuccessMsg, setCourseSuccessMsg] = useState("");
+  const [courseErrorMsg, setCourseErrorMsg] = useState("");
+
+  const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
+  const [selectedStudentForAttendance, setSelectedStudentForAttendance] = useState(null);
+  const [attendanceCourseCode, setAttendanceCourseCode] = useState("");
+  const [attendanceCourseName, setAttendanceCourseName] = useState("");
+  const [directAttendanceDate, setDirectAttendanceDate] = useState(getLocalDateString());
+  const [attendanceStatus, setAttendanceStatus] = useState("Present");
+  const [attendanceSuccessMsg, setAttendanceSuccessMsg] = useState("");
+  const [attendanceErrorMsg, setAttendanceErrorMsg] = useState("");
+
+  const socketRef = useRef(null);
+
+  const loadRegisteredStudents = async () => {
+    if (!user || user.role !== "faculty") return;
+    setLoadingStudents(true);
+    setErrorStudents("");
+    try {
+      const data = await facultyService.getAllStudents();
+      setRegisteredStudents(data);
+    } catch (err) {
+      console.error("Failed to load registered students:", err);
+      setErrorStudents(err.message || "Failed to load students.");
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user || user.role !== "faculty") return;
+    
+    // Connect to Socket.io backend
+    const socket = io("http://localhost:5000");
+    socketRef.current = socket;
+    
+    socket.emit("join", { userId: user._id, role: "faculty" });
+    
+    // Listen for student profile updates
+    socket.on("student_updated", (data) => {
+      console.log("Socket: student profile updated!", data);
+      loadRegisteredStudents();
+    });
+    
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (activeTab === "students") {
+      loadRegisteredStudents();
+    }
+  }, [activeTab]);
+
+  const handleCreatePersonalizedCourse = async (e) => {
+    e.preventDefault();
+    setCourseSuccessMsg("");
+    setCourseErrorMsg("");
+    try {
+      await facultyService.createPersonalizedCourse({
+        studentId: selectedStudentForCourse._id,
+        courseCode,
+        courseName,
+        description: courseDescription,
+        credits: courseCredits,
+      });
+      setCourseSuccessMsg(`Successfully created personalized course ${courseCode} for ${selectedStudentForCourse.name}!`);
+      // Reset form
+      setCourseCode("");
+      setCourseName("");
+      setCourseDescription("");
+      setCourseCredits(4);
+      // Wait and close
+      setTimeout(() => {
+        setPersonalizedCourseModalOpen(false);
+        setCourseSuccessMsg("");
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      setCourseErrorMsg(err.response?.data?.message || err.message || "Failed to create personalized course");
+    }
+  };
+
+  const handleMarkDirectAttendance = async (e) => {
+    e.preventDefault();
+    setAttendanceSuccessMsg("");
+    setAttendanceErrorMsg("");
+    try {
+      await facultyService.markStudentAttendance({
+        studentId: selectedStudentForAttendance._id,
+        subjectCode: attendanceCourseCode,
+        subjectName: attendanceCourseName,
+        date: directAttendanceDate,
+        status: attendanceStatus,
+      });
+      setAttendanceSuccessMsg(`Successfully marked ${attendanceStatus} for ${selectedStudentForAttendance.name} in ${attendanceCourseCode}!`);
+      // Reset form fields
+      setAttendanceCourseCode("");
+      setAttendanceCourseName("");
+      setAttendanceStatus("Present");
+      // Wait and close
+      setTimeout(() => {
+        setAttendanceModalOpen(false);
+        setAttendanceSuccessMsg("");
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      setAttendanceErrorMsg(err.response?.data?.message || err.message || "Failed to mark attendance");
+    }
+  };
 
   const loadAllFacultyData = async () => {
     if (!user || user.role !== "faculty") return;
@@ -172,6 +310,9 @@ export default function Faculty({ onOpenAuth }) {
       }));
       setResources(notes);
       setAssignments(assigns);
+      
+      // Fetch registered students
+      await loadRegisteredStudents();
 
     } catch (err) {
       console.error("Error loading faculty dashboard data:", err);
@@ -440,7 +581,7 @@ export default function Faculty({ onOpenAuth }) {
 
   const handleSubmitAttendance = (e) => {
     e.preventDefault();
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getLocalDateString();
     if (attendanceDate > todayStr) {
       setAttendanceSuccess("Error: Future attendance dates cannot be submitted!");
       setTimeout(() => {
@@ -1596,6 +1737,18 @@ export default function Faculty({ onOpenAuth }) {
           </button>
 
           <button
+            onClick={() => setActiveTab("students")}
+            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
+              activeTab === "students"
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+          >
+            <Users size={18} />
+            Registered Students
+          </button>
+
+          <button
             onClick={() => setActiveTab("resources")}
             className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
               activeTab === "resources"
@@ -1701,6 +1854,7 @@ export default function Faculty({ onOpenAuth }) {
             <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">
               {activeTab === "overview" && "Dashboard Overview"}
               {activeTab === "attendance" && "Class Attendance Sheets"}
+              {activeTab === "students" && "Registered Students Directory"}
               {activeTab === "resources" && "Digital Classroom Workspace"}
               {activeTab === "assignments" && "Assignments & Submission Grading"}
               {activeTab === "research" && "Research Publications Registry"}
@@ -1793,7 +1947,9 @@ export default function Faculty({ onOpenAuth }) {
               <div className="text-left font-semibold">
                 <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Academic Date</p>
                 <p className="text-xs text-slate-700">
-                  {new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                  {attendanceDate 
+                    ? new Date(attendanceDate + "T12:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+                    : new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                 </p>
               </div>
             </div>
@@ -2215,14 +2371,28 @@ export default function Faculty({ onOpenAuth }) {
                     </div>
 
                     {/* Calendar Pop-up Date Picker Button */}
-                    <div className="relative flex-shrink-0" title="Pick date from calendar">
-                      <div className="w-10 h-[42px] rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm transition pointer-events-none">
+                    <div className="relative flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (dateInputRef.current) {
+                            try {
+                              dateInputRef.current.showPicker();
+                            } catch (err) {
+                              dateInputRef.current.click();
+                            }
+                          }
+                        }}
+                        className="w-10 h-[42px] rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm transition cursor-pointer"
+                        title="Pick date from calendar"
+                      >
                         <Calendar className="h-5 w-5" />
-                      </div>
+                      </button>
                       <input
+                        ref={dateInputRef}
                         type="date"
                         min="2026-01-01"
-                        max={new Date().toISOString().split("T")[0]}
+                        max={getLocalDateString()}
                         value={attendanceDate}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -2237,7 +2407,7 @@ export default function Faculty({ onOpenAuth }) {
                             }
                           }
                         }}
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        className="absolute invisible w-0 h-0"
                       />
                     </div>
                   </div>
@@ -2622,11 +2792,25 @@ export default function Faculty({ onOpenAuth }) {
                           </div>
 
                           {/* Calendar Pop-up Date Picker Button */}
-                          <div className="relative flex-shrink-0" title="Pick date from calendar">
-                            <div className="w-9 h-9 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm transition pointer-events-none">
+                          <div className="relative flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (assignDateInputRef.current) {
+                                  try {
+                                    assignDateInputRef.current.showPicker();
+                                  } catch (err) {
+                                    assignDateInputRef.current.click();
+                                  }
+                                }
+                              }}
+                              className="w-9 h-9 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm transition cursor-pointer"
+                              title="Pick date from calendar"
+                            >
                               <Calendar className="h-4 w-4" />
-                            </div>
+                            </button>
                             <input
+                              ref={assignDateInputRef}
                               type="date"
                               min="2026-01-01"
                               value={assignDueDate}
@@ -2639,7 +2823,7 @@ export default function Faculty({ onOpenAuth }) {
                                   setDueDay(d);
                                 }
                               }}
-                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                              className="absolute invisible w-0 h-0"
                             />
                           </div>
                         </div>
@@ -3513,6 +3697,377 @@ export default function Faculty({ onOpenAuth }) {
             </form>
           </div>
         )}
+      {/* --- TAB 9: REGISTERED STUDENTS --- */}
+      {activeTab === "students" && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Registered Students Control Header */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-extrabold text-slate-800">Student Directory</h3>
+              <p className="text-slate-500 text-sm font-semibold">View and manage all registered students. Create personalized courses or mark direct attendance in real-time.</p>
+            </div>
+            <div className="relative min-w-[300px]">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <Search size={18} />
+              </span>
+              <input
+                type="text"
+                placeholder="Search students by name, USN, or email..."
+                value={studentSearchQuery}
+                onChange={(e) => setStudentSearchQuery(e.target.value)}
+                className="w-full rounded-2xl border border-slate-200/60 pl-10 pr-4 py-2.5 text-sm bg-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-semibold text-slate-800 shadow-sm"
+              />
+            </div>
+          </div>
+
+          {loadingStudents ? (
+            <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl border border-slate-200/50">
+              <div className="h-10 w-10 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin mb-4"></div>
+              <p className="text-slate-500 font-semibold">Loading student roster...</p>
+            </div>
+          ) : errorStudents ? (
+            <div className="p-6 bg-red-50 border border-red-100 rounded-3xl text-red-800 text-sm font-semibold text-center">
+              {errorStudents}
+            </div>
+          ) : (
+            (() => {
+              const filtered = registeredStudents.filter(student => 
+                student.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) ||
+                student.usn.toLowerCase().includes(studentSearchQuery.toLowerCase()) ||
+                student.mail.toLowerCase().includes(studentSearchQuery.toLowerCase())
+              );
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="p-12 bg-white rounded-3xl border border-slate-200/50 text-center">
+                    <p className="text-slate-500 font-bold">No registered students found matching your search.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filtered.map(student => (
+                    <div key={student._id} className="bg-white rounded-3xl p-6 border border-slate-200/50 shadow-sm hover:shadow-md transition duration-200 flex flex-col justify-between space-y-5">
+                      <div className="space-y-4">
+                        {/* Student Header */}
+                        <div className="flex items-center gap-3.5">
+                          <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-black text-lg shadow-inner">
+                            {student.name.split(" ").map(n => n[0]).join("")}
+                          </div>
+                          <div>
+                            <h4 className="font-extrabold text-slate-800 tracking-tight">{student.name}</h4>
+                            <p className="text-[11px] font-bold text-slate-500 tracking-wider font-mono uppercase">{student.usn}</p>
+                          </div>
+                        </div>
+
+                        {/* Details */}
+                        <div className="space-y-2 text-xs font-semibold text-slate-600 border-t border-slate-100 pt-4">
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Email:</span>
+                            <span className="text-slate-700 truncate max-w-[180px]">{student.mail}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Class:</span>
+                            <span className="text-slate-700">{student.year} &bull; {student.semester}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Blood Group:</span>
+                            <span className="text-slate-700">{student.blood}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">CGPA:</span>
+                            <span className="text-emerald-600 font-bold">{student.cgpa ? student.cgpa.toFixed(2) : "N/A"}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="grid grid-cols-2 gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedStudentForCourse(student);
+                            setPersonalizedCourseModalOpen(true);
+                          }}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold transition duration-150"
+                        >
+                          <BookOpen size={14} />
+                          + Course
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedStudentForAttendance(student);
+                            setAttendanceModalOpen(true);
+                          }}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl text-xs font-bold transition duration-150"
+                        >
+                          <ClipboardCheck size={14} />
+                          Attendance
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()
+          )}
+        </div>
+      )}
+
+      {/* Personalized Course Modal */}
+      {personalizedCourseModalOpen && selectedStudentForCourse && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-indigo-600" />
+                  Personalized Course
+                </h3>
+                <p className="text-xs text-slate-500 font-semibold mt-1">
+                  Create custom course syllabus for <span className="font-extrabold text-slate-700">{selectedStudentForCourse.name}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPersonalizedCourseModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePersonalizedCourse} className="space-y-4">
+              {courseSuccessMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs font-bold rounded-xl flex items-center gap-1.5">
+                  <CheckCircle className="h-4 w-4 text-emerald-600" />
+                  {courseSuccessMsg}
+                </div>
+              )}
+              {courseErrorMsg && (
+                <div className="p-3 bg-red-50 border border-red-100 text-red-800 text-xs font-bold rounded-xl flex items-center gap-1.5">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  {courseErrorMsg}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Course Code</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. PC-CS-601"
+                  value={courseCode}
+                  onChange={(e) => setCourseCode(e.target.value.toUpperCase())}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Course Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Advanced AI Research Project"
+                  value={courseName}
+                  onChange={(e) => setCourseName(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Description</label>
+                <textarea
+                  placeholder="Enter personalized study objectives, syllabus topics, etc."
+                  value={courseDescription}
+                  onChange={(e) => setCourseDescription(e.target.value)}
+                  rows="3"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 transition resize-none"
+                ></textarea>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Course Credits ({courseCredits})</label>
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  value={courseCredits}
+                  onChange={(e) => setCourseCredits(Number(e.target.value))}
+                  className="w-full accent-indigo-600"
+                />
+                <div className="flex justify-between text-[10px] font-extrabold text-slate-400 mt-1">
+                  <span>1 Credit</span>
+                  <span>3 Credits</span>
+                  <span>5 Credits</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setPersonalizedCourseModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition active:scale-95 flex items-center gap-1.5"
+                >
+                  Create Course
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Attendance Modal */}
+      {attendanceModalOpen && selectedStudentForAttendance && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                  <ClipboardCheck className="h-5 w-5 text-emerald-600" />
+                  Mark Student Attendance
+                </h3>
+                <p className="text-xs text-slate-500 font-semibold mt-1">
+                  Log attendance directly for <span className="font-extrabold text-slate-700">{selectedStudentForAttendance.name}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAttendanceModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleMarkDirectAttendance} className="space-y-4">
+              {attendanceSuccessMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs font-bold rounded-xl flex items-center gap-1.5">
+                  <CheckCircle className="h-4 w-4 text-emerald-600" />
+                  {attendanceSuccessMsg}
+                </div>
+              )}
+              {attendanceErrorMsg && (
+                <div className="p-3 bg-red-50 border border-red-100 text-red-800 text-xs font-bold rounded-xl flex items-center gap-1.5">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  {attendanceErrorMsg}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Select from Taught Classes</label>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      const selectedClass = coursesList.find(c => c.code === e.target.value);
+                      if (selectedClass) {
+                        setAttendanceCourseCode(selectedClass.code);
+                        setAttendanceCourseName(selectedClass.name);
+                      }
+                    }
+                  }}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-semibold text-slate-800 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="">-- Choose Taught Course --</option>
+                  {coursesList.map(c => (
+                    <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="border-t border-slate-50 pt-2 text-center text-xs font-bold text-slate-400">
+                OR Enter Manually (For Personalized Course)
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Course Code</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. PC-CS-601"
+                  value={attendanceCourseCode}
+                  onChange={(e) => setAttendanceCourseCode(e.target.value.toUpperCase())}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Course Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Advanced AI Research Project"
+                  value={attendanceCourseName}
+                  onChange={(e) => setAttendanceCourseName(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Date</label>
+                <input
+                  type="date"
+                  required
+                  value={directAttendanceDate}
+                  onChange={(e) => setDirectAttendanceDate(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Status</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {["Present", "Absent", "Late"].map(status => {
+                    const isSelected = attendanceStatus === status;
+                    let colorClass = "border-slate-200 hover:bg-slate-50 text-slate-700";
+                    if (isSelected) {
+                      if (status === "Present") colorClass = "bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-600/20";
+                      else if (status === "Absent") colorClass = "bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/20";
+                      else colorClass = "bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/20";
+                    }
+                    return (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => setAttendanceStatus(status)}
+                        className={`border rounded-xl py-2 px-3 text-xs font-extrabold text-center transition duration-150 ${colorClass}`}
+                      >
+                        {status}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setAttendanceModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition active:scale-95 flex items-center gap-1.5"
+                >
+                  Log Status
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Attendance Confirmation & Absentee Preview Modal */}
       {showAttendanceConfirmModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">

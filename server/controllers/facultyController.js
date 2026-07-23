@@ -9,6 +9,7 @@ const Schedule = require("../models/Schedule");
 const Task = require("../models/Task");
 const Subject = require("../models/Subject");
 const AcademicResource = require("../models/AcademicResource");
+const PersonalizedCourse = require("../models/PersonalizedCourse");
 
 // Helper to get Teacher profile by user ID
 const getTeacherProfileHelper = async (userId) => {
@@ -464,6 +465,118 @@ exports.deleteResource = async (req, res) => {
     
     const list = await AcademicResource.find({ faculty: teacher._id }).sort({ createdAt: -1 });
     res.json(list);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get all registered students
+// @route   GET /api/faculty/students
+// @access  Private
+exports.getAllStudents = async (req, res) => {
+  try {
+    const students = await Student.find().populate("user", "-password");
+    res.json(students);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Create a personalized course for a student
+// @route   POST /api/faculty/personalized-course
+// @access  Private
+exports.createPersonalizedCourse = async (req, res) => {
+  try {
+    const teacher = await getTeacherProfileHelper(req.user.id);
+    const { studentId, courseCode, courseName, description, credits } = req.body;
+
+    if (!studentId || !courseCode || !courseName) {
+      return res.status(400).json({ message: "Student ID, Course Code, and Course Name are required" });
+    }
+
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ message: "Student profile not found" });
+    }
+
+    // Check if duplicate personalized course code exists for this student
+    const existing = await PersonalizedCourse.findOne({ student: studentId, courseCode });
+    if (existing) {
+      return res.status(400).json({ message: "This student is already registered for a personalized course with this course code." });
+    }
+
+    const newCourse = new PersonalizedCourse({
+      student: studentId,
+      faculty: teacher._id,
+      courseCode,
+      courseName,
+      description: description || "",
+      credits: credits ? Number(credits) : 4,
+    });
+
+    await newCourse.save();
+
+    // Trigger real-time refresh in student portal
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`student:${student.user.toString()}`).emit("course_created", {
+        courseCode,
+        courseName,
+        teacher: teacher.name,
+      });
+      console.log(`Socket emitted course_created to room student:${student.user.toString()}`);
+    }
+
+    res.json({ message: "Personalized course created successfully", course: newCourse });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Mark direct attendance for a student
+// @route   POST /api/faculty/student-attendance
+// @access  Private
+exports.markStudentAttendance = async (req, res) => {
+  try {
+    const teacher = await getTeacherProfileHelper(req.user.id);
+    const { studentId, subjectCode, subjectName, date, status } = req.body;
+
+    if (!studentId || !subjectCode || !subjectName || !date || !status) {
+      return res.status(400).json({ message: "Student ID, Subject Code, Subject Name, Date, and Status are required" });
+    }
+
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ message: "Student profile not found" });
+    }
+
+    // Upsert Attendance record
+    const log = await Attendance.findOneAndUpdate(
+      { student: studentId, subjectCode, date },
+      {
+        student: studentId,
+        subjectCode,
+        subjectName,
+        faculty: teacher._id,
+        date,
+        status,
+      },
+      { upsert: true, new: true }
+    );
+
+    // Trigger real-time refresh in student portal
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`student:${student.user.toString()}`).emit("attendance_updated", {
+        subjectCode,
+        subjectName,
+        date,
+        status,
+      });
+      console.log(`Socket emitted attendance_updated to room student:${student.user.toString()}`);
+    }
+
+    res.json({ message: "Attendance marked successfully", log });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
