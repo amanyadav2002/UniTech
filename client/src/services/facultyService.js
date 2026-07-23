@@ -61,6 +61,18 @@ const facultyService = {
     const response = await API.delete(`/faculty/resources/${id}`);
     return response.data;
   },
+  getAllStudents: async () => {
+    const response = await API.get("/faculty/students");
+    return response.data;
+  },
+  createPersonalizedCourse: async (data) => {
+    const response = await API.post("/faculty/personalized-course", data);
+    return response.data;
+  },
+  markStudentAttendance: async (data) => {
+    const response = await API.post("/faculty/student-attendance", data);
+    return response.data;
+  },
 };
 
 export default facultyService;

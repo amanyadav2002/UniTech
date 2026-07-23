@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { io } from "socket.io-client";
 import {
   Users,
   GraduationCap,
@@ -38,6 +39,7 @@ import {
   Building2,
   Briefcase,
   FlaskConical,
+  X,
 } from "lucide-react";
 
 import studentService from "../services/studentService";
@@ -159,6 +161,50 @@ export default function Students({ onOpenAuth }) {
   const [scheduleTimeline, setScheduleTimeline] = useState([]);
   const [loadingPortal, setLoadingPortal] = useState(true);
   const [errorPortal, setErrorPortal] = useState(null);
+
+  // Real-time notification state
+  const [realTimeNotification, setRealTimeNotification] = useState(null);
+
+  // Socket.io real-time listener
+  useEffect(() => {
+    if (!user || user.role !== "student") return;
+
+    const socket = io("http://localhost:5000");
+
+    socket.emit("join", { userId: user._id, role: "student" });
+
+    socket.on("course_created", (data) => {
+      console.log("Socket: personalized course created!", data);
+      setRealTimeNotification({
+        type: "course",
+        title: "New Personalized Course Registered",
+        message: `Course: ${data.courseName} (${data.courseCode}) has been registered for you by ${data.teacher}.`,
+      });
+      loadAllData();
+
+      setTimeout(() => {
+        setRealTimeNotification(null);
+      }, 6000);
+    });
+
+    socket.on("attendance_updated", (data) => {
+      console.log("Socket: attendance updated!", data);
+      setRealTimeNotification({
+        type: "attendance",
+        title: "Attendance Record Updated",
+        message: `Your attendance for ${data.subjectName} (${data.subjectCode}) on ${data.date} has been marked as ${data.status}.`,
+      });
+      loadAllData();
+
+      setTimeout(() => {
+        setRealTimeNotification(null);
+      }, 6000);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user]);
 
   const loadAllData = async () => {
     if (!user || user.role !== "student") return;
@@ -726,6 +772,25 @@ export default function Students({ onOpenAuth }) {
     
     return (
       <div className="min-h-screen bg-[#f8fafc] flex flex-col lg:flex-row">
+        
+        {/* Real-time Toast Notification overlay */}
+        {realTimeNotification && (
+          <div className="fixed top-6 right-6 z-[100] max-w-sm w-full bg-white rounded-2xl border border-indigo-600/20 shadow-2xl p-5 animate-slideIn flex items-start gap-4">
+            <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl shrink-0">
+              <Bell size={20} className="animate-bounce" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <h5 className="font-extrabold text-slate-800 text-sm">{realTimeNotification.title}</h5>
+              <p className="text-xs font-semibold text-slate-500 leading-relaxed">{realTimeNotification.message}</p>
+            </div>
+            <button 
+              onClick={() => setRealTimeNotification(null)}
+              className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition shrink-0"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
         
         {/* Dashboard Sidebar Navigation */}
         <aside className="w-full lg:w-72 bg-white border-r border-slate-200/80 flex flex-col shrink-0">
@@ -1418,9 +1483,16 @@ export default function Students({ onOpenAuth }) {
                         <div>
                           {/* Course code & Credits */}
                           <div className="flex items-center justify-between mb-3">
-                            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
-                              {course.code}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                                {course.code}
+                              </span>
+                              {course.personalized && (
+                                <span className="text-[10px] font-bold text-purple-600 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-md uppercase shadow-sm">
+                                  Personalized
+                                </span>
+                              )}
+                            </div>
                             <span className="text-xs text-slate-400 font-semibold">
                               {course.credits} Credits
                             </span>
@@ -1768,9 +1840,16 @@ export default function Students({ onOpenAuth }) {
                         >
                           <div>
                             <div className="flex items-center justify-between mb-4">
-                              <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-xl uppercase">
-                                {course.code}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-xl uppercase">
+                                  {course.code}
+                                </span>
+                                {course.personalized && (
+                                  <span className="text-[10px] font-bold text-purple-600 bg-purple-50 border border-purple-100 px-2.5 py-0.5 rounded-lg uppercase shadow-sm">
+                                    Personalized
+                                  </span>
+                                )}
+                              </div>
                               <span className="text-xs text-slate-400 font-semibold">{course.credits} Credits</span>
                             </div>
 

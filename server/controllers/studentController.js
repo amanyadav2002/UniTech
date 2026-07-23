@@ -9,6 +9,7 @@ const Grade = require("../models/Grade");
 const Notice = require("../models/Notice");
 const Task = require("../models/Task");
 const Schedule = require("../models/Schedule");
+const PersonalizedCourse = require("../models/PersonalizedCourse");
 
 // Helper to get Student Profile by user ID
 const getStudentProfileHelper = async (userId) => {
@@ -57,6 +58,17 @@ exports.updateProfile = async (req, res) => {
     if (semester !== undefined) student.semester = semester;
 
     const updatedStudent = await student.save();
+
+    // Trigger real-time refresh in faculty portal
+    const io = req.app.get("io");
+    if (io) {
+      io.to("role:faculty").emit("student_updated", {
+        studentId: updatedStudent._id,
+        name: updatedStudent.name,
+      });
+      console.log(`Socket emitted student_updated to room role:faculty`);
+    }
+
     res.json({
       message: "Profile updated successfully",
       student: updatedStudent,
@@ -100,13 +112,27 @@ exports.getAttendance = async (req, res) => {
     const classes = await Class.find({ department: student.department, semester: student.semester }).populate("faculty");
     const subjects = await Subject.find({ department: student.department });
 
+    // Fetch personalized courses for this student
+    const personalizedCourses = await PersonalizedCourse.find({ student: student._id }).populate("faculty");
+
     const coursesDetails = [];
     
     // Compile attendance statistics per subject
     // We prioritize classes assigned in the semester, but fallback to general subjects
     const subjectsToMap = classes.length > 0
-      ? classes.map(c => ({ code: c.subjectCode, name: c.subjectName, teacher: c.faculty?.name || "Faculty Member", credits: 4 }))
-      : subjects.map(s => ({ code: s.code, name: s.name, teacher: "Faculty Member", credits: s.credits }));
+      ? classes.map(c => ({ code: c.subjectCode, name: c.subjectName, teacher: c.faculty?.name || "Faculty Member", credits: 4, personalized: false }))
+      : subjects.map(s => ({ code: s.code, name: s.name, teacher: "Faculty Member", credits: s.credits, personalized: false }));
+
+    // Append personalized courses
+    personalizedCourses.forEach(pc => {
+      subjectsToMap.push({
+        code: pc.courseCode,
+        name: pc.courseName,
+        teacher: pc.faculty?.name || "Personal Instructor",
+        credits: pc.credits,
+        personalized: true,
+      });
+    });
 
     let overallHeld = 0;
     let overallAttended = 0;
@@ -137,6 +163,7 @@ exports.getAttendance = async (req, res) => {
         held,
         attended,
         attendance: held > 0 ? Math.round((attended / held) * 100) : 100,
+        personalized: sub.personalized || false,
       });
     }
 

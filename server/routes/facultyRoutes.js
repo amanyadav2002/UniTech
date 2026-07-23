@@ -17,6 +17,9 @@ const {
   uploadResource,
   getResources,
   deleteResource,
+  getAllStudents,
+  createPersonalizedCourse,
+  markStudentAttendance,
 } = require("../controllers/facultyController");
 
 router.get("/profile", authMiddleware, getProfile);
@@ -34,5 +37,9 @@ router.get("/schedule", authMiddleware, getSchedule);
 router.get("/resources", authMiddleware, getResources);
 router.post("/resources", authMiddleware, uploadResource);
 router.delete("/resources/:id", authMiddleware, deleteResource);
+
+router.get("/students", authMiddleware, getAllStudents);
+router.post("/personalized-course", authMiddleware, createPersonalizedCourse);
+router.post("/student-attendance", authMiddleware, markStudentAttendance);
 
 module.exports = router;
