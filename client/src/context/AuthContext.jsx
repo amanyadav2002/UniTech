@@ -6,7 +6,7 @@ const API_URL = "http://localhost:5000/api";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [token, setToken] = useState(sessionStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -64,7 +64,7 @@ export function AuthProvider({ children }) {
         throw new Error(data.message || "Failed to log in");
       }
 
-      localStorage.setItem("token", data.token);
+      sessionStorage.setItem("token", data.token);
       setToken(data.token);
 
       const loggedInUser = data.user;
@@ -105,7 +105,7 @@ export function AuthProvider({ children }) {
         throw new Error(data.message || "Failed to register account");
       }
 
-      localStorage.setItem("token", data.token);
+      sessionStorage.setItem("token", data.token);
       setToken(data.token);
 
       const registeredUser = data.user;
@@ -129,7 +129,7 @@ export function AuthProvider({ children }) {
 
   // Logout handler
   const logout = () => {
-    localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
     setToken(null);
     setUser(null);
     setError(null);

@@ -204,7 +204,7 @@ export default function Students({ onOpenAuth }) {
     return () => {
       socket.disconnect();
     };
-  }, [user]);
+  }, [user?._id]);
 
   const loadAllData = async () => {
     if (!user || user.role !== "student") return;

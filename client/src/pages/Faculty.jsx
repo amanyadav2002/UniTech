@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { io } from "socket.io-client";
 import {
   LayoutDashboard,
   Mail,
@@ -43,6 +42,14 @@ import {
 
 import facultyService from "../services/facultyService";
 import studentService from "../services/studentService";
+
+const FALLBACK_COURSES = [
+  { code: "CS-301", name: "Computer Networks" },
+  { code: "CS-302", name: "Operating Systems" },
+  { code: "CS-303", name: "Database Management Systems" },
+  { code: "CS-304", name: "Software Engineering" },
+  { code: "CS-305", name: "Compiler Design" },
+];
 
 export default function Faculty({ onOpenAuth }) {
   const { user, logout, updateUserProfile, addBookmark, removeBookmark } = useAuth();
@@ -124,7 +131,8 @@ export default function Faculty({ onOpenAuth }) {
 
   // Active student roster for attendance/grading
   const [studentRoster, setStudentRoster] = useState([]);
-  const [attendanceCourse, setAttendanceCourse] = useState("");
+  const [attendanceCourse, setAttendanceCourse] = useState("CS-301");
+  const [attendanceSemester, setAttendanceSemester] = useState("6th Sem");
   const [attendanceDate, setAttendanceDate] = useState(getLocalDateString());
   const [attendanceSuccess, setAttendanceSuccess] = useState("");
   const [showAttendanceConfirmModal, setShowAttendanceConfirmModal] = useState(false);
@@ -154,8 +162,6 @@ export default function Faculty({ onOpenAuth }) {
   const [attendanceSuccessMsg, setAttendanceSuccessMsg] = useState("");
   const [attendanceErrorMsg, setAttendanceErrorMsg] = useState("");
 
-  const socketRef = useRef(null);
-
   const loadRegisteredStudents = async () => {
     if (!user || user.role !== "faculty") return;
     setLoadingStudents(true);
@@ -170,28 +176,6 @@ export default function Faculty({ onOpenAuth }) {
       setLoadingStudents(false);
     }
   };
-
-  useEffect(() => {
-    if (!user || user.role !== "faculty") return;
-    
-    // Connect to Socket.io backend
-    const socket = io("http://localhost:5000");
-    socketRef.current = socket;
-    
-    socket.emit("join", { userId: user._id, role: "faculty" });
-    
-    // Listen for student profile updates
-    socket.on("student_updated", (data) => {
-      console.log("Socket: student profile updated!", data);
-      loadRegisteredStudents();
-    });
-    
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
-  }, [user]);
 
   useEffect(() => {
     if (activeTab === "students") {
@@ -328,14 +312,11 @@ export default function Faculty({ onOpenAuth }) {
 
   // Load attendance roster dynamically when class or date changes
   const loadAttendanceRoster = async () => {
-    if (!attendanceCourse || !attendanceDate || coursesList.length === 0) return;
+    if (!attendanceCourse || !attendanceDate || !attendanceSemester) return;
     try {
-      const activeClass = coursesList.find(c => c.code === attendanceCourse);
-      if (!activeClass) return;
-
       const roster = await facultyService.getAttendanceRoster({
-        department: activeClass.department,
-        semester: activeClass.semester,
+        department: "CSE",
+        semester: attendanceSemester,
         subjectCode: attendanceCourse,
         date: attendanceDate,
       });
@@ -347,7 +328,7 @@ export default function Faculty({ onOpenAuth }) {
 
   useEffect(() => {
     loadAttendanceRoster();
-  }, [attendanceCourse, attendanceDate, coursesList]);
+  }, [attendanceCourse, attendanceSemester, attendanceDate]);
 
   const handleAddTask = async (e) => {
     e.preventDefault();
@@ -550,10 +531,13 @@ export default function Faculty({ onOpenAuth }) {
   
   // Set default attendance course when list loads
   useEffect(() => {
-    if (coursesList.length > 0 && !attendanceCourse) {
-      setAttendanceCourse(coursesList[0].code);
+    if (coursesList.length > 0) {
+      const exists = coursesList.some(c => c.code === attendanceCourse);
+      if (!exists) {
+        setAttendanceCourse(coursesList[0].code);
+      }
     }
-  }, [coursesList, attendanceCourse]);
+  }, [coursesList]);
 
   const handleToggleAttendance = (studentId) => {
     setStudentRoster(prev =>
@@ -571,11 +555,28 @@ export default function Faculty({ onOpenAuth }) {
     );
   };
 
+  const handleSetStatus = (studentId, newStatus) => {
+    setStudentRoster(prev =>
+      prev.map(student => {
+        if (student.id === studentId) {
+          return {
+            ...student,
+            present: newStatus === "Present",
+            status: newStatus,
+          };
+        }
+        return student;
+      })
+    );
+  };
+
   const handleMarkAll = (status) => {
+    const isPresent = status === true || status === "Present";
+    const statusStr = typeof status === "string" ? status : (status ? "Present" : "Absent");
     setStudentRoster(prev => prev.map(s => ({
       ...s,
-      present: status,
-      status: status ? "Present" : "Absent",
+      present: isPresent,
+      status: statusStr,
     })));
   };
 
@@ -595,7 +596,7 @@ export default function Faculty({ onOpenAuth }) {
   const handleFinalSubmitAttendance = async () => {
     setShowAttendanceConfirmModal(false);
     try {
-      const activeClass = coursesList.find(c => c.code === attendanceCourse);
+      const activeClass = coursesList.find(c => c.code === attendanceCourse) || FALLBACK_COURSES.find(c => c.code === attendanceCourse);
       const records = studentRoster.map(s => ({
         studentUsn: s.id,
         present: s.present,
@@ -1690,158 +1691,90 @@ export default function Faculty({ onOpenAuth }) {
     return results;
   };
 
+  const displayCourses = [];
+  const seenCodes = new Set();
+
+  coursesList.forEach(c => {
+    if (!seenCodes.has(c.code)) {
+      seenCodes.add(c.code);
+      displayCourses.push(c);
+    }
+  });
+
+  FALLBACK_COURSES.forEach(c => {
+    if (!seenCodes.has(c.code)) {
+      seenCodes.add(c.code);
+      displayCourses.push(c);
+    }
+  });
+
   const searchResults = getFacultySearchResults();
 
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col lg:flex-row animate-fadeIn">
       
       {/* Sidebar Navigation */}
-      <aside className="w-full lg:w-72 bg-white border-r border-slate-200/80 flex flex-col shrink-0">
-        {/* User Badge */}
-        <div className="p-6 border-b border-slate-100 flex items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-extrabold text-lg border border-indigo-100 shrink-0">
+      <aside className="w-full lg:w-72 bg-black border-r border-zinc-900 flex flex-col shrink-0 text-zinc-300 font-sans">
+        {/* Logo/Branding Header */}
+        <div className="px-6 py-6 border-b border-zinc-900 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-zinc-900 flex items-center justify-center text-blue-500 border border-zinc-800 shadow-sm shadow-blue-500/10">
+            <GraduationCap size={20} />
+          </div>
+          <div>
+            <h1 className="text-base font-extrabold text-white tracking-tight leading-none">UniTech</h1>
+            <span className="text-[10px] text-blue-500 font-bold tracking-wider uppercase mt-1.5 block">Faculty Hub</span>
+          </div>
+        </div>
+
+        {/* User Profile Card */}
+        <div className="p-4 mx-4 mt-6 rounded-xl bg-zinc-900/40 border border-zinc-900 flex items-center gap-3.5 backdrop-blur-sm relative overflow-hidden group">
+          <div className="absolute -inset-px bg-zinc-800/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl pointer-events-none" />
+          <div className="h-10 w-10 rounded-lg bg-zinc-800 border border-zinc-700/50 flex items-center justify-center text-zinc-200 font-bold text-sm shrink-0 shadow-inner">
             {user.name ? user.name.split(" ").map(w => w[0]).join("").toUpperCase().substring(0, 2) : "FC"}
           </div>
-          <div className="overflow-hidden">
-            <h4 className="font-extrabold text-slate-800 leading-tight truncate">{user.name}</h4>
-            <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full inline-block mt-1 border border-indigo-100/50">
+          <div className="overflow-hidden z-10">
+            <h4 className="font-semibold text-zinc-200 leading-tight truncate text-sm">{user.name}</h4>
+            <span className="text-[11px] font-medium text-zinc-400 mt-0.5 inline-block bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800/80">
               ID: {teacherProfile.id || "NOT SET"}
             </span>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5">
+        <nav className="flex-1 px-4 py-6 space-y-1">
           <button
             onClick={() => setActiveTab("overview")}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
+            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
               activeTab === "overview"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/15"
+                : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
             }`}
           >
-            <Activity size={18} />
-            Portal Overview
+            <Activity size={18} className={activeTab === 'overview' ? 'text-white' : 'text-zinc-400'} />
+            <span>Portal Overview</span>
           </button>
 
           <button
             onClick={() => setActiveTab("attendance")}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
+            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
               activeTab === "attendance"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/15"
+                : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
             }`}
           >
-            <ClipboardCheck size={18} />
-            Record Attendance
-          </button>
-
-          <button
-            onClick={() => setActiveTab("students")}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
-              activeTab === "students"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            }`}
-          >
-            <Users size={18} />
-            Registered Students
-          </button>
-
-          <button
-            onClick={() => setActiveTab("resources")}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
-              activeTab === "resources"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            }`}
-          >
-            <Laptop size={18} />
-            Digital Classroom
-          </button>
-
-          <button
-            onClick={() => setActiveTab("assignments")}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
-              activeTab === "assignments"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            }`}
-          >
-            <FileText size={18} />
-            Grading & Assignment Hub
-          </button>
-
-          <button
-            onClick={() => setActiveTab("research")}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
-              activeTab === "research"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            }`}
-          >
-            <FlaskConical size={18} />
-            Research publications
-          </button>
-
-          <button
-            onClick={() => setActiveTab("notices")}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
-              activeTab === "notices"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            }`}
-          >
-            <div className="relative">
-              <Bell size={18} />
-              <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-              </span>
-            </div>
-            Announcements Board
-          </button>
-
-          <button
-            onClick={() => setActiveTab("bookmarks")}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
-              activeTab === "bookmarks"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            }`}
-          >
-            <div className="relative">
-              <Bookmark size={18} />
-              {bookmarkedItems.length > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                </span>
-              )}
-            </div>
-            My Bookmarks
-          </button>
-
-          <button
-            onClick={() => setActiveTab("profile")}
-            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
-              activeTab === "profile"
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
-                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            }`}
-          >
-            <User size={18} />
-            Faculty Profile
+            <ClipboardCheck size={18} className={activeTab === 'attendance' ? 'text-white' : 'text-zinc-400'} />
+            <span>Attendance</span>
           </button>
         </nav>
 
         {/* Sign Out */}
-        <div className="p-4 border-t border-slate-100">
+        <div className="p-4 border-t border-zinc-900">
           <button
             onClick={logout}
-            className="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-bold text-red-600 hover:bg-red-50 hover:text-red-700 transition duration-200 text-sm"
+            className="w-full flex items-center gap-3.5 px-4 py-3 rounded-lg font-medium text-red-450 hover:bg-red-950/20 hover:text-red-300 transition duration-200 text-sm"
           >
             <LogOut size={18} />
-            Sign Out
+            <span>Sign Out</span>
           </button>
         </div>
       </aside>
@@ -2214,8 +2147,8 @@ export default function Faculty({ onOpenAuth }) {
         {activeTab === "attendance" && (
           <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200/50 space-y-6 animate-fadeIn">
             <div className="border-b border-slate-100 pb-5">
-              <h3 className="text-xl font-extrabold text-slate-800">Roll Call Roster</h3>
-              <p className="text-xs text-slate-400 font-semibold mt-1">Select class, date and mark students present or absent.</p>
+              <h3 className="text-xl font-extrabold text-slate-800">Class Attendance</h3>
+              <p className="text-xs text-slate-400 font-semibold mt-1">Quick-mark student presence, absences, and leaves for selected classes.</p>
             </div>
 
             {attendanceSuccess && (
@@ -2236,19 +2169,36 @@ export default function Faculty({ onOpenAuth }) {
             )}
 
             <form onSubmit={handleSubmitAttendance} className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-3">
+                {/* Subject Selection */}
                 <div>
-                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Class Course</label>
+                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Subject / Course</label>
                   <select
                     value={attendanceCourse}
                     onChange={(e) => setAttendanceCourse(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm"
                   >
-                    {coursesList.map(c => (
+                    {displayCourses.map(c => (
                       <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
                     ))}
                   </select>
                 </div>
+
+                {/* Semester Selection */}
+                <div>
+                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Semester</label>
+                  <select
+                    value={attendanceSemester}
+                    onChange={(e) => setAttendanceSemester(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm"
+                  >
+                    {["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"].map(sem => (
+                      <option key={sem} value={sem}>{sem}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Attendance Date (Unchanged Input Logic) */}
                 <div>
                   <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Attendance Date</label>
                   <div className="flex items-center gap-2">
@@ -2414,38 +2364,53 @@ export default function Faculty({ onOpenAuth }) {
                 </div>
               </div>
 
-              {/* Roster Controls */}
+              {/* Roster Controls & Stats Banner */}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
-                <span className="text-xs text-slate-500 font-bold">
-                  Class Size: {studentRoster.length} students &bull; Present: {studentRoster.filter(s => s.present).length} &bull; Absent: {studentRoster.filter(s => !s.present).length}
-                </span>
+                <div className="flex items-center gap-3.5 text-xs text-slate-500 font-bold">
+                  <span>Class Size: <strong className="text-slate-800">{studentRoster.length}</strong></span>
+                  <span className="h-3 w-px bg-slate-200"></span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    Present: <strong className="text-emerald-700">{studentRoster.filter(s => s.status === "Present" || (!s.status && s.present)).length}</strong>
+                  </span>
+                  <span className="h-3 w-px bg-slate-200"></span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-rose-500" />
+                    Absent: <strong className="text-rose-700">{studentRoster.filter(s => s.status === "Absent" || (!s.status && !s.present)).length}</strong>
+                  </span>
+                  <span className="h-3 w-px bg-slate-200"></span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                    Leave: <strong className="text-amber-700">{studentRoster.filter(s => s.status === "Leave").length}</strong>
+                  </span>
+                </div>
 
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => handleMarkAll(true)}
-                    className="border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl bg-white"
+                    onClick={() => handleMarkAll("Present")}
+                    className="border border-slate-200 hover:border-indigo-100 hover:bg-indigo-50/30 hover:text-indigo-600 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-xl bg-white transition duration-150"
                   >
                     Mark All Present
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleMarkAll(false)}
-                    className="border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl bg-white"
+                    onClick={() => handleMarkAll("Absent")}
+                    className="border border-slate-200 hover:border-rose-100 hover:bg-rose-50/30 hover:text-rose-600 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-xl bg-white transition duration-150"
                   >
                     Mark All Absent
                   </button>
                 </div>
               </div>
 
-              {/* Student Table */}
-              <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+              {/* Student Table View format with Present, Absent, Leave Actions */}
+              <div className="overflow-x-auto border border-slate-100 rounded-2xl shadow-sm">
                 <table className="min-w-full divide-y divide-slate-100 text-left text-sm font-semibold">
-                  <thead className="bg-slate-50 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                  <thead className="bg-slate-50/75 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
                     <tr>
                       <th className="px-6 py-4">Student ID / USN</th>
                       <th className="px-6 py-4">Student Full Name</th>
-                      <th className="px-6 py-4 text-center">Status (Toggle present)</th>
+                      <th className="px-6 py-4 text-center">Attendance Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
@@ -2457,21 +2422,45 @@ export default function Faculty({ onOpenAuth }) {
                       </tr>
                     ) : (
                       filteredStudentRoster.map((student) => (
-                        <tr key={student.id} className="hover:bg-slate-50/50 transition">
+                        <tr key={student.id} className="hover:bg-slate-50/40 transition">
                           <td className="px-6 py-4 text-xs font-mono font-bold text-slate-500">{student.id}</td>
                           <td className="px-6 py-4 font-bold text-slate-800">{student.name}</td>
                           <td className="px-6 py-4 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleAttendance(student.id)}
-                              className={`px-4 py-1.5 rounded-full text-xs font-extrabold transition-all border duration-150 ${
-                                student.present
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                                  : "bg-red-50 text-red-700 border-red-100"
-                              }`}
-                            >
-                              {student.present ? "Present" : "Absent"}
-                            </button>
+                            <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50/50">
+                              <button
+                                type="button"
+                                onClick={() => handleSetStatus(student.id, "Present")}
+                                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-150 ${
+                                  (student.status === "Present" || (!student.status && student.present))
+                                    ? "bg-emerald-600 text-white shadow-sm font-extrabold"
+                                    : "text-slate-500 hover:text-slate-800 hover:bg-white"
+                                }`}
+                              >
+                                Present
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSetStatus(student.id, "Absent")}
+                                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-150 ${
+                                  (student.status === "Absent" || (!student.status && !student.present))
+                                    ? "bg-rose-600 text-white shadow-sm font-extrabold"
+                                    : "text-slate-500 hover:text-slate-800 hover:bg-white"
+                                }`}
+                              >
+                                Absent
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSetStatus(student.id, "Leave")}
+                                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-150 ${
+                                  student.status === "Leave"
+                                    ? "bg-amber-500 text-white shadow-sm font-extrabold"
+                                    : "text-slate-500 hover:text-slate-800 hover:bg-white"
+                                }`}
+                              >
+                                Leave
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -2480,6 +2469,7 @@ export default function Faculty({ onOpenAuth }) {
                 </table>
               </div>
 
+              {/* Submit Button */}
               <div className="flex justify-end pt-4 border-t border-slate-100">
                 <button
                   type="submit"
@@ -3745,67 +3735,106 @@ export default function Faculty({ onOpenAuth }) {
                 );
               }
 
-              return (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filtered.map(student => (
-                    <div key={student._id} className="bg-white rounded-3xl p-6 border border-slate-200/50 shadow-sm hover:shadow-md transition duration-200 flex flex-col justify-between space-y-5">
-                      <div className="space-y-4">
-                        {/* Student Header */}
-                        <div className="flex items-center gap-3.5">
-                          <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-black text-lg shadow-inner">
-                            {student.name.split(" ").map(n => n[0]).join("")}
-                          </div>
-                          <div>
-                            <h4 className="font-extrabold text-slate-800 tracking-tight">{student.name}</h4>
-                            <p className="text-[11px] font-bold text-slate-500 tracking-wider font-mono uppercase">{student.usn}</p>
-                          </div>
-                        </div>
+              const semestersOrder = [
+                "1st Sem",
+                "2nd Sem",
+                "3rd Sem",
+                "4th Sem",
+                "5th Sem",
+                "6th Sem",
+                "7th Sem",
+                "8th Sem"
+              ];
 
-                        {/* Details */}
-                        <div className="space-y-2 text-xs font-semibold text-slate-600 border-t border-slate-100 pt-4">
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Email:</span>
-                            <span className="text-slate-700 truncate max-w-[180px]">{student.mail}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Class:</span>
-                            <span className="text-slate-700">{student.year} &bull; {student.semester}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Blood Group:</span>
-                            <span className="text-slate-700">{student.blood}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">CGPA:</span>
-                            <span className="text-emerald-600 font-bold">{student.cgpa ? student.cgpa.toFixed(2) : "N/A"}</span>
-                          </div>
-                        </div>
+              const grouped = semestersOrder.reduce((acc, sem) => {
+                const semStudents = filtered.filter(s => s.semester === sem);
+                if (semStudents.length > 0) {
+                  acc.push({ semester: sem, students: semStudents });
+                }
+                return acc;
+              }, []);
+
+              const customSemStudents = filtered.filter(s => !semestersOrder.includes(s.semester));
+              if (customSemStudents.length > 0) {
+                grouped.push({ semester: "Other Semesters", students: customSemStudents });
+              }
+
+              return (
+                <div className="space-y-10">
+                  {grouped.map(group => (
+                    <div key={group.semester} className="space-y-4">
+                      {/* Semester Header */}
+                      <div className="flex items-center gap-3 border-b border-slate-100 pb-2">
+                        <div className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse"></div>
+                        <h3 className="text-base font-extrabold text-slate-800 tracking-tight">
+                          {group.semester} ({group.students.length} {group.students.length === 1 ? 'Student' : 'Students'})
+                        </h3>
                       </div>
 
-                      {/* Actions */}
-                      <div className="grid grid-cols-2 gap-3 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedStudentForCourse(student);
-                            setPersonalizedCourseModalOpen(true);
-                          }}
-                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold transition duration-150"
-                        >
-                          <BookOpen size={14} />
-                          + Course
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedStudentForAttendance(student);
-                            setAttendanceModalOpen(true);
-                          }}
-                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl text-xs font-bold transition duration-150"
-                        >
-                          <ClipboardCheck size={14} />
-                          Attendance
-                        </button>
+                      {/* Student Cards Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {group.students.map(student => (
+                          <div key={student._id} className="bg-white rounded-3xl p-6 border border-slate-200/50 shadow-sm hover:shadow-md transition duration-200 flex flex-col justify-between space-y-5">
+                            <div className="space-y-4">
+                              {/* Student Header */}
+                              <div className="flex items-center gap-3.5">
+                                <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-black text-lg shadow-inner">
+                                  {student.name.split(" ").map(n => n[0]).join("")}
+                                </div>
+                                <div>
+                                  <h4 className="font-extrabold text-slate-800 tracking-tight">{student.name}</h4>
+                                  <p className="text-[11px] font-bold text-slate-500 tracking-wider font-mono uppercase">{student.usn}</p>
+                                </div>
+                              </div>
+
+                              {/* Details */}
+                              <div className="space-y-2 text-xs font-semibold text-slate-600 border-t border-slate-100 pt-4">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Email:</span>
+                                  <span className="text-slate-700 truncate max-w-[180px]">{student.mail}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Class:</span>
+                                  <span className="text-slate-700">{student.year} &bull; {student.semester}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Blood Group:</span>
+                                  <span className="text-slate-700">{student.blood}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">CGPA:</span>
+                                  <span className="text-emerald-600 font-bold">{student.cgpa ? student.cgpa.toFixed(2) : "N/A"}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedStudentForCourse(student);
+                                  setPersonalizedCourseModalOpen(true);
+                                }}
+                                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold transition duration-150"
+                              >
+                                <BookOpen size={14} />
+                                + Course
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedStudentForAttendance(student);
+                                  setAttendanceModalOpen(true);
+                                }}
+                                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl text-xs font-bold transition duration-150"
+                              >
+                                <ClipboardCheck size={14} />
+                                Attendance
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}

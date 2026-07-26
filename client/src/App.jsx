@@ -28,7 +28,7 @@ function App() {
   const isAnyDashboardLoggedIn = isStudentLoggedIn || isFacultyLoggedIn;
 
   // If a token exists and we are still fetching user details, show a premium loader
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   if (token && loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
