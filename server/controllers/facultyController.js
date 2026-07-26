@@ -1,4 +1,5 @@
 const Teacher = require("../models/Teacher");
+const mongoose = require("mongoose");
 const User = require("../models/User");
 const Student = require("../models/Student");
 const Class = require("../models/Class");
@@ -126,11 +127,21 @@ exports.getAttendanceRoster = async (req, res) => {
 exports.submitAttendance = async (req, res) => {
   try {
     const teacher = await getTeacherProfileHelper(req.user.id);
-    const { subjectCode, subjectName, date, records } = req.body;
+    const { subjectCode, subjectName, date, records, period, hours } = req.body;
     
     if (!subjectCode || !subjectName || !date || !records || !Array.isArray(records)) {
       return res.status(400).json({ message: "Missing required attendance submission fields" });
     }
+
+    // Safely drop legacy index if it exists to prevent compound duplicate key errors
+    try {
+      await mongoose.connection.db.collection('attendances').dropIndex("student_1_subjectCode_1_date_1");
+    } catch (e) {
+      // index already dropped or doesn't exist
+    }
+
+    const parsedHours = parseInt(hours, 10) || 1;
+    const finalPeriod = period || "1st Period";
 
     const savedLogs = [];
     for (const record of records) {
@@ -142,9 +153,9 @@ exports.submitAttendance = async (req, res) => {
       // Map boolean present to status if status is not explicitly passed
       const finalStatus = status || (present ? "Present" : "Absent");
 
-      // Upsert Attendance record
+      // Upsert Attendance record with period in query
       const log = await Attendance.findOneAndUpdate(
-        { student: student._id, subjectCode, date },
+        { student: student._id, subjectCode, date, period: finalPeriod },
         {
           student: student._id,
           subjectCode,
@@ -152,6 +163,8 @@ exports.submitAttendance = async (req, res) => {
           faculty: teacher._id,
           date,
           status: finalStatus,
+          period: finalPeriod,
+          hours: parsedHours
         },
         { upsert: true, new: true }
       );

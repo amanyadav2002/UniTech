@@ -148,6 +148,7 @@ export default function Students({ onOpenAuth }) {
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState("");
   const [isFilterDayOpen, setIsFilterDayOpen] = useState(false);
   const [isFilterMonthOpen, setIsFilterMonthOpen] = useState(false);
   const [isFilterYearOpen, setIsFilterYearOpen] = useState(false);
@@ -660,7 +661,7 @@ export default function Students({ onOpenAuth }) {
       c.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
       c.code.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
       c.teacher.toLowerCase().includes(globalSearchQuery.toLowerCase())
-    );
+    ).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
     const filteredGrades = gradesRecord.filter((g) =>
       g.name.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
@@ -1207,10 +1208,13 @@ export default function Students({ onOpenAuth }) {
                       <p className="text-lg md:text-xl font-black text-white">{cgpa}</p>
                     </div>
                     <div className="w-[1px] bg-white/20 self-stretch"></div>
-                    <div className="text-center">
-                      <p className="text-[10px] uppercase font-bold text-indigo-200 flex items-center justify-center gap-1"><span>📊</span> Attendance</p>
-                      <p className="text-lg md:text-xl font-black text-white">{attendanceStats.overallPercent}%</p>
-                    </div>
+                    <div 
+                       onClick={() => setActiveTab("courses")}
+                       className="text-center cursor-pointer hover:opacity-80 transition"
+                     >
+                       <p className="text-[10px] uppercase font-bold text-indigo-200 flex items-center justify-center gap-1"><span>📊</span> Attendance</p>
+                       <p className="text-lg md:text-xl font-black text-white">{attendanceStats.overallPercent}%</p>
+                     </div>
                     <div className="w-[1px] bg-white/20 self-stretch"></div>
                     <div className="text-center">
                       <p className="text-[10px] uppercase font-bold text-indigo-200 flex items-center justify-center gap-1"><span>📚</span> Tasks left</p>
@@ -1226,13 +1230,20 @@ export default function Students({ onOpenAuth }) {
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 
                 {/* Card 1: Attendance Progress */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
+                <div 
+                  onClick={() => setActiveTab("courses")}
+                  className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex items-center justify-between cursor-pointer hover:border-indigo-200 hover:shadow-md transition duration-150"
+                >
                   <div className="space-y-2">
                     <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
                       <span>📊</span> Overall Attendance
                     </p>
                     <h3 className="text-3xl font-extrabold text-slate-800">{attendanceStats.overallPercent}%</h3>
-                    <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full inline-block">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full inline-block ${
+                      attendanceStats.overallPercent >= 75 
+                        ? "text-emerald-600 bg-emerald-50" 
+                        : "text-rose-600 bg-rose-50"
+                    }`}>
                       {attendanceStats.overallPercent >= 75 ? "Eligible • Excellent" : "Not Eligible • Shortage"}
                     </span>
                   </div>
@@ -1616,43 +1627,71 @@ export default function Students({ onOpenAuth }) {
                         const textColor = isEligible ? "text-emerald-700" : "text-rose-700";
                         const bgColor = isEligible ? "bg-emerald-50" : "bg-rose-50";
                         const borderClass = isEligible ? "border-emerald-100" : "border-rose-100";
-                        const eligibilityMsg = isEligible ? "Attendance Safe" : "Critically Low - Attendance Warning";
+                        const eligibilityMsg = isEligible ? "Safe" : "Low";
+                        const isSelected = selectedSubjectFilter === course.code;
 
                         return (
-                          <div key={index} className="p-4 rounded-2xl border border-slate-100 hover:border-indigo-100 transition-all bg-slate-50/20">
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <span className="text-[10px] font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md uppercase">
-                                  {course.code}
-                                </span>
-                                {course.personalized && (
-                                  <span className="ml-1.5 text-[9px] font-bold text-purple-600 bg-purple-50 border border-purple-100 px-1.5 py-0.2 rounded-md uppercase">
-                                    Personalized
+                          <div 
+                            key={index} 
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedSubjectFilter("");
+                              } else {
+                                setSelectedSubjectFilter(course.code);
+                                // Clear date filters to show everyday's logs for this subject
+                                setFilterDay("");
+                                setFilterMonth("");
+                                setFilterYear("");
+                              }
+                            }}
+                            className={`p-4 rounded-2xl border transition-all duration-150 cursor-pointer flex flex-col gap-3 ${
+                              isSelected 
+                                ? "border-indigo-500 bg-indigo-50/10 shadow-md ring-2 ring-indigo-500/10" 
+                                : "border-slate-100 bg-white hover:bg-slate-50/50 hover:border-indigo-100 shadow-sm hover:shadow"
+                            }`}
+                          >
+                            {/* Header row */}
+                            <div className="flex justify-between items-start">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[9px] font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wider font-mono">
+                                    {course.code}
                                   </span>
-                                )}
-                                <h4 className="font-extrabold text-slate-800 text-sm mt-1">{course.name}</h4>
+                                  {course.personalized && (
+                                    <span className="text-[9px] font-extrabold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-md uppercase tracking-wider font-mono">
+                                      Personalized
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] text-slate-400 font-bold ml-0.5">
+                                    • Instructor: {course.teacher || "Faculty"}
+                                  </span>
+                                </div>
+                                <h4 className="font-extrabold text-slate-800 text-[13px] mt-1.5 truncate max-w-[180px] md:max-w-[240px]" title={course.name}>
+                                  {course.name}
+                                </h4>
                               </div>
-                              <span className={`text-sm font-black ${textColor}`}>
-                                {course.attendance}%
-                              </span>
-                            </div>
-                            <p className="text-[10px] font-semibold text-slate-400 mb-3">Instructor: {course.teacher}</p>
-                            
-                            <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 bg-white rounded-xl px-3 py-2 border border-slate-100 mb-3">
-                              <span>Conducted: <span className="text-slate-800">{course.held}</span></span>
-                              <span className="h-3 w-px bg-slate-100"></span>
-                              <span>Attended: <span className="text-emerald-600">{course.attended}</span></span>
+                              <div className="text-right flex-shrink-0">
+                                <span className={`text-[15px] font-black tracking-tight block leading-none ${textColor}`}>
+                                  {course.attendance}%
+                                </span>
+                                <span className={`inline-block text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md border mt-1.5 ${bgColor} ${borderClass} ${textColor}`}>
+                                  {eligibilityMsg}
+                                </span>
+                              </div>
                             </div>
 
-                            <div className="w-full bg-slate-100 rounded-full h-1.5 mb-3">
-                              <div 
-                                className={`h-1.5 rounded-full transition-all duration-500 ${statusColor}`}
-                                style={{ width: `${course.attendance}%` }}
-                              ></div>
-                            </div>
-
-                            <div className={`rounded-xl p-2 border text-center ${bgColor} ${borderClass}`}>
-                              <p className={`text-[10px] font-extrabold ${textColor}`}>{eligibilityMsg}</p>
+                            {/* Progress bar and details */}
+                            <div className="space-y-1.5">
+                              <div className="flex justify-between items-center text-[10px] font-bold text-slate-500">
+                                <span>Conducted: <strong className="text-slate-700">{course.held}</strong></span>
+                                <span>Attended: <strong className="text-slate-700">{course.attended}</strong></span>
+                              </div>
+                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div 
+                                  className={`h-1.5 rounded-full transition-all duration-500 ${statusColor}`}
+                                  style={{ width: `${course.attendance}%` }}
+                                ></div>
+                              </div>
                             </div>
                           </div>
                         );
@@ -1668,6 +1707,10 @@ export default function Students({ onOpenAuth }) {
                       ((r.subjectName || "").toLowerCase().includes((globalSearchQuery || "").toLowerCase())) ||
                       ((r.subjectCode || "").toLowerCase().includes((globalSearchQuery || "").toLowerCase()))
                     );
+
+                    if (selectedSubjectFilter) {
+                      filteredDateWiseRecord = filteredDateWiseRecord.filter(r => r.subjectCode === selectedSubjectFilter);
+                    }
 
                     if (filterYear) {
                       filteredDateWiseRecord = filteredDateWiseRecord.filter(r => r.date.startsWith(filterYear));
@@ -1859,16 +1902,30 @@ export default function Students({ onOpenAuth }) {
                               />
                             </div>
 
-                            {hasFilters && (
+                            {selectedSubjectFilter && (
+                              <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100/50 px-2.5 py-1.5 rounded-xl flex items-center gap-1 animate-fadeIn">
+                                📚 {selectedSubjectFilter}
+                                <button 
+                                  onClick={() => setSelectedSubjectFilter("")}
+                                  className="hover:text-indigo-950 ml-1 font-black text-xs cursor-pointer focus:outline-none"
+                                  title="Clear subject filter"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            )}
+
+                            {(hasFilters || selectedSubjectFilter) && (
                               <button
                                 onClick={() => {
                                   setFilterDay("");
                                   setFilterMonth("");
                                   setFilterYear("");
+                                  setSelectedSubjectFilter("");
                                 }}
                                 className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-xl transition animate-fadeIn"
                               >
-                                Clear
+                                Clear All
                               </button>
                             )}
                             <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1.5 rounded-xl">
