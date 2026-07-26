@@ -172,6 +172,7 @@ const seedDatabase = async () => {
         phone: `+1 (555) 014-990${i + 1}`,
         year: "3rd Year",
         semester: "6th Sem",
+        department: "Computer Science Department",
         dob: new Date("2005-08-15"),
         blood: "O+",
         cgpa: 3.82,

@@ -44,36 +44,66 @@ const signup = async (req, res) => {
     // Validate Custom profile fields
     let profileData = {};
     if (normalizedRole === "student") {
-      const { id, age, usn, phone, year, semester, dob, blood } = req.body;
-      if (!id || !age || !usn || !phone || !year || !semester || !dob || !blood) {
-        return res.status(400).json({ message: "Please fill in all student profile fields" });
-      }
+      const { id, age, usn, phone, year, semester, dob, blood, department } = req.body;
+
+      // Handle fallback values if profile details are missing
+      const finalId = (id || usn || `STU${Math.floor(1000 + Math.random() * 9000)}`).trim();
+      const finalUsn = (usn || id || `1RV21CS${Math.floor(100 + Math.random() * 900)}`).trim().toUpperCase();
+      const finalAge = age ? Number(age) : 20;
+      const finalPhone = (phone || "+1 (555) 014-9900").trim();
+      const finalYear = (year || "3rd Year").trim();
+      const finalSemester = (semester || "6th Sem").trim();
+      const finalDob = dob ? new Date(dob) : new Date("2005-08-15");
+      const finalBlood = (blood || "O+").trim();
+      const finalDept = (department || "Computer Science Department").trim();
 
       // Check unique constraints for student profile
-      const dupStudentId = await Student.findOne({ id: id.trim() });
+      const dupStudentId = await Student.findOne({ id: finalId });
       if (dupStudentId) return res.status(400).json({ message: "Student ID already exists" });
 
-      const dupStudentUsn = await Student.findOne({ usn: usn.trim().toUpperCase() });
+      const dupStudentUsn = await Student.findOne({ usn: finalUsn });
       if (dupStudentUsn) return res.status(400).json({ message: "USN already exists" });
 
       const dupStudentMail = await Student.findOne({ mail: email.toLowerCase().trim() });
       if (dupStudentMail) return res.status(400).json({ message: "Email is already linked to a student profile" });
 
-      profileData = { id, age, usn, phone, year, semester, dob, blood };
+      profileData = {
+        id: finalId,
+        age: finalAge,
+        usn: finalUsn,
+        phone: finalPhone,
+        year: finalYear,
+        semester: finalSemester,
+        dob: finalDob,
+        blood: finalBlood,
+        department: finalDept
+      };
     } else if (normalizedRole === "faculty") {
       const { id, age, phone, department, salary, dob } = req.body;
-      if (!id || !age || !phone || !department || !salary || !dob) {
-        return res.status(400).json({ message: "Please fill in all teacher profile fields" });
-      }
+
+      // Handle fallback values if profile details are missing
+      const finalId = (id || `FAC${Math.floor(1000 + Math.random() * 9000)}`).trim();
+      const finalAge = age ? Number(age) : 35;
+      const finalPhone = (phone || "+1 (555) 014-9900").trim();
+      const finalDept = (department || "Computer Science Department").trim();
+      const finalSalary = salary ? Number(salary) : 75000;
+      const finalDob = dob ? new Date(dob) : new Date("1990-01-01");
 
       // Check unique constraints for teacher profile
-      const dupTeacherId = await Teacher.findOne({ id: id.trim() });
+      const dupTeacherId = await Teacher.findOne({ id: finalId });
       if (dupTeacherId) return res.status(400).json({ message: "Teacher ID already exists" });
 
       const dupTeacherMail = await Teacher.findOne({ mail: email.toLowerCase().trim() });
       if (dupTeacherMail) return res.status(400).json({ message: "Email is already linked to a teacher profile" });
 
-      profileData = { id, age, phone, department, salary, dob };
+      profileData = {
+        id: finalId,
+        age: finalAge,
+        phone: finalPhone,
+        department: finalDept,
+        salary: finalSalary,
+        dob: finalDob
+      };
     }
 
     // Hash password
@@ -97,28 +127,29 @@ const signup = async (req, res) => {
       const newStudentProfile = new Student({
         user: savedUser._id,
         name: savedUser.name,
-        id: profileData.id.trim(),
-        age: Number(profileData.age),
-        usn: profileData.usn.trim().toUpperCase(),
+        id: profileData.id,
+        age: profileData.age,
+        usn: profileData.usn,
         mail: savedUser.email,
-        phone: profileData.phone.trim(),
-        year: profileData.year.trim(),
-        semester: profileData.semester.trim(),
-        dob: new Date(profileData.dob),
-        blood: profileData.blood.trim(),
+        phone: profileData.phone,
+        year: profileData.year,
+        semester: profileData.semester,
+        dob: profileData.dob,
+        blood: profileData.blood,
+        department: profileData.department,
       });
       savedProfile = await newStudentProfile.save();
     } else if (normalizedRole === "faculty") {
       const newTeacherProfile = new Teacher({
         user: savedUser._id,
         name: savedUser.name,
-        id: profileData.id.trim(),
-        age: Number(profileData.age),
-        phone: profileData.phone.trim(),
+        id: profileData.id,
+        age: profileData.age,
+        phone: profileData.phone,
         mail: savedUser.email,
-        department: profileData.department.trim(),
-        salary: Number(profileData.salary),
-        dob: new Date(profileData.dob),
+        department: profileData.department,
+        salary: profileData.salary,
+        dob: profileData.dob,
       });
       savedProfile = await newTeacherProfile.save();
     }

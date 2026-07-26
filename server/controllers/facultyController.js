@@ -84,13 +84,17 @@ exports.getClasses = async (req, res) => {
 // @access  Private
 exports.getAttendanceRoster = async (req, res) => {
   try {
-    const { department, semester, subjectCode, date } = req.query;
-    if (!department || !semester || !subjectCode || !date) {
-      return res.status(400).json({ message: "Missing required query parameters: department, semester, subjectCode, date" });
+    const { subjectCode, date, semester } = req.query;
+    if (!subjectCode || !date) {
+      return res.status(400).json({ message: "Missing required query parameters: subjectCode, date" });
     }
 
-    // Find all students enrolled in this department & semester
-    const students = await Student.find({ department, semester });
+    // Find all students directly from database matching the semester if provided
+    const filter = {};
+    if (semester) {
+      filter.semester = semester;
+    }
+    const students = await Student.find(filter);
 
     // Find marked attendance for this date & subject
     const attendanceLogs = await Attendance.find({
@@ -165,12 +169,16 @@ exports.submitAttendance = async (req, res) => {
 // @access  Private
 exports.getGrades = async (req, res) => {
   try {
-    const { department, semester, subjectCode } = req.query;
-    if (!department || !semester || !subjectCode) {
-      return res.status(400).json({ message: "Missing query parameters: department, semester, subjectCode" });
+    const { subjectCode, semester } = req.query;
+    if (!subjectCode) {
+      return res.status(400).json({ message: "Missing query parameters: subjectCode" });
     }
 
-    const students = await Student.find({ department, semester });
+    const filter = {};
+    if (semester) {
+      filter.semester = semester;
+    }
+    const students = await Student.find(filter);
     const grades = await Grade.find({ subjectCode });
 
     const rosterGrades = students.map(student => {
