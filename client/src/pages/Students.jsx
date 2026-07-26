@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { io } from "socket.io-client";
@@ -55,6 +55,7 @@ export default function Students({ onOpenAuth }) {
   const [bookmarkSearch, setBookmarkSearch] = useState("");
   const [selectedResourceCourse, setSelectedResourceCourse] = useState(null);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const filterDateInputRef = useRef(null);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -144,6 +145,127 @@ export default function Students({ onOpenAuth }) {
   const [tasks, setTasks] = useState([]);
   const [newTaskText, setNewTaskText] = useState("");
   const [coursesDetails, setCoursesDetails] = useState([]);
+  const [filterDay, setFilterDay] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
+  const [filterYear, setFilterYear] = useState("");
+  const [isFilterDayOpen, setIsFilterDayOpen] = useState(false);
+  const [isFilterMonthOpen, setIsFilterMonthOpen] = useState(false);
+  const [isFilterYearOpen, setIsFilterYearOpen] = useState(false);
+
+  const monthsList = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  
+  const currentYearNum = new Date().getFullYear();
+  const attYearsList = Array.from({ length: Math.max(1, currentYearNum - 2026 + 1) }, (_, i) => (2026 + i).toString());
+
+  const getAttMaxDays = (monthName, yearString) => {
+    if (!monthName) return 31;
+    const m = monthName.toLowerCase();
+    if (["april", "june", "september", "november"].includes(m)) {
+      return 30;
+    }
+    if (m === "february") {
+      const yr = parseInt(yearString, 10);
+      if (!isNaN(yr) && ((yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0)) {
+        return 29;
+      }
+      return 28;
+    }
+    return 31;
+  };
+
+  const handleFilterDayChange = (val) => {
+    setIsFilterDayOpen(true);
+    if (val === "") {
+      setFilterDay("");
+      return;
+    }
+    if (!/^\d+$/.test(val)) return;
+    const dayNum = parseInt(val, 10);
+    const maxDays = getAttMaxDays(filterMonth, filterYear);
+    if (dayNum <= maxDays) {
+      setFilterDay(val);
+    }
+  };
+
+  const handleFilterMonthChange = (val) => {
+    setIsFilterMonthOpen(true);
+    if (val === "") {
+      setFilterMonth("");
+      return;
+    }
+    if (!/^[a-zA-Z]+$/.test(val)) return;
+    setFilterMonth(val);
+  };
+
+  const handleFilterYearChange = (val) => {
+    setIsFilterYearOpen(true);
+    if (val === "") {
+      setFilterYear("");
+      return;
+    }
+    if (!/^\d+$/.test(val)) return;
+    if (val.length > 4) return;
+    setFilterYear(val);
+  };
+
+  const handleFilterDayBlur = () => {
+    setTimeout(() => {
+      setIsFilterDayOpen(false);
+      if (filterDay) {
+        const dayNum = parseInt(filterDay, 10);
+        const maxLimit = getAttMaxDays(filterMonth, filterYear);
+        if (isNaN(dayNum) || dayNum < 1 || dayNum > maxLimit) {
+          setFilterDay("");
+        } else {
+          setFilterDay(dayNum.toString());
+        }
+      }
+    }, 200);
+  };
+
+  const handleFilterMonthBlur = () => {
+    setTimeout(() => {
+      setIsFilterMonthOpen(false);
+      if (filterMonth) {
+        const matchedMonth = monthsList.find(
+          (m) => m.toLowerCase() === filterMonth.toLowerCase()
+        );
+        if (matchedMonth) {
+          setFilterMonth(matchedMonth);
+          const maxDays = getAttMaxDays(matchedMonth, filterYear);
+          if (filterDay && parseInt(filterDay, 10) > maxDays) {
+            setFilterDay(maxDays.toString());
+          }
+        } else {
+          setFilterMonth("");
+        }
+      }
+    }, 200);
+  };
+
+  const handleFilterYearBlur = () => {
+    setTimeout(() => {
+      setIsFilterYearOpen(false);
+      if (filterYear) {
+        const yrNum = parseInt(filterYear, 10);
+        const currYear = new Date().getFullYear();
+        if (isNaN(yrNum) || yrNum < 2026 || yrNum > currYear) {
+          setFilterYear("");
+        } else {
+          setFilterYear(yrNum.toString());
+          if (filterMonth.toLowerCase() === "february") {
+            const maxDays = getAttMaxDays("february", yrNum.toString());
+            if (filterDay && parseInt(filterDay, 10) > maxDays) {
+              setFilterDay(maxDays.toString());
+            }
+          }
+        }
+      }
+    }, 200);
+  };
   const [attendanceStats, setAttendanceStats] = useState({
     overallPercent: 88,
     totalHeld: 0,
@@ -238,6 +360,24 @@ export default function Students({ onOpenAuth }) {
       const att = await studentService.getAttendance();
       setAttendanceStats(att);
       setCoursesDetails(att.coursesDetails || []);
+      if (att && att.dateWiseRecord && att.dateWiseRecord.length > 0) {
+        const sortedRecords = [...att.dateWiseRecord].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const latestRecord = sortedRecords[0];
+        if (latestRecord && latestRecord.date) {
+          const [y, m, d] = latestRecord.date.split("-");
+          const monthIndex = parseInt(m, 10) - 1;
+          const months = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+          ];
+          const monthName = months[monthIndex];
+          if (monthName) {
+            setFilterYear(y);
+            setFilterMonth(monthName);
+            setFilterDay(parseInt(d, 10).toString());
+          }
+        }
+      }
 
       // Fetch grades
       const gr = await studentService.getGrades();
@@ -1449,91 +1589,379 @@ export default function Students({ onOpenAuth }) {
                 </div>
               </div>
 
-              {/* Course attendance grid */}
-              {filteredCourses.length === 0 ? (
-                <div className="bg-white rounded-2xl p-8 border border-slate-200/50 text-center text-slate-400 font-semibold text-sm">
-                  No courses match your search.
-                </div>
-              ) : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredCourses.map((course, index) => {
-                    // Determine status color
-                    let statusColor = "bg-emerald-500";
-                    let textColor = "text-emerald-700";
-                    let bgColor = "bg-emerald-50";
-                    let borderClass = "border-emerald-100";
-                    let textMsg = "Attendance Safe";
+              {/* Overhauled Two-Section Attendance Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                {/* Section 1: Subject-wise Summary (5 Cols) */}
+                <div className="lg:col-span-5 space-y-5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
+                      <span className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-sm">📊</span>
+                      Subject-wise Summary
+                    </h3>
+                    <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                      {filteredCourses.length} Subjects
+                    </span>
+                  </div>
 
-                    if (course.attendance < 75) {
-                      statusColor = "bg-rose-500";
-                      textColor = "text-rose-700";
-                      bgColor = "bg-rose-50";
-                      borderClass = "border-rose-100";
-                      textMsg = "Critically Low - Attendance Warning";
-                    } else if (course.attendance >= 75 && course.attendance <= 82) {
-                      statusColor = "bg-amber-500";
-                      textColor = "text-amber-700";
-                      bgColor = "bg-amber-50";
-                      borderClass = "border-amber-100";
-                      textMsg = "Close to Limit - Warning";
-                    }
+                  <div className="bg-white rounded-3xl border border-slate-200/50 p-6 space-y-4 shadow-sm">
+                    {filteredCourses.length === 0 ? (
+                      <div className="text-center py-10 text-slate-400 font-semibold text-sm">
+                        No courses match your search.
+                      </div>
+                    ) : (
+                      filteredCourses.map((course, index) => {
+                        const isEligible = course.attendance >= 75;
+                        const statusColor = isEligible ? "bg-emerald-500" : "bg-rose-500";
+                        const textColor = isEligible ? "text-emerald-700" : "text-rose-700";
+                        const bgColor = isEligible ? "bg-emerald-50" : "bg-rose-50";
+                        const borderClass = isEligible ? "border-emerald-100" : "border-rose-100";
+                        const eligibilityMsg = isEligible ? "Attendance Safe" : "Critically Low - Attendance Warning";
 
-                    return (
-                      <div key={index} className="bg-white rounded-2xl shadow-sm border border-slate-200/50 p-6 flex flex-col justify-between">
-                        <div>
-                          {/* Course code & Credits */}
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
-                                {course.code}
-                              </span>
-                              {course.personalized && (
-                                <span className="text-[10px] font-bold text-purple-600 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-md uppercase shadow-sm">
-                                  Personalized
+                        return (
+                          <div key={index} className="p-4 rounded-2xl border border-slate-100 hover:border-indigo-100 transition-all bg-slate-50/20">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <span className="text-[10px] font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md uppercase">
+                                  {course.code}
                                 </span>
-                              )}
-                            </div>
-                            <span className="text-xs text-slate-400 font-semibold">
-                              {course.credits} Credits
-                            </span>
-                          </div>
-
-                          {/* Title */}
-                          <h4 className="font-extrabold text-slate-800 text-lg mb-1 leading-snug">{course.name}</h4>
-                          <p className="text-xs text-slate-400 font-semibold mb-4">Instructor: {course.teacher}</p>
-
-                          {/* Progress display */}
-                          <div className="space-y-2 mb-4">
-                            <div className="flex justify-between items-baseline">
-                              <span className="text-sm font-semibold text-slate-500">Attendance Ratio</span>
-                              <span className="text-sm font-extrabold text-slate-700">
-                                {course.attended} / {course.held} lectures
+                                {course.personalized && (
+                                  <span className="ml-1.5 text-[9px] font-bold text-purple-600 bg-purple-50 border border-purple-100 px-1.5 py-0.2 rounded-md uppercase">
+                                    Personalized
+                                  </span>
+                                )}
+                                <h4 className="font-extrabold text-slate-800 text-sm mt-1">{course.name}</h4>
+                              </div>
+                              <span className={`text-sm font-black ${textColor}`}>
+                                {course.attendance}%
                               </span>
                             </div>
+                            <p className="text-[10px] font-semibold text-slate-400 mb-3">Instructor: {course.teacher}</p>
                             
-                            {/* Progress bar */}
-                            <div className="w-full bg-slate-100 rounded-full h-2.5">
+                            <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 bg-white rounded-xl px-3 py-2 border border-slate-100 mb-3">
+                              <span>Conducted: <span className="text-slate-800">{course.held}</span></span>
+                              <span className="h-3 w-px bg-slate-100"></span>
+                              <span>Attended: <span className="text-emerald-600">{course.attended}</span></span>
+                            </div>
+
+                            <div className="w-full bg-slate-100 rounded-full h-1.5 mb-3">
                               <div 
-                                className={`h-2.5 rounded-full transition-all duration-500 ${statusColor}`}
+                                className={`h-1.5 rounded-full transition-all duration-500 ${statusColor}`}
                                 style={{ width: `${course.attendance}%` }}
                               ></div>
                             </div>
+
+                            <div className={`rounded-xl p-2 border text-center ${bgColor} ${borderClass}`}>
+                              <p className={`text-[10px] font-extrabold ${textColor}`}>{eligibilityMsg}</p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 2: Date-wise Attendance Record (7 Cols) */}
+                <div className="lg:col-span-7 space-y-5">
+                  {(() => {
+                    let filteredDateWiseRecord = (attendanceStats.dateWiseRecord || []).filter(r => 
+                      ((r.subjectName || "").toLowerCase().includes((globalSearchQuery || "").toLowerCase())) ||
+                      ((r.subjectCode || "").toLowerCase().includes((globalSearchQuery || "").toLowerCase()))
+                    );
+
+                    if (filterYear) {
+                      filteredDateWiseRecord = filteredDateWiseRecord.filter(r => r.date.startsWith(filterYear));
+                    }
+                    if (filterMonth) {
+                      const monthIdx = monthsList.indexOf(filterMonth) + 1;
+                      const monthStr = monthIdx.toString().padStart(2, "0");
+                      filteredDateWiseRecord = filteredDateWiseRecord.filter(r => r.date.split("-")[1] === monthStr);
+                    }
+                    if (filterDay) {
+                      const dayStr = filterDay.padStart(2, "0");
+                      filteredDateWiseRecord = filteredDateWiseRecord.filter(r => r.date.split("-")[2] === dayStr);
+                    }
+
+                    const hasFilters = filterDay || filterMonth || filterYear;
+
+                    // Group by Date
+                    const groupedByDate = [];
+                    filteredDateWiseRecord.forEach(record => {
+                      let group = groupedByDate.find(g => g.date === record.date);
+                      if (!group) {
+                        group = { date: record.date, day: record.day, records: [] };
+                        groupedByDate.push(group);
+                      }
+                      group.records.push(record);
+                    });
+
+                    const formatDateHeader = (dateStr, dayStr) => {
+                      const parts = dateStr.split("-");
+                      if (parts.length !== 3) return dateStr;
+                      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                      const monthName = months[parseInt(parts[1], 10) - 1];
+                      const day = parts[2];
+                      const year = parts[0];
+                      return `${day} ${monthName} ${year} • ${dayStr || ""}`;
+                    };
+
+                    const getPeriodAndTimeParts = (periodStr) => {
+                      if (!periodStr) return { period: "Period", time: "--:--" };
+                      const parts = periodStr.split(" (");
+                      const periodName = parts[0]; // e.g. "1st Period"
+                      const timeRange = parts[1] ? parts[1].replace(")", "") : ""; // e.g. "09:00 AM - 10:30 AM"
+                      return { period: periodName, time: timeRange };
+                    };
+
+                    return (
+                      <>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <h3 className="text-base font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
+                            <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-sm">📅</span>
+                            Date-wise Attendance Record
+                          </h3>
+                          <div className="flex flex-wrap items-center gap-2">
+                            
+                            {/* Day input & dropdown */}
+                            <div className="relative w-16">
+                              <input
+                                type="text"
+                                placeholder="Day"
+                                value={filterDay}
+                                onChange={(e) => handleFilterDayChange(e.target.value)}
+                                onFocus={() => setIsFilterDayOpen(true)}
+                                onBlur={handleFilterDayBlur}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-xs bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 shadow-sm"
+                              />
+                              {isFilterDayOpen && (
+                                <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                                  {Array.from({ length: getAttMaxDays(filterMonth, filterYear) }, (_, i) => (i + 1).toString()).map(d => (
+                                    <li
+                                      key={d}
+                                      onMouseDown={() => {
+                                        setFilterDay(d);
+                                        setIsFilterDayOpen(false);
+                                      }}
+                                      className="px-2.5 py-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer text-xs font-semibold"
+                                    >
+                                      {d}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+
+                            {/* Month input & dropdown */}
+                            <div className="relative w-24">
+                              <input
+                                type="text"
+                                placeholder="Month"
+                                value={filterMonth}
+                                onChange={(e) => handleFilterMonthChange(e.target.value)}
+                                onFocus={() => setIsFilterMonthOpen(true)}
+                                onBlur={handleFilterMonthBlur}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-xs bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 shadow-sm"
+                              />
+                              {isFilterMonthOpen && (
+                                <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                                  {monthsList.map(m => (
+                                    <li
+                                      key={m}
+                                      onMouseDown={() => {
+                                        setFilterMonth(m);
+                                        setIsFilterMonthOpen(false);
+                                        const maxD = getAttMaxDays(m, filterYear);
+                                        if (filterDay && parseInt(filterDay, 10) > maxD) {
+                                          setFilterDay(maxD.toString());
+                                        }
+                                      }}
+                                      className="px-2.5 py-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer text-xs font-semibold"
+                                    >
+                                      {m}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+
+                            {/* Year input & dropdown */}
+                            <div className="relative w-20">
+                              <input
+                                type="text"
+                                placeholder="Year"
+                                value={filterYear}
+                                onChange={(e) => handleFilterYearChange(e.target.value)}
+                                onFocus={() => setIsFilterYearOpen(true)}
+                                onBlur={handleFilterYearBlur}
+                                className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-xs bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 shadow-sm"
+                              />
+                              {isFilterYearOpen && (
+                                <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                                  {attYearsList.map(y => (
+                                    <li
+                                      key={y}
+                                      onMouseDown={() => {
+                                        setFilterYear(y);
+                                        setIsFilterYearOpen(false);
+                                        if (filterMonth.toLowerCase() === "february") {
+                                          const maxD = getAttMaxDays("february", y);
+                                          if (filterDay && parseInt(filterDay, 10) > maxD) {
+                                            setFilterDay(maxD.toString());
+                                          }
+                                        }
+                                      }}
+                                      className="px-2.5 py-1 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer text-xs font-semibold"
+                                    >
+                                      {y}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+
+                            {/* Calendar Pop-up Date Picker Button */}
+                            <div className="relative flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (filterDateInputRef.current) {
+                                    try {
+                                      filterDateInputRef.current.showPicker();
+                                    } catch (err) {
+                                      filterDateInputRef.current.click();
+                                    }
+                                  }
+                                }}
+                                className="w-8 h-[32px] rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm transition cursor-pointer"
+                                title="Pick date from calendar"
+                              >
+                                <Calendar className="h-4 w-4" />
+                              </button>
+                              <input
+                                ref={filterDateInputRef}
+                                type="date"
+                                min="2026-01-01"
+                                max={new Date().toISOString().split("T")[0]}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val) {
+                                    const [y, m, d] = val.split("-");
+                                    const monthIndex = parseInt(m, 10) - 1;
+                                    const monthName = monthsList[monthIndex];
+                                    if (monthName) {
+                                      setFilterYear(y);
+                                      setFilterMonth(monthName);
+                                      setFilterDay(parseInt(d, 10).toString());
+                                    }
+                                  }
+                                }}
+                                className="absolute invisible w-0 h-0"
+                              />
+                            </div>
+
+                            {hasFilters && (
+                              <button
+                                onClick={() => {
+                                  setFilterDay("");
+                                  setFilterMonth("");
+                                  setFilterYear("");
+                                }}
+                                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-xl transition animate-fadeIn"
+                              >
+                                Clear
+                              </button>
+                            )}
+                            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1.5 rounded-xl">
+                              {filteredDateWiseRecord.length} Logs
+                            </span>
                           </div>
                         </div>
 
-                        {/* Status pill & Actions */}
-                        <div className={`mt-4 rounded-xl p-3 border ${bgColor} ${borderClass} flex items-center justify-between`}>
-                          <div>
-                            <p className="text-[10px] uppercase font-bold text-slate-400">Eligibility Status</p>
-                            <p className={`text-xs font-bold ${textColor}`}>{textMsg}</p>
-                          </div>
-                          <span className={`text-lg font-extrabold ${textColor}`}>{course.attendance}%</span>
+                        <div className="bg-white rounded-3xl border border-slate-200/50 p-6 shadow-sm overflow-hidden">
+                          {filteredDateWiseRecord.length === 0 ? (
+                            <div className="text-center py-12 text-slate-400 font-semibold space-y-2">
+                              <p className="text-sm">No daily logs found{hasFilters ? " matching your filter" : ""}.</p>
+                              <p className="text-xs text-slate-400/80 font-normal">
+                                {hasFilters 
+                                  ? "Try selecting another date combination or click Clear to reset filters." 
+                                  : "Attendance records will appear once faculty submits class registers."}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="overflow-y-auto max-h-[580px] pr-2 space-y-6 scrollbar-thin">
+                              {groupedByDate.map((group, gIndex) => (
+                                <div key={gIndex} className="space-y-3.5">
+                                  {/* Date Header */}
+                                  <div className="text-[11px] font-black text-slate-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                    <span>{formatDateHeader(group.date, group.day)}</span>
+                                    <span className="h-px flex-1 bg-slate-200"></span>
+                                  </div>
+
+                                  {/* Log Records for this Date */}
+                                  <div className="space-y-2">
+                                    {group.records.map((record, index) => {
+                                      const isPresent = record.status === "Present" || record.status === "Late";
+                                      const statusLabel = isPresent ? "P" : "A";
+                                      const badgeColor = record.status === "Present" 
+                                        ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
+                                        : record.status === "Late" 
+                                        ? "bg-amber-50 text-amber-700 border-amber-100" 
+                                        : "bg-rose-50 text-rose-700 border-rose-100";
+
+                                      const { period, time } = getPeriodAndTimeParts(record.period);
+
+                                      return (
+                                        <div key={index} className="flex items-center justify-between py-2 px-4 bg-white hover:bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-indigo-100 transition duration-150 shadow-sm">
+                                          <div className="flex items-center gap-4 min-w-0">
+                                            {/* Leftest: Sleek Horizontal Period & Time Badge */}
+                                            <div className="flex items-center gap-2 bg-indigo-50/40 rounded-xl border border-indigo-100/40 py-1.5 px-3 min-w-[170px] justify-between">
+                                              <span className="text-[9px] font-black text-indigo-600 uppercase tracking-wider whitespace-nowrap">
+                                                {period ? period.split(" (")[0] : ""}
+                                              </span>
+                                              <span className="h-3 w-px bg-indigo-200/50"></span>
+                                              <span className="text-[9px] font-extrabold text-slate-500 font-mono tracking-tight whitespace-nowrap">
+                                                {time}
+                                              </span>
+                                            </div>
+
+                                            <div className="min-w-0">
+                                              <span className="text-[10px] font-black text-slate-600 font-mono tracking-wider">
+                                                {record.subjectCode || ""}
+                                              </span>
+                                              <h4 className="font-extrabold text-slate-800 text-[13px] mt-0.5 truncate max-w-[200px] md:max-w-[280px]">
+                                                {record.subjectName || ""}
+                                              </h4>
+                                            </div>
+                                          </div>
+
+                                          {/* Attendance Status Circle Indicator */}
+                                          <div className="flex items-center gap-3">
+                                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${badgeColor}`}>
+                                              {record.status || ""}
+                                            </span>
+                                            <div className={`h-8 w-8 rounded-full flex items-center justify-center font-black text-sm border shadow-inner ${
+                                              isPresent 
+                                                ? 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-400/30' 
+                                                : 'bg-rose-500 border-rose-600 text-white shadow-rose-400/30'
+                                            }`}>
+                                              {statusLabel}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      </>
                     );
-                  })}
+                  })()}
                 </div>
-              )}
+
+              </div>
 
             </div>
           )}

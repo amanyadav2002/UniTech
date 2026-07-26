@@ -169,6 +169,48 @@ exports.getAttendance = async (req, res) => {
 
     const overallPercent = overallHeld > 0 ? Math.round((overallAttended / overallHeld) * 100) : 100;
 
+    // Fetch all schedule entries for this student to determine periods
+    const schedules = await Schedule.find({ userId: student.user, userRole: "student" });
+    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+    const dateWiseRecord = attendanceLogs.map(log => {
+      // Parse local YYYY-MM-DD date safely
+      const parts = log.date.split("-");
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      const dateObj = new Date(y, m, d);
+      const dayName = daysOfWeek[dateObj.getDay()];
+
+      // Find matching schedule
+      const sched = schedules.find(s => s.day === dayName && s.code === log.subjectCode);
+      let period = "";
+      if (sched) {
+        if (sched.time.includes("09:00 AM")) period = "1st Period (09:00 AM - 10:30 AM)";
+        else if (sched.time.includes("11:00 AM")) period = "2nd Period (11:00 AM - 12:30 PM)";
+        else if (sched.time.includes("02:00 PM")) period = "3rd Period (02:00 PM - 03:30 PM)";
+        else period = `Period (${sched.time})`;
+      } else {
+        // Fallbacks based on subject code
+        if (log.subjectCode === "CS-301") period = "1st Period (09:00 AM - 10:30 AM)";
+        else if (log.subjectCode === "CS-302") period = "2nd Period (11:00 AM - 12:30 PM)";
+        else if (log.subjectCode === "CS-303") period = "3rd Period (02:00 PM - 03:30 PM)";
+        else period = "1st Period (09:00 AM - 10:30 AM)";
+      }
+
+      return {
+        date: log.date,
+        day: dayName,
+        subjectCode: log.subjectCode,
+        subjectName: log.subjectName,
+        period,
+        status: log.status,
+      };
+    });
+
+    // Sort date-wise records descending (latest first)
+    dateWiseRecord.sort((a, b) => new Date(b.date) - new Date(a.date));
+
     res.json({
       overallPercent,
       totalHeld: overallHeld,
@@ -176,6 +218,7 @@ exports.getAttendance = async (req, res) => {
       totalAbsent,
       totalLate,
       coursesDetails,
+      dateWiseRecord,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
