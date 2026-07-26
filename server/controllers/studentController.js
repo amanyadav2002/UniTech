@@ -142,18 +142,23 @@ exports.getAttendance = async (req, res) => {
 
     for (const sub of subjectsToMap) {
       const logs = attendanceLogs.filter(log => log.subjectCode === sub.code);
-      const held = logs.length;
+      const held = logs.reduce((sum, log) => sum + (log.hours || 1), 0);
+      
       const presentLogs = logs.filter(log => log.status === "Present");
       const lateLogs = logs.filter(log => log.status === "Late");
       const absentLogs = logs.filter(log => log.status === "Absent");
       
-      const attended = presentLogs.length + lateLogs.length;
+      const presentHours = presentLogs.reduce((sum, log) => sum + (log.hours || 1), 0);
+      const lateHours = lateLogs.reduce((sum, log) => sum + (log.hours || 1), 0);
+      const absentHours = absentLogs.reduce((sum, log) => sum + (log.hours || 1), 0);
+
+      const attended = presentHours + lateHours;
 
       overallHeld += held;
       overallAttended += attended;
-      totalPresent += presentLogs.length;
-      totalAbsent += absentLogs.length;
-      totalLate += lateLogs.length;
+      totalPresent += presentHours;
+      totalAbsent += absentHours;
+      totalLate += lateHours;
 
       coursesDetails.push({
         code: sub.code,

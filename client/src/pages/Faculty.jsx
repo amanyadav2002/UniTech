@@ -133,6 +133,8 @@ export default function Faculty({ onOpenAuth }) {
   const [studentRoster, setStudentRoster] = useState([]);
   const [attendanceCourse, setAttendanceCourse] = useState("CS-301");
   const [attendanceSemester, setAttendanceSemester] = useState("6th Sem");
+  const [attendancePeriod, setAttendancePeriod] = useState("1st Period (09:00 AM - 10:30 AM)");
+  const [attendanceHours, setAttendanceHours] = useState("1");
   const [attendanceDate, setAttendanceDate] = useState(getLocalDateString());
   const [attendanceSuccess, setAttendanceSuccess] = useState("");
   const [showAttendanceConfirmModal, setShowAttendanceConfirmModal] = useState(false);
@@ -607,6 +609,8 @@ export default function Faculty({ onOpenAuth }) {
         subjectCode: attendanceCourse,
         subjectName: activeClass?.name || attendanceCourse,
         date: attendanceDate,
+        period: attendancePeriod,
+        hours: attendanceHours,
         records
       });
 
@@ -2146,9 +2150,23 @@ export default function Faculty({ onOpenAuth }) {
         {/* --- TAB 2: RECORD ATTENDANCE --- */}
         {activeTab === "attendance" && (
           <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200/50 space-y-6 animate-fadeIn">
-            <div className="border-b border-slate-100 pb-5">
-              <h3 className="text-xl font-extrabold text-slate-800">Class Attendance</h3>
-              <p className="text-xs text-slate-400 font-semibold mt-1">Quick-mark student presence, absences, and leaves for selected classes.</p>
+            <div className="border-b border-slate-100 pb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-extrabold text-slate-800">Class Attendance</h3>
+                <p className="text-xs text-slate-400 font-semibold mt-1">Quick-mark student presence, absences, and leaves for selected classes.</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Semester:</span>
+                <select
+                  value={attendanceSemester}
+                  onChange={(e) => setAttendanceSemester(e.target.value)}
+                  className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm min-w-[100px]"
+                >
+                  {["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"].map(sem => (
+                    <option key={sem} value={sem}>{sem}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {attendanceSuccess && (
@@ -2169,9 +2187,9 @@ export default function Faculty({ onOpenAuth }) {
             )}
 
             <form onSubmit={handleSubmitAttendance} className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
                 {/* Subject Selection */}
-                <div>
+                <div className="lg:col-span-4">
                   <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Subject / Course</label>
                   <select
                     value={attendanceCourse}
@@ -2184,25 +2202,40 @@ export default function Faculty({ onOpenAuth }) {
                   </select>
                 </div>
 
-                {/* Semester Selection */}
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Semester</label>
+                {/* Period Selection */}
+                <div className="lg:col-span-3">
+                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Period</label>
                   <select
-                    value={attendanceSemester}
-                    onChange={(e) => setAttendanceSemester(e.target.value)}
+                    value={attendancePeriod}
+                    onChange={(e) => setAttendancePeriod(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm"
                   >
-                    {["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"].map(sem => (
-                      <option key={sem} value={sem}>{sem}</option>
-                    ))}
+                    <option value="1st Period (09:00 AM - 10:30 AM)">1st Period (09:00 AM - 10:30 AM)</option>
+                    <option value="2nd Period (11:00 AM - 12:30 PM)">2nd Period (11:00 AM - 12:30 PM)</option>
+                    <option value="3rd Period (02:00 PM - 03:30 PM)">3rd Period (02:00 PM - 03:30 PM)</option>
+                  </select>
+                </div>
+
+                {/* Number of Hours (COMPRESSED) */}
+                <div className="lg:col-span-2">
+                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Hours</label>
+                  <select
+                    value={attendanceHours}
+                    onChange={(e) => setAttendanceHours(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm"
+                  >
+                    <option value="1">1 Hr</option>
+                    <option value="2">2 Hrs</option>
+                    <option value="3">3 Hrs</option>
+                    <option value="4">4 Hrs</option>
                   </select>
                 </div>
 
                 {/* Attendance Date (Unchanged Input Logic) */}
-                <div>
+                <div className="lg:col-span-3">
                   <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Attendance Date</label>
                   <div className="flex items-center gap-2">
-                    <div className="grid grid-cols-3 gap-2 flex-1">
+                    <div className="grid grid-cols-3 gap-1.5 flex-1">
                       {/* Day Input & Dropdown */}
                       <div className="relative">
                         <input
@@ -2213,7 +2246,7 @@ export default function Faculty({ onOpenAuth }) {
                           onChange={(e) => handleAttDayChange(e.target.value)}
                           onFocus={() => setIsAttDayOpen(true)}
                           onBlur={handleAttDayBlur}
-                          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                          className="w-full rounded-xl border border-slate-200 px-2 py-2 text-xs bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                         />
                         {isAttDayOpen && (
                           <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
@@ -2251,7 +2284,7 @@ export default function Faculty({ onOpenAuth }) {
                           onChange={(e) => handleAttMonthChange(e.target.value)}
                           onFocus={() => setIsAttMonthOpen(true)}
                           onBlur={handleAttMonthBlur}
-                          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                          className="w-full rounded-xl border border-slate-200 px-2 py-2 text-xs bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                         />
                         {isAttMonthOpen && (
                           <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
@@ -2293,7 +2326,7 @@ export default function Faculty({ onOpenAuth }) {
                           onChange={(e) => handleAttYearChange(e.target.value)}
                           onFocus={() => setIsAttYearOpen(true)}
                           onBlur={handleAttYearBlur}
-                          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                          className="w-full rounded-xl border border-slate-200 px-2 py-2 text-xs bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                         />
                         {isAttYearOpen && (
                           <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
@@ -2333,10 +2366,10 @@ export default function Faculty({ onOpenAuth }) {
                             }
                           }
                         }}
-                        className="w-10 h-[42px] rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm transition cursor-pointer"
+                        className="w-9 h-[38px] rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm transition cursor-pointer"
                         title="Pick date from calendar"
                       >
-                        <Calendar className="h-5 w-5" />
+                        <Calendar className="h-4.5 w-4.5" />
                       </button>
                       <input
                         ref={dateInputRef}
