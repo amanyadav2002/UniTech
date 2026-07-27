@@ -7,6 +7,7 @@ import Home from "./pages/Home";
 import Institutions from "./pages/Institutions";
 import Students from "./pages/Students";
 import Faculty from "./pages/Faculty";
+import Admin from "./pages/Admin";
 import Contact from "./pages/Contact";
 import Footer from "./components/Footer";
 import AuthModal from "./components/AuthModal";
@@ -25,7 +26,8 @@ function App() {
 
   const isStudentLoggedIn = user && user.role === "student";
   const isFacultyLoggedIn = user && user.role === "faculty";
-  const isAnyDashboardLoggedIn = isStudentLoggedIn || isFacultyLoggedIn;
+  const isAdminLoggedIn = user && user.role === "admin";
+  const isAnyDashboardLoggedIn = isStudentLoggedIn || isFacultyLoggedIn || isAdminLoggedIn;
 
   // If a token exists and we are still fetching user details, show a premium loader
   const token = sessionStorage.getItem("token");
@@ -55,6 +57,12 @@ function App() {
           <>
             <Route path="/faculty" element={<Faculty onOpenAuth={openAuthModal} />} />
             <Route path="*" element={<Navigate to="/faculty" replace />} />
+          </>
+        )}
+        {isAdminLoggedIn && (
+          <>
+            <Route path="/admin" element={<Admin onOpenAuth={openAuthModal} />} />
+            <Route path="*" element={<Navigate to="/admin" replace />} />
           </>
         )}
         {!isAnyDashboardLoggedIn && (

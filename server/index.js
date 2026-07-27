@@ -5,6 +5,7 @@ const { connectDB } = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const studentRoutes = require("./routes/studentRoutes");
 const facultyRoutes = require("./routes/facultyRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 const http = require("http");
 const socketIo = require("socket.io");
@@ -57,6 +58,7 @@ app.set("io", io);
 app.use("/api/auth", authRoutes);
 app.use("/api/student", studentRoutes);
 app.use("/api/faculty", facultyRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Health Check Route
 app.get("/health", (req, res) => {

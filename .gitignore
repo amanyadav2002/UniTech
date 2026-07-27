@@ -60,3 +60,7 @@ coverage/
 *.seed
 *.pid.lock
 
+
+client/src/pages/Admin.jsx
+
+
