@@ -17,6 +17,10 @@ const AcademicResourceSchema = new mongoose.Schema(
       enum: ["note", "assignment"],
       default: "note",
     },
+    category: {
+      type: String,
+      default: "Notes", // e.g. "Notes", "PYQs", "Syllabus", "Other"
+    },
     dueDate: {
       type: String,
       default: "",
