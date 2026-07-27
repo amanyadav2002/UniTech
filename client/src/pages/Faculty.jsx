@@ -37,7 +37,8 @@ import {
   FileSpreadsheet,
   Layers,
   Activity,
-  DollarSign
+  DollarSign,
+  Folder
 } from "lucide-react";
 
 import facultyService from "../services/facultyService";
@@ -336,7 +337,9 @@ export default function Faculty({ onOpenAuth }) {
         courseCode: r.subject,
         courseName: r.subjectName,
         link: r.fileUrl,
-        content: r.description
+        content: r.description,
+        category: r.category || "Notes",
+        semester: r.semester || "6th Sem",
       }));
       const assigns = res.filter(r => r.type === "assignment").map(r => ({
         id: r._id,
@@ -724,18 +727,49 @@ export default function Faculty({ onOpenAuth }) {
   const [resDesc, setResDesc] = useState("");
   const [resSuccess, setResSuccess] = useState("");
 
+  const [resSemester, setResSemester] = useState("6th Sem");
+  const [resCategory, setResCategory] = useState("Notes");
+  const [selectedDisplayCategory, setSelectedDisplayCategory] = useState("Notes");
+  const [displayFilterSemester, setDisplayFilterSemester] = useState("All Semesters");
+  const [displayFilterSubject, setDisplayFilterSubject] = useState("All Subjects");
+  const [resFile, setResFile] = useState(null);
+  const [resFileUrl, setResFileUrl] = useState("");
+  const [uploadingResFile, setUploadingResFile] = useState(false);
+
   useEffect(() => {
-    if (displayCourses.length > 0 && !resCourse) {
-      setResCourse(displayCourses[0].code);
+    const semCourses = getFilteredCoursesForSemester(resSemester);
+    if (semCourses.length > 0 && !resCourse) {
+      setResCourse(semCourses[0].code);
     }
-  }, [displayCourses, resCourse]);
+  }, [coursesList, resSemester, resCourse]);
+
+  const handleResFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setResFile(file);
+    setUploadingResFile(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const result = await facultyService.uploadFile(formData);
+      setResFileUrl(result.fileUrl);
+      setResLink(result.fileUrl);
+      setUploadingResFile(false);
+    } catch (err) {
+      console.error("File upload failed:", err);
+      setUploadingResFile(false);
+    }
+  };
 
   const handleUploadResource = async (e) => {
     e.preventDefault();
     if (!resTitle.trim() || !resLink.trim()) return;
 
     try {
-      const courseObj = coursesList.find(c => c.code === resCourse);
+      const courseObj = coursesList.find(c => c.code === resCourse) || FALLBACK_COURSES.find(c => c.code === resCourse);
       const updated = await facultyService.uploadResource({
         title: resTitle.trim(),
         description: resDesc.trim() || "No details provided.",
@@ -743,8 +777,9 @@ export default function Faculty({ onOpenAuth }) {
         subjectName: courseObj?.name || resCourse,
         fileUrl: resLink.startsWith("http") ? resLink : `https://${resLink}`,
         department: courseObj?.department || "Computer Science Department",
-        semester: courseObj?.semester || "6th Sem",
+        semester: resSemester,
         type: "note",
+        category: resCategory,
       });
 
       const notes = updated.filter(r => r.type === "note").map(r => ({
@@ -753,7 +788,9 @@ export default function Faculty({ onOpenAuth }) {
         courseCode: r.subject,
         courseName: r.subjectName,
         link: r.fileUrl,
-        content: r.description
+        content: r.description,
+        category: r.category || "Notes",
+        semester: r.semester || "6th Sem",
       }));
       const assigns = updated.filter(r => r.type === "assignment").map(r => ({
         id: r._id,
@@ -769,6 +806,9 @@ export default function Faculty({ onOpenAuth }) {
       setResTitle("");
       setResLink("");
       setResDesc("");
+      setResCategory("Notes");
+      setResFile(null);
+      setResFileUrl("");
       setResSuccess("E-Learning study resource uploaded successfully!");
     } catch (err) {
       console.error(err);
@@ -789,7 +829,9 @@ export default function Faculty({ onOpenAuth }) {
         courseCode: r.subject,
         courseName: r.subjectName,
         link: r.fileUrl,
-        content: r.description
+        content: r.description,
+        category: r.category || "Notes",
+        semester: r.semester || "6th Sem",
       }));
       const assigns = updated.filter(r => r.type === "assignment").map(r => ({
         id: r._id,
@@ -1063,7 +1105,9 @@ export default function Faculty({ onOpenAuth }) {
         courseCode: r.subject,
         courseName: r.subjectName,
         link: r.fileUrl,
-        content: r.description
+        content: r.description,
+        category: r.category || "Notes",
+        semester: r.semester || "6th Sem",
       }));
       const assigns = updated.filter(r => r.type === "assignment").map(r => ({
         id: r._id,
@@ -2655,6 +2699,44 @@ export default function Faculty({ onOpenAuth }) {
                 )}
 
                 <form onSubmit={handleUploadResource} className="space-y-4">
+                  {/* Semester Row */}
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Semester</label>
+                    <select
+                      value={resSemester}
+                      onChange={(e) => {
+                        const newSem = e.target.value;
+                        setResSemester(newSem);
+                        const semCourses = getFilteredCoursesForSemester(newSem);
+                        if (semCourses.length > 0) {
+                          setResCourse(semCourses[0].code);
+                        } else {
+                          setResCourse("");
+                        }
+                      }}
+                      className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
+                    >
+                      {["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"].map(sem => (
+                        <option key={sem} value={sem}>{sem}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Target Course Row */}
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Target Course</label>
+                    <select
+                      value={resCourse}
+                      onChange={(e) => setResCourse(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
+                    >
+                      {getFilteredCoursesForSemester(resSemester).map(c => (
+                        <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Resource Title Row */}
                   <div>
                     <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Resource Title</label>
                     <input
@@ -2667,19 +2749,21 @@ export default function Faculty({ onOpenAuth }) {
                     />
                   </div>
 
+                  {/* Category / Material Type Row */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Target Course</label>
+                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Material Type / Category</label>
                     <select
-                      value={resCourse}
-                      onChange={(e) => setResCourse(e.target.value)}
+                      value={resCategory}
+                      onChange={(e) => setResCategory(e.target.value)}
                       className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
                     >
-                      {displayCourses.map(c => (
-                        <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
+                      {["Notes", "PYQs", "Syllabus", "Other"].map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
                   </div>
 
+                  {/* Resource Link / URL Row */}
                   <div>
                     <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Resource Link / URL</label>
                     <input
@@ -2692,6 +2776,41 @@ export default function Faculty({ onOpenAuth }) {
                     />
                   </div>
 
+                  {/* Media Upload Option Row */}
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Media Upload (Optional)</label>
+                    <div className="border border-dashed border-slate-200 hover:border-indigo-400 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50/80 transition flex flex-col items-center justify-center gap-1.5 relative cursor-pointer group">
+                      <input
+                        type="file"
+                        onChange={handleResFileChange}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                      {uploadingResFile ? (
+                        <div className="flex items-center gap-2 text-xs font-bold text-indigo-600">
+                          <span className="animate-spin">⏳</span> Uploading file...
+                        </div>
+                      ) : resFileUrl ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <p className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                            <span>✅</span> File uploaded: {resFile?.name || "Uploaded File"}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-medium truncate max-w-xs">{resFileUrl}</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="text-slate-400 group-hover:text-indigo-600 transition">
+                            <span>📁</span>
+                          </div>
+                          <p className="text-xs font-bold text-slate-600 group-hover:text-indigo-600 transition">
+                            Click or drag to upload study materials (PDF, Image, Slides)
+                          </p>
+                          <p className="text-[10px] text-slate-400">Supported formats: PDF, PNG, JPG, PPTX, DOCX (Max 10MB)</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Description Row */}
                   <div>
                     <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Description (Optional)</label>
                     <textarea
@@ -2721,61 +2840,175 @@ export default function Faculty({ onOpenAuth }) {
                   <p className="text-xs text-slate-400 font-semibold mt-1">Study assets currently published and accessible by enrolled students.</p>
                 </div>
 
-                <div className="space-y-4 max-h-[460px] overflow-y-auto pr-1">
-                  {resources.length === 0 ? (
-                    <div className="text-center py-12 text-slate-400">
-                      <Laptop size={48} className="mx-auto text-slate-300 mb-3" />
-                      <p className="font-bold">No digital resources uploaded yet.</p>
-                      <p className="text-xs">Fill out the left form to publish materials.</p>
-                    </div>
-                  ) : filteredResources.length === 0 ? (
+                {/* Category Block Cards Grid */}
+                <div className="grid grid-cols-4 gap-3 mb-5">
+                  {["Notes", "PYQs", "Syllabus", "Other"].map((cat) => {
+                    let catList = filteredResources.filter(r => (r.category || "Notes") === cat);
+                    if (displayFilterSemester !== "All Semesters") {
+                      catList = catList.filter(r => r.semester === displayFilterSemester);
+                    }
+                    if (displayFilterSubject !== "All Subjects") {
+                      catList = catList.filter(r => r.courseCode === displayFilterSubject);
+                    }
+                    const count = catList.length;
+                    const isActive = selectedDisplayCategory === cat;
+
+                    return (
+                      <button
+                        type="button"
+                        key={cat}
+                        onClick={() => setSelectedDisplayCategory(cat)}
+                        className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all duration-200 cursor-pointer ${
+                          isActive
+                            ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 scale-[1.02]"
+                            : "bg-slate-50/50 border-slate-200/60 text-slate-600 hover:bg-slate-50 hover:border-slate-300 hover:scale-[1.01]"
+                        }`}
+                      >
+                        <span className={`p-1.5 rounded-lg mb-1.5 ${isActive ? "bg-white/20 text-white" : "bg-indigo-50 text-indigo-600"}`}>
+                          {cat === "Notes" && <BookOpen size={16} />}
+                          {cat === "PYQs" && <GraduationCap size={16} />}
+                          {cat === "Syllabus" && <ClipboardList size={16} />}
+                          {cat === "Other" && <Folder size={16} />}
+                        </span>
+                        <span className="text-[10px] font-black tracking-wider uppercase block">{cat}</span>
+                        <span className={`text-[9px] font-bold block mt-0.5 ${isActive ? "text-indigo-100" : "text-slate-400"}`}>
+                          {count} {count === 1 ? "file" : "files"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1">
+                  {filteredResources.length === 0 && globalSearchQuery ? (
                     <div className="text-center py-12 text-slate-400 font-semibold text-sm">
                       No matching study resources found for "{globalSearchQuery}".
                     </div>
                   ) : (
-                    filteredResources.map((res) => (
-                      <div key={res.id} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-indigo-100 transition-all duration-200 flex items-start justify-between gap-4">
-                        <div className="space-y-1.5 overflow-hidden">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[9px] font-black uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                              {res.courseCode}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-semibold">{res.date}</span>
-                          </div>
-                          <h4 className="font-bold text-slate-800 text-sm truncate">{res.title}</h4>
-                          <p className="text-xs text-slate-500 leading-normal line-clamp-2">{res.description}</p>
-                          <a
-                            href={res.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs font-bold text-indigo-600 hover:underline block pt-1"
-                          >
-                            Open Link &rarr;
-                          </a>
-                        </div>
+                    <div>
+                      {(() => {
+                        // 1. Filter by category first
+                        let catResources = filteredResources.filter(r => (r.category || "Notes") === selectedDisplayCategory);
 
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => handleToggleBookmark(res, "note")}
-                            className={`p-1.5 rounded-lg border transition-all ${
-                              isBookmarked(res.id)
-                                ? "bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm"
-                                : "bg-white border-slate-200/40 text-slate-400 hover:text-indigo-600 hover:border-indigo-100"
-                            }`}
-                            title={isBookmarked(res.id) ? "Remove Bookmark" : "Bookmark Resource"}
-                          >
-                            <Bookmark size={14} fill={isBookmarked(res.id) ? "currentColor" : "none"} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteResource(res.id)}
-                            className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
-                            title="Delete Resource"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    ))
+                        // 2. Filter by displayFilterSemester dropdown
+                        if (displayFilterSemester !== "All Semesters") {
+                          catResources = catResources.filter(r => r.semester === displayFilterSemester);
+                        }
+
+                        // 3. Filter by displayFilterSubject dropdown
+                        if (displayFilterSubject !== "All Subjects") {
+                          catResources = catResources.filter(r => r.courseCode === displayFilterSubject);
+                        }
+
+                        // Get dynamic subject options based on chosen semester
+                        const filterSubjectsList = displayFilterSemester === "All Semesters"
+                          ? displayCourses
+                          : getFilteredCoursesForSemester(displayFilterSemester);
+
+                        return (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 sticky top-0 bg-white z-10 gap-4 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <span className="p-1 rounded bg-indigo-50 text-indigo-600">
+                                  {selectedDisplayCategory === "Notes" && <BookOpen size={14} />}
+                                  {selectedDisplayCategory === "PYQs" && <GraduationCap size={14} />}
+                                  {selectedDisplayCategory === "Syllabus" && <ClipboardList size={14} />}
+                                  {selectedDisplayCategory === "Other" && <Folder size={14} />}
+                                </span>
+                                <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+                                  {selectedDisplayCategory} <span className="text-[10px] text-slate-400 font-medium ml-1">({catResources.length})</span>
+                                </h4>
+                              </div>
+
+                              {/* Filters aligned at the right side */}
+                              <div className="flex items-center gap-2">
+                                {/* Semester Select */}
+                                <select
+                                  value={displayFilterSemester}
+                                  onChange={(e) => {
+                                    const newSem = e.target.value;
+                                    setDisplayFilterSemester(newSem);
+                                    setDisplayFilterSubject("All Subjects"); // Reset subject selection on semester change
+                                  }}
+                                  className="rounded-xl border border-slate-200 px-2 py-1 text-[10px] bg-slate-50 focus:border-indigo-500 focus:outline-none font-bold text-slate-700 cursor-pointer shadow-sm"
+                                >
+                                  {["All Semesters", "1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"].map(sem => (
+                                    <option key={sem} value={sem}>{sem}</option>
+                                  ))}
+                                </select>
+
+                                {/* Subject Select */}
+                                <select
+                                  value={displayFilterSubject}
+                                  onChange={(e) => setDisplayFilterSubject(e.target.value)}
+                                  className="rounded-xl border border-slate-200 px-2 py-1 text-[10px] bg-slate-50 focus:border-indigo-500 focus:outline-none font-bold text-slate-700 cursor-pointer shadow-sm max-w-[130px] truncate"
+                                >
+                                  <option value="All Subjects">All Subjects</option>
+                                  {filterSubjectsList.map(c => (
+                                    <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-3">
+                              {catResources.length === 0 ? (
+                                <div className="text-center py-8 border border-dashed border-slate-200/60 rounded-2xl bg-slate-50/20 text-slate-400 text-xs font-semibold">
+                                  No {selectedDisplayCategory} found matching these filters.
+                                </div>
+                              ) : (
+                                catResources.map((res) => (
+                                  <div key={res.id} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-indigo-100 transition-all duration-200 flex items-start justify-between gap-4">
+                                    <div className="space-y-1.5 overflow-hidden">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-[9px] font-black uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                                          {res.courseCode}
+                                        </span>
+                                        <span className="text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                                          {res.semester}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 font-semibold">{res.date}</span>
+                                      </div>
+                                      <h4 className="font-bold text-slate-800 text-sm truncate">{res.title}</h4>
+                                      <p className="text-xs text-slate-500 leading-normal line-clamp-2">{res.description}</p>
+                                      <a
+                                        href={res.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs font-bold text-indigo-600 hover:underline block pt-1"
+                                      >
+                                        Open Link &rarr;
+                                      </a>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <button
+                                        onClick={() => handleToggleBookmark(res, "note")}
+                                        className={`p-1.5 rounded-lg border transition-all ${
+                                          isBookmarked(res.id)
+                                            ? "bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm"
+                                            : "bg-white border-slate-200/40 text-slate-400 hover:text-indigo-600 hover:border-indigo-100"
+                                        }`}
+                                        title={isBookmarked(res.id) ? "Remove Bookmark" : "Bookmark Resource"}
+                                      >
+                                        <Bookmark size={14} fill={isBookmarked(res.id) ? "currentColor" : "none"} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteResource(res.id)}
+                                        className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
+                                        title="Delete Resource"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   )}
                 </div>
               </div>

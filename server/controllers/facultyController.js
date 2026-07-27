@@ -430,7 +430,7 @@ exports.getSchedule = async (req, res) => {
 exports.uploadResource = async (req, res) => {
   try {
     const teacher = await getTeacherProfileHelper(req.user.id);
-    const { title, description, type, dueDate, subjectCode, subjectName, department, semester, fileUrl } = req.body;
+    const { title, description, type, dueDate, subjectCode, subjectName, department, semester, fileUrl, category } = req.body;
     
     if (!title || !subjectCode || !subjectName) {
       return res.status(400).json({ message: "Title, Subject Code and Subject Name are required" });
@@ -440,6 +440,7 @@ exports.uploadResource = async (req, res) => {
       title,
       description: description || "",
       type: type || "note",
+      category: category || "Notes",
       dueDate: dueDate || "",
       subject: subjectCode,
       subjectName,
