@@ -331,6 +331,10 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
         navigate("/students");
       } else if (role === "faculty") {
         navigate("/faculty");
+      } else if (role === "admin") {
+        navigate("/admin");
+      } else if (role === "security") {
+        navigate("/security");
       }
     } catch (err) {
       setLocalError(err.message || "Authentication failed. Please check your inputs.");
@@ -355,10 +359,15 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
       label: "Admin",
       icon: <Shield className="h-5 w-5" />,
     },
+    {
+      id: "security",
+      label: "Security",
+      icon: <Shield className="h-5 w-5" />,
+    },
   ];
 
-  // Admin is only selectable on Login, not Sign Up
-  const filteredRoles = tab === "login" ? roles : roles.filter((r) => r.id !== "admin");
+  // Admin and Security are only selectable on Login, not Sign Up
+  const filteredRoles = tab === "login" ? roles : roles.filter((r) => r.id !== "admin" && r.id !== "security");
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">

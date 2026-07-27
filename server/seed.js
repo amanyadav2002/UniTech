@@ -15,6 +15,14 @@ const Notice = require("./models/Notice");
 const Task = require("./models/Task");
 const Schedule = require("./models/Schedule");
 const AcademicResource = require("./models/AcademicResource");
+const Admin = require("./models/Admin");
+const Security = require("./models/Security");
+const Course = require("./models/Course");
+const LeaveRequest = require("./models/LeaveRequest");
+const Event = require("./models/Event");
+const VisitorLog = require("./models/VisitorLog");
+const Notification = require("./models/Notification");
+const Report = require("./models/Report");
 
 const seedDatabase = async () => {
   try {
@@ -44,6 +52,14 @@ const seedDatabase = async () => {
     await Task.deleteMany({});
     await Schedule.deleteMany({});
     await AcademicResource.deleteMany({});
+    await Admin.deleteMany({});
+    await Security.deleteMany({});
+    await Course.deleteMany({});
+    await LeaveRequest.deleteMany({});
+    await Event.deleteMany({});
+    await VisitorLog.deleteMany({});
+    await Notification.deleteMany({});
+    await Report.deleteMany({});
 
     console.log("Collections cleared. Seeding starting...");
 
@@ -393,6 +409,148 @@ const seedDatabase = async () => {
       },
     ];
     await Notice.insertMany(noticesListSeeds);
+
+    // 13. Seed Admin User & Profile
+    const adminUser = new User({
+      name: "UniTech Administrator",
+      email: "admin@unitech.edu",
+      password: hashedPassword,
+      role: "admin",
+    });
+    const savedAdminUser = await adminUser.save();
+    
+    const adminProfile = new Admin({
+      user: savedAdminUser._id,
+      name: "UniTech Administrator",
+      id: "ADM001",
+      phone: "+1 (555) 011-2222",
+      mail: "admin@unitech.edu",
+      department: "Administration",
+    });
+    await adminProfile.save();
+
+    // 14. Seed Security User & Profile
+    const securityUser = new User({
+      name: "Chief Officer Marcus",
+      email: "security@unitech.edu",
+      password: hashedPassword,
+      role: "security",
+    });
+    const savedSecurityUser = await securityUser.save();
+    
+    const securityProfile = new Security({
+      user: savedSecurityUser._id,
+      name: "Chief Officer Marcus",
+      id: "SEC001",
+      phone: "+1 (555) 019-7777",
+      mail: "security@unitech.edu",
+      gateNumber: "Gate 1",
+      shift: "Day",
+    });
+    await securityProfile.save();
+
+    // 15. Seed Courses
+    const coursesList = [
+      { code: "CS-301", name: "Computer Networks", department: "Computer Science Department", credits: 4, branches: ["CSE", "ISE"], semesters: ["6th Sem", "7th Sem"] },
+      { code: "CS-302", name: "Operating Systems", department: "Computer Science Department", credits: 4, branches: ["CSE"], semesters: ["6th Sem"] },
+      { code: "CS-303", name: "Database Management Systems", department: "Computer Science Department", credits: 4, branches: ["CSE", "ISE"], semesters: ["6th Sem", "5th Sem"] },
+      { code: "MA-202", name: "Linear Algebra", department: "Computer Science Department", credits: 3, branches: ["CSE", "ISE", "ECE"], semesters: ["4th Sem", "6th Sem"] },
+    ];
+    await Course.insertMany(coursesList);
+
+    // 16. Seed Leave Requests
+    const leaveRequestsSeeds = [
+      {
+        user: studentProfiles[0].user,
+        name: studentProfiles[0].name,
+        role: "student",
+        department: studentProfiles[0].department,
+        startDate: "2026-07-28",
+        endDate: "2026-07-30",
+        reason: "Attending sister's wedding in hometown.",
+        status: "Pending",
+        comments: "",
+      },
+      {
+        user: savedFacultyUser._id,
+        name: savedFacultyUser.name,
+        role: "faculty",
+        department: facultyProfile.department,
+        startDate: "2026-08-05",
+        endDate: "2026-08-07",
+        reason: "Medical checkup and rest.",
+        status: "Pending",
+        comments: "",
+      },
+    ];
+    await LeaveRequest.insertMany(leaveRequestsSeeds);
+
+    // 17. Seed Events
+    const eventsSeeds = [
+      {
+        title: "Web3 and Smart Contracts Workshop",
+        description: "Hands-on workshop on Solidity, Ethereum development, and building decentralized applications.",
+        type: "Workshop",
+        date: "2026-08-10",
+        time: "10:00 AM",
+        location: "Seminar Hall A, Block 2",
+        capacity: 120,
+      },
+      {
+        title: "National Coding Hackathon 2026",
+        description: "24-hour non-stop codefest to solve real-world problems. Exciting cash prizes and internship offers.",
+        type: "Hackathon",
+        date: "2026-08-18",
+        time: "09:00 AM",
+        location: "Main Gymnasium Hall",
+        capacity: 250,
+      },
+    ];
+    await Event.insertMany(eventsSeeds);
+
+    // 18. Seed Visitor Logs
+    const visitorLogsSeeds = [
+      {
+        name: "Mr. Arthur Pendelton",
+        purpose: "Guest Lecture Delivery",
+        vehicleNo: "KA-03-MB-4902",
+        entryTime: new Date("2026-07-26T09:15:00Z"),
+        exitTime: new Date("2026-07-26T12:30:00Z"),
+        status: "Cleared",
+      },
+      {
+        name: "Mrs. Clara Oswald",
+        purpose: "Parent Teacher Meeting",
+        vehicleNo: "KA-51-EF-1122",
+        entryTime: new Date(),
+        status: "Active",
+        lostFound: {
+          item: "Car keys on gate bench",
+          reporter: "Marcus (Security)",
+          status: "Found",
+        },
+      },
+      {
+        name: "Courier Delivery Service",
+        purpose: "Official Document Delivery",
+        entryTime: new Date(),
+        status: "Active",
+      },
+    ];
+    await VisitorLog.insertMany(visitorLogsSeeds);
+
+    // 19. Seed Notifications
+    const notificationsSeeds = [
+      {
+        title: "System Maintenance Schedule",
+        message: "The UniTech portal will undergo routine maintenance on Sunday from 02:00 AM to 05:00 AM. Access will be temporarily limited.",
+        targetRole: "all",
+        targetDept: "All",
+        targetSemester: "All",
+        sentBy: "System Administration",
+      },
+    ];
+    await Notification.insertMany(notificationsSeeds);
 
     console.log("Database seeded successfully!");
     mongoose.connection.close();
