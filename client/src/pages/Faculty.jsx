@@ -44,11 +44,27 @@ import facultyService from "../services/facultyService";
 import studentService from "../services/studentService";
 
 const FALLBACK_COURSES = [
-  { code: "CS-301", name: "Computer Networks" },
-  { code: "CS-302", name: "Operating Systems" },
-  { code: "CS-303", name: "Database Management Systems" },
-  { code: "CS-304", name: "Software Engineering" },
-  { code: "CS-305", name: "Compiler Design" },
+  { code: "CS-301", name: "Computer Networks", semester: "6th Sem" },
+  { code: "CS-302", name: "Operating Systems", semester: "6th Sem" },
+  { code: "CS-303", name: "Database Management Systems", semester: "6th Sem" },
+  { code: "CS-304", name: "Software Engineering", semester: "6th Sem" },
+  { code: "CS-305", name: "Compiler Design", semester: "6th Sem" },
+
+  { code: "CS-201", name: "Data Structures", semester: "3rd Sem" },
+  { code: "CS-202", name: "Object Oriented Programming", semester: "3rd Sem" },
+  { code: "CS-203", name: "Discrete Mathematical Structures", semester: "3rd Sem" },
+
+  { code: "CS-251", name: "Design & Analysis of Algorithms", semester: "4th Sem" },
+  { code: "CS-252", name: "Microprocessors & Microcontrollers", semester: "4th Sem" },
+  { code: "MA-202", name: "Linear Algebra", semester: "4th Sem" },
+
+  { code: "CS-303", name: "Database Management Systems", semester: "5th Sem" },
+  { code: "CS-351", name: "Theory of Computation", semester: "5th Sem" },
+  { code: "CS-352", name: "Computer Organization & Architecture", semester: "5th Sem" },
+
+  { code: "CS-401", name: "Artificial Intelligence", semester: "7th Sem" },
+  { code: "CS-402", name: "Cloud Computing", semester: "7th Sem" },
+  { code: "CS-403", name: "Cryptography & Network Security", semester: "7th Sem" },
 ];
 
 export default function Faculty({ onOpenAuth }) {
@@ -67,6 +83,7 @@ export default function Faculty({ onOpenAuth }) {
   
   // Dashboard active tab navigation
   const [activeTab, setActiveTab] = useState("overview");
+  const [resourceSubTab, setResourceSubTab] = useState("materials");
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [noticeSearch, setNoticeSearch] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -120,6 +137,41 @@ export default function Faculty({ onOpenAuth }) {
 
   // --- Real-time MongoDB Faculty States ---
   const [coursesList, setCoursesList] = useState([]);
+  const displayCourses = [];
+  const seenCodes = new Set();
+
+  coursesList.forEach(c => {
+    if (!seenCodes.has(c.code)) {
+      seenCodes.add(c.code);
+      displayCourses.push(c);
+    }
+  });
+
+  FALLBACK_COURSES.forEach(c => {
+    if (!seenCodes.has(c.code)) {
+      seenCodes.add(c.code);
+      displayCourses.push(c);
+    }
+  });
+
+  const getFilteredCoursesForSemester = (sem) => {
+    const list = [];
+    const seen = new Set();
+    coursesList.forEach(c => {
+      if (c.semester === sem && !seen.has(c.code)) {
+        seen.add(c.code);
+        list.push(c);
+      }
+    });
+    FALLBACK_COURSES.forEach(c => {
+      if (c.semester === sem && !seen.has(c.code)) {
+        seen.add(c.code);
+        list.push(c);
+      }
+    });
+    return list;
+  };
+
   const [scheduleTimeline, setScheduleTimeline] = useState([]);
   const [notices, setNotices] = useState([]);
   const [resources, setResources] = useState([]);
@@ -673,10 +725,10 @@ export default function Faculty({ onOpenAuth }) {
   const [resSuccess, setResSuccess] = useState("");
 
   useEffect(() => {
-    if (coursesList.length > 0 && !resCourse) {
-      setResCourse(coursesList[0].code);
+    if (displayCourses.length > 0 && !resCourse) {
+      setResCourse(displayCourses[0].code);
     }
-  }, [coursesList, resCourse]);
+  }, [displayCourses, resCourse]);
 
   const handleUploadResource = async (e) => {
     e.preventDefault();
@@ -703,7 +755,16 @@ export default function Faculty({ onOpenAuth }) {
         link: r.fileUrl,
         content: r.description
       }));
+      const assigns = updated.filter(r => r.type === "assignment").map(r => ({
+        id: r._id,
+        title: r.title,
+        courseCode: r.subject,
+        courseName: r.subjectName,
+        dueDate: r.dueDate,
+        content: r.description
+      }));
       setResources(notes);
+      setAssignments(assigns);
 
       setResTitle("");
       setResLink("");
@@ -730,7 +791,20 @@ export default function Faculty({ onOpenAuth }) {
         link: r.fileUrl,
         content: r.description
       }));
+      const assigns = updated.filter(r => r.type === "assignment").map(r => ({
+        id: r._id,
+        title: r.title,
+        courseCode: r.subject,
+        courseName: r.subjectName,
+        dueDate: r.dueDate,
+        content: r.description
+      }));
       setResources(notes);
+      setAssignments(assigns);
+
+      if (selectedAssignForGrading === resId) {
+        setSelectedAssignForGrading(assigns[0]?.id || "");
+      }
     } catch (err) {
       console.error(err);
     }
@@ -741,8 +815,12 @@ export default function Faculty({ onOpenAuth }) {
   const [submissions, setSubmissions] = useState({});
   const [assignTitle, setAssignTitle] = useState("");
   const [assignCourse, setAssignCourse] = useState("");
+  const [assignSemester, setAssignSemester] = useState("6th Sem");
   const [assignDueDate, setAssignDueDate] = useState("");
   const [assignDesc, setAssignDesc] = useState("");
+  const [assignFile, setAssignFile] = useState(null);
+  const [assignFileUrl, setAssignFileUrl] = useState("");
+  const [uploadingFile, setUploadingFile] = useState(false);
   
   // Custom Due Date states initialized dynamically to today's date
   const dueInitialDate = new Date();
@@ -890,10 +968,11 @@ export default function Faculty({ onOpenAuth }) {
   const [gradeSuccess, setGradeSuccess] = useState("");
 
   useEffect(() => {
-    if (coursesList.length > 0 && !assignCourse) {
-      setAssignCourse(coursesList[0].code);
+    const semCourses = getFilteredCoursesForSemester(assignSemester);
+    if (semCourses.length > 0 && !assignCourse) {
+      setAssignCourse(semCourses[0].code);
     }
-  }, [coursesList, assignCourse]);
+  }, [coursesList, assignSemester, assignCourse]);
 
   // Set default grading assignment on mount
   useEffect(() => {
@@ -939,12 +1018,32 @@ export default function Faculty({ onOpenAuth }) {
     loadSubmissions();
   }, [selectedAssignForGrading, assignments, coursesList]);
 
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setAssignFile(file);
+    setUploadingFile(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const result = await facultyService.uploadFile(formData);
+      setAssignFileUrl(result.fileUrl);
+      setUploadingFile(false);
+    } catch (err) {
+      console.error("File upload failed:", err);
+      setUploadingFile(false);
+    }
+  };
+
   const handleCreateAssignment = async (e) => {
     e.preventDefault();
     if (!assignTitle.trim() || !assignDueDate) return;
 
     try {
-      const courseObj = coursesList.find(c => c.code === assignCourse);
+      const courseObj = coursesList.find(c => c.code === assignCourse) || FALLBACK_COURSES.find(c => c.code === assignCourse);
       const updated = await facultyService.uploadResource({
         title: assignTitle.trim(),
         description: assignDesc.trim() || "No details provided.",
@@ -952,10 +1051,20 @@ export default function Faculty({ onOpenAuth }) {
         subjectName: courseObj?.name || assignCourse,
         dueDate: assignDueDate,
         department: courseObj?.department || "Computer Science Department",
-        semester: courseObj?.semester || "6th Sem",
+        semester: assignSemester,
         type: "assignment",
+        fileUrl: assignFileUrl || "#",
+        downloadUrl: assignFileUrl || "#",
       });
 
+      const notes = updated.filter(r => r.type === "note").map(r => ({
+        id: r._id,
+        title: r.title,
+        courseCode: r.subject,
+        courseName: r.subjectName,
+        link: r.fileUrl,
+        content: r.description
+      }));
       const assigns = updated.filter(r => r.type === "assignment").map(r => ({
         id: r._id,
         title: r.title,
@@ -964,6 +1073,7 @@ export default function Faculty({ onOpenAuth }) {
         dueDate: r.dueDate,
         content: r.description
       }));
+      setResources(notes);
       setAssignments(assigns);
 
       setAssignTitle("");
@@ -972,6 +1082,8 @@ export default function Faculty({ onOpenAuth }) {
       setDueMonth(initialDueMonth);
       setDueYear(initialDueYear);
       setAssignDesc("");
+      setAssignFile(null);
+      setAssignFileUrl("");
       setAssignSuccess("Assignment created and published to students!");
     } catch (err) {
       console.error(err);
@@ -1695,22 +1807,7 @@ export default function Faculty({ onOpenAuth }) {
     return results;
   };
 
-  const displayCourses = [];
-  const seenCodes = new Set();
 
-  coursesList.forEach(c => {
-    if (!seenCodes.has(c.code)) {
-      seenCodes.add(c.code);
-      displayCourses.push(c);
-    }
-  });
-
-  FALLBACK_COURSES.forEach(c => {
-    if (!seenCodes.has(c.code)) {
-      seenCodes.add(c.code);
-      displayCourses.push(c);
-    }
-  });
 
   const searchResults = getFacultySearchResults();
 
@@ -1769,6 +1866,30 @@ export default function Faculty({ onOpenAuth }) {
             <ClipboardCheck size={18} className={activeTab === 'attendance' ? 'text-white' : 'text-zinc-400'} />
             <span>Attendance</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab("resources")}
+            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
+              activeTab === "resources"
+                ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/15"
+                : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
+            }`}
+          >
+            <BookOpen size={18} className={activeTab === 'resources' ? 'text-white' : 'text-zinc-400'} />
+            <span>Study Materials</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("assignments")}
+            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
+              activeTab === "assignments"
+                ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/15"
+                : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
+            }`}
+          >
+            <FileText size={18} className={activeTab === 'assignments' ? 'text-white' : 'text-zinc-400'} />
+            <span>Assignments</span>
+          </button>
         </nav>
 
         {/* Sign Out */}
@@ -1792,8 +1913,8 @@ export default function Faculty({ onOpenAuth }) {
               {activeTab === "overview" && "Dashboard Overview"}
               {activeTab === "attendance" && "Class Attendance Sheets"}
               {activeTab === "students" && "Registered Students Directory"}
-              {activeTab === "resources" && "Digital Classroom Workspace"}
-              {activeTab === "assignments" && "Assignments & Submission Grading"}
+              {activeTab === "resources" && "Study Materials"}
+              {activeTab === "assignments" && "Assignments & Grading"}
               {activeTab === "research" && "Research Publications Registry"}
               {activeTab === "notices" && "Department Notice Desk"}
               {activeTab === "profile" && "Faculty Core Profile"}
@@ -2515,7 +2636,7 @@ export default function Faculty({ onOpenAuth }) {
           </div>
         )}
 
-        {/* --- TAB 3: DIGITAL CLASSROOM --- */}
+        {/* --- TAB 3: DIGITAL C        {/* --- TAB 3: STUDY MATERIALS --- */}
         {activeTab === "resources" && (
           <div className="grid gap-8 lg:grid-cols-5 animate-fadeIn">
             {/* Upload Resource Form (2 columns) */}
@@ -2553,7 +2674,7 @@ export default function Faculty({ onOpenAuth }) {
                       onChange={(e) => setResCourse(e.target.value)}
                       className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
                     >
-                      {coursesList.map(c => (
+                      {displayCourses.map(c => (
                         <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
                       ))}
                     </select>
@@ -2586,7 +2707,7 @@ export default function Faculty({ onOpenAuth }) {
                     type="submit"
                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl shadow-md transition active:scale-[0.98] text-xs mt-2"
                   >
-                    Upload study Resource
+                    Upload Study Resource
                   </button>
                 </form>
               </div>
@@ -2667,48 +2788,61 @@ export default function Faculty({ onOpenAuth }) {
           <div className="space-y-8 animate-fadeIn">
             {/* Top creation & Selection panel */}
             <div className="grid gap-8 lg:grid-cols-5">
-              
-              {/* Build Assignment Form (2 Columns) */}
-              <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200/50 lg:col-span-2 flex flex-col justify-between">
-                <div>
-                  <div className="border-b border-slate-100 pb-4 mb-5">
-                    <h3 className="text-lg font-extrabold text-slate-800">Build New Assignment</h3>
-                    <p className="text-xs text-slate-400 font-semibold mt-1">Deploy worksheets and coding tasks with strict due dates.</p>
-                  </div>
-
-                  {assignSuccess && (
-                    <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5">
-                      <CheckCircle className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
-                      {assignSuccess}
-                    </div>
-                  )}
-
-                  <form onSubmit={handleCreateAssignment} className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Assignment Title</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Assignment 2: Database Joins"
-                        value={assignTitle}
-                        onChange={(e) => setAssignTitle(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
-                      />
+              {/* Build Assignment Form & Published Assignments List (2 Columns) */}
+              <div className="space-y-6 lg:col-span-2">
+                <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200/50 flex flex-col justify-between">
+                  <div>
+                    <div className="border-b border-slate-100 pb-4 mb-5">
+                      <h3 className="text-lg font-extrabold text-slate-800">Build New Assignment</h3>
+                      <p className="text-xs text-slate-400 font-semibold mt-1">Deploy worksheets and coding tasks with strict due dates.</p>
                     </div>
 
-                    <div className="grid gap-4 grid-cols-2">
-                      <div>
-                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Target Course</label>
-                        <select
-                          value={assignCourse}
-                          onChange={(e) => setAssignCourse(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
-                        >
-                          {coursesList.map(c => (
-                            <option key={c.code} value={c.code}>{c.code}</option>
-                          ))}
-                        </select>
+                    {assignSuccess && (
+                      <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5">
+                        <CheckCircle className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
+                        {assignSuccess}
                       </div>
+                    )}
+
+                    <form onSubmit={handleCreateAssignment} className="space-y-4">
+                      {/* Semester & Target Course Row */}
+                      <div className="grid gap-4 grid-cols-3">
+                        <div className="col-span-1">
+                          <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Semester</label>
+                          <select
+                            value={assignSemester}
+                            onChange={(e) => {
+                              const newSem = e.target.value;
+                              setAssignSemester(newSem);
+                              const semCourses = getFilteredCoursesForSemester(newSem);
+                              if (semCourses.length > 0) {
+                                setAssignCourse(semCourses[0].code);
+                              } else {
+                                setAssignCourse("");
+                              }
+                            }}
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
+                          >
+                            {["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"].map(sem => (
+                              <option key={sem} value={sem}>{sem}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Target Course</label>
+                          <select
+                            value={assignCourse}
+                            onChange={(e) => setAssignCourse(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
+                          >
+                            {getFilteredCoursesForSemester(assignSemester).map(c => (
+                              <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Due Date Row */}
                       <div>
                         <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Due Date (DD / MM / YYYY)</label>
                         <div className="flex items-center gap-1.5">
@@ -2851,26 +2985,113 @@ export default function Faculty({ onOpenAuth }) {
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div>
-                      <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Task Instructions</label>
-                      <textarea
-                        placeholder="Write details description, submission rules, guidelines..."
-                        rows="3"
-                        value={assignDesc}
-                        onChange={(e) => setAssignDesc(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
-                      ></textarea>
-                    </div>
+                      {/* Assignment Title Row */}
+                      <div>
+                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Assignment Title</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Assignment 2: Database Joins"
+                          value={assignTitle}
+                          onChange={(e) => setAssignTitle(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
+                        />
+                      </div>
 
-                    <button
-                      type="submit"
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl shadow-md transition active:scale-[0.98] text-xs mt-2"
-                    >
-                      Publish Assignment Sheet
-                    </button>
-                  </form>
+                      {/* Task Instructions Row */}
+                      <div>
+                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Task Instructions</label>
+                        <textarea
+                          placeholder="Write details description, submission rules, guidelines..."
+                          rows="3"
+                          value={assignDesc}
+                          onChange={(e) => setAssignDesc(e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
+                        ></textarea>
+                      </div>
+
+                      {/* Media Upload Row */}
+                      <div>
+                        <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Media Upload (Optional)</label>
+                        <div className="border border-dashed border-slate-200 hover:border-indigo-400 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50/80 transition flex flex-col items-center justify-center gap-1.5 relative cursor-pointer group">
+                          <input
+                            type="file"
+                            onChange={handleFileChange}
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                          />
+                          {uploadingFile ? (
+                            <div className="flex items-center gap-2 text-xs font-bold text-indigo-600">
+                              <span className="animate-spin">⏳</span> Uploading file...
+                            </div>
+                          ) : assignFileUrl ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <p className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                                <span>✅</span> File uploaded: {assignFile?.name || "Uploaded File"}
+                              </p>
+                              <p className="text-[10px] text-slate-400 font-medium truncate max-w-xs">{assignFileUrl}</p>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="text-slate-400 group-hover:text-indigo-600 transition">
+                                <span>📁</span>
+                              </div>
+                              <p className="text-xs font-bold text-slate-600 group-hover:text-indigo-600 transition">
+                                Click or drag to upload assignment sheets (PDF, Image, DOC)
+                              </p>
+                              <p className="text-[10px] text-slate-400">Supported formats: PDF, PNG, JPG, DOCX (Max 10MB)</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl shadow-md transition active:scale-[0.98] text-xs mt-2"
+                      >
+                        Publish Assignment Sheet
+                      </button>
+                    </form>
+                  </div>
+                </div>
+
+                {/* Published Assignments List */}
+                <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200/50">
+                  <div className="border-b border-slate-100 pb-4 mb-5">
+                    <h3 className="text-lg font-extrabold text-slate-800">Published Assignments</h3>
+                    <p className="text-xs text-slate-400 font-semibold mt-1">Assignments currently active for your courses.</p>
+                  </div>
+                  <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                    {assignments.length === 0 ? (
+                      <div className="text-center py-6 text-slate-400 text-xs">
+                        <p className="font-bold">No assignments published yet.</p>
+                      </div>
+                    ) : (
+                      assignments.map((assign) => (
+                        <div key={assign.id} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-indigo-100 transition duration-200 flex items-start justify-between gap-4">
+                          <div className="space-y-1 overflow-hidden">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[9px] font-black uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                                {assign.courseCode}
+                              </span>
+                              <span className="text-[9px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded">
+                                Due: {assign.dueDate}
+                              </span>
+                            </div>
+                            <h4 className="font-bold text-slate-800 text-sm truncate">{assign.title}</h4>
+                            <p className="text-xs text-slate-500 leading-normal line-clamp-2">{assign.content}</p>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteResource(assign.id)}
+                            className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
+                            title="Delete Assignment"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -2882,7 +3103,7 @@ export default function Faculty({ onOpenAuth }) {
                       <h3 className="text-lg font-extrabold text-slate-800">Student Submissions Evaluator</h3>
                       <p className="text-xs text-slate-400 font-semibold mt-1">Review student files and submit numerical grades.</p>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <select
                         value={selectedAssignForGrading}
@@ -2939,7 +3160,7 @@ export default function Faculty({ onOpenAuth }) {
                               <h5 className="font-extrabold text-slate-800 text-sm">{sub.studentName}</h5>
                               <span className="text-[9px] font-bold text-slate-400 font-mono">{sub.studentId}</span>
                             </div>
-                            
+
                             {sub.file ? (
                               <div className="space-y-0.5">
                                 <p className="text-xs text-indigo-600 font-bold flex items-center gap-1">
@@ -2974,7 +3195,6 @@ export default function Faculty({ onOpenAuth }) {
                   </div>
                 </div>
               </div>
-
             </div>
 
             {/* Grade Input Overlay panel (if student selected) */}
