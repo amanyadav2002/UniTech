@@ -121,32 +121,15 @@ exports.getDashboardStats = async (req, res) => {
         totalCourses,
         presentToday,
         absentToday,
-        visitorsToday: visitorsToday || 8, // fallback to display nice stats
+        visitorsToday,
         activeNotices,
         pendingLeaves,
         securityAlerts
       },
       charts: {
-        attendanceTrend: attendanceTrend.length > 0 ? attendanceTrend : [
-          { date: "2026-07-16", percentage: 88 },
-          { date: "2026-07-17", percentage: 92 },
-          { date: "2026-07-18", percentage: 85 },
-          { date: "2026-07-19", percentage: 90 },
-          { date: "2026-07-20", percentage: 94 },
-          { date: "2026-07-21", percentage: 89 },
-          { date: "2026-07-22", percentage: 93 }
-        ],
-        deptWiseStudents: deptWiseStudents.length > 0 ? deptWiseStudents : [
-          { name: "Computer Science", students: 120 },
-          { name: "Electronics", students: 80 },
-          { name: "Information Science", students: 95 },
-          { name: "Electrical", students: 60 }
-        ],
-        facultyWorkload: facultyWorkload.length > 0 ? facultyWorkload : [
-          { name: "Dr. Robert Vance", classes: 3 },
-          { name: "Dr. Sarah Connor", classes: 4 },
-          { name: "Prof. Alan Turing", classes: 2 }
-        ]
+        attendanceTrend,
+        deptWiseStudents,
+        facultyWorkload
       },
       timeline: timeline.slice(0, 5),
       recentNotifications

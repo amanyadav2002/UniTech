@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const { signup, login, getMe, updateProfile, addBookmark, removeBookmark } = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
+const Department = require("../models/Department");
+const Semester = require("../models/Semester");
+const Course = require("../models/Course");
 
 // @route   POST api/auth/signup
 // @desc    Register user
@@ -26,5 +29,44 @@ router.post("/bookmarks", authMiddleware, addBookmark);
 // @route   DELETE api/auth/bookmarks/:itemId
 // @desc    Remove a bookmark from student profile
 router.delete("/bookmarks/:itemId", authMiddleware, removeBookmark);
+
+// @route   GET api/auth/departments
+// @desc    Get list of registered departments for public signup selection
+router.get("/departments", async (req, res) => {
+  try {
+    const depts = await Department.find().sort({ name: 1 });
+    res.json({ departments: depts });
+  } catch (err) {
+    res.status(500).json({ message: "Server error fetching departments" });
+  }
+});
+
+// @route   GET api/auth/semesters
+// @desc    Get list of registered semesters for public signup selection
+router.get("/semesters", async (req, res) => {
+  try {
+    const sems = await Semester.find();
+    sems.sort((a, b) => {
+      const numA = parseInt(a.name);
+      const numB = parseInt(b.name);
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+      return a.name.localeCompare(b.name);
+    });
+    res.json({ semesters: sems });
+  } catch (err) {
+    res.status(500).json({ message: "Server error fetching semesters" });
+  }
+});
+
+// @route   GET api/auth/courses
+// @desc    Get list of registered courses for selection
+router.get("/courses", async (req, res) => {
+  try {
+    const list = await Course.find().sort({ code: 1 });
+    res.json({ courses: list });
+  } catch (err) {
+    res.status(500).json({ message: "Server error fetching courses" });
+  }
+});
 
 module.exports = router;

@@ -68,6 +68,17 @@ const FALLBACK_COURSES = [
   { code: "CS-403", name: "Cryptography & Network Security", semester: "7th Sem" },
 ];
 
+const normalizeDept = (dept) => {
+  if (!dept) return "";
+  return dept.toLowerCase().replace("department", "").replace("engineering", "").replace("&", "and").replace(/[^a-z0-9]/g, "").trim();
+};
+
+const normalizeSem = (sem) => {
+  if (!sem) return "";
+  const match = sem.match(/\d+/);
+  return match ? match[0] : sem.toLowerCase().trim();
+};
+
 export default function Faculty({ onOpenAuth }) {
   const { user, logout, updateUserProfile, addBookmark, removeBookmark } = useAuth();
   const navigate = useNavigate();
@@ -138,6 +149,8 @@ export default function Faculty({ onOpenAuth }) {
 
   // --- Real-time MongoDB Faculty States ---
   const [coursesList, setCoursesList] = useState([]);
+  const [semestersList, setSemestersList] = useState([]);
+  const [globalCourses, setGlobalCourses] = useState([]);
   const displayCourses = [];
   const seenCodes = new Set();
 
@@ -184,8 +197,8 @@ export default function Faculty({ onOpenAuth }) {
 
   // Active student roster for attendance/grading
   const [studentRoster, setStudentRoster] = useState([]);
-  const [attendanceCourse, setAttendanceCourse] = useState("CS-301");
-  const [attendanceSemester, setAttendanceSemester] = useState("6th Sem");
+  const [attendanceCourse, setAttendanceCourse] = useState("");
+  const [attendanceSemester, setAttendanceSemester] = useState("1st Semester");
   const [attendancePeriod, setAttendancePeriod] = useState("1st Period (09:00 AM - 10:30 AM)");
   const [attendanceHours, setAttendanceHours] = useState("1");
   const [attendanceDate, setAttendanceDate] = useState(getLocalDateString());
@@ -352,6 +365,31 @@ export default function Faculty({ onOpenAuth }) {
       setResources(notes);
       setAssignments(assigns);
       
+      // Fetch semesters
+      try {
+        const semRes = await fetch("http://localhost:5000/api/auth/semesters");
+        if (semRes.ok) {
+          const semData = await semRes.json();
+          setSemestersList(semData.semesters || []);
+          if (semData.semesters && semData.semesters.length > 0) {
+            setAttendanceSemester(semData.semesters[0].name);
+          }
+        }
+      } catch (semErr) {
+        console.error("Failed to load semesters in faculty hub:", semErr);
+      }
+
+      // Fetch global courses
+      try {
+        const courseRes = await fetch("http://localhost:5000/api/auth/courses");
+        if (courseRes.ok) {
+          const courseData = await courseRes.json();
+          setGlobalCourses(courseData.courses || []);
+        }
+      } catch (courseErr) {
+        console.error("Failed to load global courses in faculty hub:", courseErr);
+      }
+
       // Fetch registered students
       await loadRegisteredStudents();
 
@@ -2327,7 +2365,7 @@ export default function Faculty({ onOpenAuth }) {
                   onChange={(e) => setAttendanceSemester(e.target.value)}
                   className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm min-w-[100px]"
                 >
-                  {["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"].map(sem => (
+                  {(semestersList.length > 0 ? semestersList.map(s => s.name) : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"]).map(sem => (
                     <option key={sem} value={sem}>{sem}</option>
                   ))}
                 </select>
@@ -2359,11 +2397,22 @@ export default function Faculty({ onOpenAuth }) {
                   <select
                     value={attendanceCourse}
                     onChange={(e) => setAttendanceCourse(e.target.value)}
+                    required
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm"
                   >
-                    {displayCourses.map(c => (
-                      <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
-                    ))}
+                    <option value="" disabled>Select Course</option>
+                    {globalCourses
+                      .filter(c => {
+                        const courseDeptNormalized = normalizeDept(c.department);
+                        const teacherDeptNormalized = normalizeDept(teacherProfile.department || "Computer Science");
+                        const deptMatches = courseDeptNormalized.includes(teacherDeptNormalized) || teacherDeptNormalized.includes(courseDeptNormalized);
+                        const semMatches = c.semesters && c.semesters.some(s => normalizeSem(s) === normalizeSem(attendanceSemester));
+                        return deptMatches && semMatches;
+                      })
+                      .map(c => (
+                        <option key={c._id} value={c.code}>{c.code} - {c.name}</option>
+                      ))
+                    }
                   </select>
                 </div>
 
@@ -2704,19 +2753,10 @@ export default function Faculty({ onOpenAuth }) {
                     <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Semester</label>
                     <select
                       value={resSemester}
-                      onChange={(e) => {
-                        const newSem = e.target.value;
-                        setResSemester(newSem);
-                        const semCourses = getFilteredCoursesForSemester(newSem);
-                        if (semCourses.length > 0) {
-                          setResCourse(semCourses[0].code);
-                        } else {
-                          setResCourse("");
-                        }
-                      }}
+                      onChange={(e) => setResSemester(e.target.value)}
                       className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
                     >
-                      {["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"].map(sem => (
+                      {(semestersList.length > 0 ? semestersList.map(s => s.name) : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"]).map(sem => (
                         <option key={sem} value={sem}>{sem}</option>
                       ))}
                     </select>
@@ -2728,11 +2768,22 @@ export default function Faculty({ onOpenAuth }) {
                     <select
                       value={resCourse}
                       onChange={(e) => setResCourse(e.target.value)}
+                      required
                       className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
                     >
-                      {getFilteredCoursesForSemester(resSemester).map(c => (
-                        <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
-                      ))}
+                      <option value="" disabled>Select Course</option>
+                      {globalCourses
+                        .filter(c => {
+                          const courseDeptNormalized = normalizeDept(c.department);
+                          const teacherDeptNormalized = normalizeDept(teacherProfile.department || "Computer Science");
+                          const deptMatches = courseDeptNormalized.includes(teacherDeptNormalized) || teacherDeptNormalized.includes(courseDeptNormalized);
+                          const semMatches = c.semesters && c.semesters.some(s => normalizeSem(s) === normalizeSem(resSemester));
+                          return deptMatches && semMatches;
+                        })
+                        .map(c => (
+                          <option key={c._id} value={c.code}>{c.code} - {c.name}</option>
+                        ))
+                      }
                     </select>
                   </div>
 
@@ -2900,10 +2951,18 @@ export default function Faculty({ onOpenAuth }) {
                           catResources = catResources.filter(r => r.courseCode === displayFilterSubject);
                         }
 
-                        // Get dynamic subject options based on chosen semester
-                        const filterSubjectsList = displayFilterSemester === "All Semesters"
-                          ? displayCourses
-                          : getFilteredCoursesForSemester(displayFilterSemester);
+                        // Get registered courses matching faculty department and selected semester
+                        const filterSubjectsList = globalCourses.filter(c => {
+                          const courseDeptNormalized = normalizeDept(c.department);
+                          const teacherDeptNormalized = normalizeDept(teacherProfile.department || "Computer Science");
+                          const deptMatches = courseDeptNormalized.includes(teacherDeptNormalized) || teacherDeptNormalized.includes(courseDeptNormalized);
+                          
+                          if (displayFilterSemester === "All Semesters") {
+                            return deptMatches;
+                          }
+                          const semMatches = c.semesters && c.semesters.some(s => normalizeSem(s) === normalizeSem(displayFilterSemester));
+                          return deptMatches && semMatches;
+                        });
 
                         return (
                           <div className="space-y-3">
@@ -2932,7 +2991,7 @@ export default function Faculty({ onOpenAuth }) {
                                   }}
                                   className="rounded-xl border border-slate-200 px-2 py-1 text-[10px] bg-slate-50 focus:border-indigo-500 focus:outline-none font-bold text-slate-700 cursor-pointer shadow-sm"
                                 >
-                                  {["All Semesters", "1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"].map(sem => (
+                                  {["All Semesters", ...(semestersList.length > 0 ? semestersList.map(s => s.name) : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"])].map(sem => (
                                     <option key={sem} value={sem}>{sem}</option>
                                   ))}
                                 </select>
@@ -2945,7 +3004,7 @@ export default function Faculty({ onOpenAuth }) {
                                 >
                                   <option value="All Subjects">All Subjects</option>
                                   {filterSubjectsList.map(c => (
-                                    <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
+                                    <option key={c._id} value={c.code}>{c.code} - {c.name}</option>
                                   ))}
                                 </select>
                               </div>
@@ -3044,19 +3103,10 @@ export default function Faculty({ onOpenAuth }) {
                           <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Semester</label>
                           <select
                             value={assignSemester}
-                            onChange={(e) => {
-                              const newSem = e.target.value;
-                              setAssignSemester(newSem);
-                              const semCourses = getFilteredCoursesForSemester(newSem);
-                              if (semCourses.length > 0) {
-                                setAssignCourse(semCourses[0].code);
-                              } else {
-                                setAssignCourse("");
-                              }
-                            }}
+                            onChange={(e) => setAssignSemester(e.target.value)}
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
                           >
-                            {["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"].map(sem => (
+                            {(semestersList.length > 0 ? semestersList.map(s => s.name) : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"]).map(sem => (
                               <option key={sem} value={sem}>{sem}</option>
                             ))}
                           </select>
@@ -3066,11 +3116,22 @@ export default function Faculty({ onOpenAuth }) {
                           <select
                             value={assignCourse}
                             onChange={(e) => setAssignCourse(e.target.value)}
+                            required
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
                           >
-                            {getFilteredCoursesForSemester(assignSemester).map(c => (
-                              <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
-                            ))}
+                            <option value="" disabled>Select Course</option>
+                            {globalCourses
+                              .filter(c => {
+                                const courseDeptNormalized = normalizeDept(c.department);
+                                const teacherDeptNormalized = normalizeDept(teacherProfile.department || "Computer Science");
+                                const deptMatches = courseDeptNormalized.includes(teacherDeptNormalized) || teacherDeptNormalized.includes(courseDeptNormalized);
+                                const semMatches = c.semesters && c.semesters.some(s => normalizeSem(s) === normalizeSem(assignSemester));
+                                return deptMatches && semMatches;
+                              })
+                              .map(c => (
+                                <option key={c._id} value={c.code}>{c.code} - {c.name}</option>
+                              ))
+                            }
                           </select>
                         </div>
                       </div>
@@ -4477,31 +4538,7 @@ export default function Faculty({ onOpenAuth }) {
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Select from Taught Classes</label>
-                <select
-                  value=""
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      const selectedClass = coursesList.find(c => c.code === e.target.value);
-                      if (selectedClass) {
-                        setAttendanceCourseCode(selectedClass.code);
-                        setAttendanceCourseName(selectedClass.name);
-                      }
-                    }
-                  }}
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-semibold text-slate-800 focus:outline-none focus:border-indigo-500"
-                >
-                  <option value="">-- Choose Taught Course --</option>
-                  {coursesList.map(c => (
-                    <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
-                  ))}
-                </select>
-              </div>
 
-              <div className="border-t border-slate-50 pt-2 text-center text-xs font-bold text-slate-400">
-                OR Enter Manually (For Personalized Course)
-              </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Course Code</label>

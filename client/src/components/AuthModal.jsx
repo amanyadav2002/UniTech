@@ -211,13 +211,14 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
   const handleSemesterSelection = (selectedSemester) => {
     setSemester(selectedSemester);
     // Automatically select the corresponding year
-    if (["1st Sem", "2nd Sem"].includes(selectedSemester)) {
+    const semLower = selectedSemester.toLowerCase();
+    if (semLower.includes("1st") || semLower.includes("2nd")) {
       setYear("1st Year");
-    } else if (["3rd Sem", "4th Sem"].includes(selectedSemester)) {
+    } else if (semLower.includes("3rd") || semLower.includes("4th")) {
       setYear("2nd Year");
-    } else if (["5th Sem", "6th Sem"].includes(selectedSemester)) {
+    } else if (semLower.includes("5th") || semLower.includes("6th")) {
       setYear("3rd Year");
-    } else if (["7th Sem", "8th Sem"].includes(selectedSemester)) {
+    } else if (semLower.includes("7th") || semLower.includes("8th")) {
       setYear("4th Year");
     }
   };
@@ -228,6 +229,8 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
   const [blood, setBlood] = useState("");
   const [department, setDepartment] = useState("");
   const [salary, setSalary] = useState("");
+  const [departments, setDepartments] = useState([]);
+  const [semestersList, setSemestersList] = useState([]);
 
   // Auth Context hooks
   const { login, signup } = useAuth();
@@ -263,6 +266,29 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
       setSalary("");
     }
   }, [isOpen, defaultTab, defaultRole]);
+
+  // Load dynamic department and semester lists from public endpoints when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const loadLookupData = async () => {
+        try {
+          const deptRes = await fetch("http://localhost:5000/api/auth/departments");
+          if (deptRes.ok) {
+            const deptData = await deptRes.json();
+            setDepartments(deptData.departments || []);
+          }
+          const semRes = await fetch("http://localhost:5000/api/auth/semesters");
+          if (semRes.ok) {
+            const semData = await semRes.json();
+            setSemestersList(semData.semesters || []);
+          }
+        } catch (err) {
+          console.error("Failed to load signup lookup data:", err);
+        }
+      };
+      loadLookupData();
+    }
+  }, [isOpen]);
 
   // Lock scrolling when modal is active
   useEffect(() => {
@@ -319,6 +345,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
           signupData.year = year;
           signupData.semester = semester;
           signupData.blood = blood;
+          signupData.department = department;
         } else if (role === "faculty") {
           signupData.department = department;
           signupData.salary = Number(salary);
@@ -845,8 +872,31 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                             className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
                           >
                             <option value="" disabled>Select Semester</option>
-                            {getAvailableSemesters(year).map((sem) => (
-                              <option key={sem} value={sem}>{sem}</option>
+                            {semestersList.map((sem) => (
+                              <option key={sem._id} value={sem.name}>{sem.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Department */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">
+                          Department
+                        </label>
+                        <div className="relative">
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <Building className="h-5 w-5" />
+                          </span>
+                          <select
+                            required
+                            value={department}
+                            onChange={(e) => setDepartment(e.target.value)}
+                            className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                          >
+                            <option value="" disabled>Select Department</option>
+                            {departments.map((dept) => (
+                              <option key={dept._id} value={dept.name}>{dept.name}</option>
                             ))}
                           </select>
                         </div>
@@ -901,12 +951,9 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                             className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
                           >
                             <option value="" disabled>Select Department</option>
-                            <option value="Computer Science">Computer Science</option>
-                            <option value="Information Science">Information Science</option>
-                            <option value="Electronics & Communication">Electronics & Communication</option>
-                            <option value="Electrical & Electronics">Electrical & Electronics</option>
-                            <option value="Mechanical Engineering">Mechanical Engineering</option>
-                            <option value="Civil Engineering">Civil Engineering</option>
+                            {departments.map((dept) => (
+                              <option key={dept._id} value={dept.name}>{dept.name}</option>
+                            ))}
                           </select>
                         </div>
                       </div>
