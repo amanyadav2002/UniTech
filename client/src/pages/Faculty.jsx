@@ -198,7 +198,7 @@ export default function Faculty({ onOpenAuth }) {
   // Active student roster for attendance/grading
   const [studentRoster, setStudentRoster] = useState([]);
   const [attendanceCourse, setAttendanceCourse] = useState("");
-  const [attendanceSemester, setAttendanceSemester] = useState("1st Semester");
+  const [attendanceSemester, setAttendanceSemester] = useState("");
   const [attendancePeriod, setAttendancePeriod] = useState("1st Period (09:00 AM - 10:30 AM)");
   const [attendanceHours, setAttendanceHours] = useState("1");
   const [attendanceDate, setAttendanceDate] = useState(getLocalDateString());
@@ -371,9 +371,6 @@ export default function Faculty({ onOpenAuth }) {
         if (semRes.ok) {
           const semData = await semRes.json();
           setSemestersList(semData.semesters || []);
-          if (semData.semesters && semData.semesters.length > 0) {
-            setAttendanceSemester(semData.semesters[0].name);
-          }
         }
       } catch (semErr) {
         console.error("Failed to load semesters in faculty hub:", semErr);
@@ -765,7 +762,7 @@ export default function Faculty({ onOpenAuth }) {
   const [resDesc, setResDesc] = useState("");
   const [resSuccess, setResSuccess] = useState("");
 
-  const [resSemester, setResSemester] = useState("6th Sem");
+  const [resSemester, setResSemester] = useState("");
   const [resCategory, setResCategory] = useState("Notes");
   const [selectedDisplayCategory, setSelectedDisplayCategory] = useState("Notes");
   const [displayFilterSemester, setDisplayFilterSemester] = useState("All Semesters");
@@ -773,13 +770,6 @@ export default function Faculty({ onOpenAuth }) {
   const [resFile, setResFile] = useState(null);
   const [resFileUrl, setResFileUrl] = useState("");
   const [uploadingResFile, setUploadingResFile] = useState(false);
-
-  useEffect(() => {
-    const semCourses = getFilteredCoursesForSemester(resSemester);
-    if (semCourses.length > 0 && !resCourse) {
-      setResCourse(semCourses[0].code);
-    }
-  }, [coursesList, resSemester, resCourse]);
 
   const handleResFileChange = async (e) => {
     const file = e.target.files[0];
@@ -895,7 +885,7 @@ export default function Faculty({ onOpenAuth }) {
   const [submissions, setSubmissions] = useState({});
   const [assignTitle, setAssignTitle] = useState("");
   const [assignCourse, setAssignCourse] = useState("");
-  const [assignSemester, setAssignSemester] = useState("6th Sem");
+  const [assignSemester, setAssignSemester] = useState("");
   const [assignDueDate, setAssignDueDate] = useState("");
   const [assignDesc, setAssignDesc] = useState("");
   const [assignFile, setAssignFile] = useState(null);
@@ -1047,12 +1037,7 @@ export default function Faculty({ onOpenAuth }) {
   const [gradingFeedback, setGradingFeedback] = useState("");
   const [gradeSuccess, setGradeSuccess] = useState("");
 
-  useEffect(() => {
-    const semCourses = getFilteredCoursesForSemester(assignSemester);
-    if (semCourses.length > 0 && !assignCourse) {
-      setAssignCourse(semCourses[0].code);
-    }
-  }, [coursesList, assignSemester, assignCourse]);
+
 
   // Set default grading assignment on mount
   useEffect(() => {
@@ -2362,9 +2347,13 @@ export default function Faculty({ onOpenAuth }) {
                 <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Semester:</span>
                 <select
                   value={attendanceSemester}
-                  onChange={(e) => setAttendanceSemester(e.target.value)}
+                  onChange={(e) => {
+                    setAttendanceSemester(e.target.value);
+                    setAttendanceCourse(""); // Reset course selection
+                  }}
                   className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm min-w-[100px]"
                 >
+                  <option value="" disabled>Select Semester</option>
                   {(semestersList.length > 0 ? semestersList.map(s => s.name) : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"]).map(sem => (
                     <option key={sem} value={sem}>{sem}</option>
                   ))}
@@ -2400,8 +2389,8 @@ export default function Faculty({ onOpenAuth }) {
                     required
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm"
                   >
-                    <option value="" disabled>Select Course</option>
-                    {globalCourses
+                    <option value="" disabled>{attendanceSemester ? "Select Course" : "Select Semester First"}</option>
+                    {attendanceSemester && globalCourses
                       .filter(c => {
                         const courseDeptNormalized = normalizeDept(c.department);
                         const teacherDeptNormalized = normalizeDept(teacherProfile.department || "Computer Science");
@@ -2753,9 +2742,13 @@ export default function Faculty({ onOpenAuth }) {
                     <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Semester</label>
                     <select
                       value={resSemester}
-                      onChange={(e) => setResSemester(e.target.value)}
+                      onChange={(e) => {
+                        setResSemester(e.target.value);
+                        setResCourse(""); // Reset course selection
+                      }}
                       className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
                     >
+                      <option value="" disabled>Select Semester</option>
                       {(semestersList.length > 0 ? semestersList.map(s => s.name) : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"]).map(sem => (
                         <option key={sem} value={sem}>{sem}</option>
                       ))}
@@ -2771,8 +2764,8 @@ export default function Faculty({ onOpenAuth }) {
                       required
                       className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
                     >
-                      <option value="" disabled>Select Course</option>
-                      {globalCourses
+                      <option value="" disabled>{resSemester ? "Select Course" : "Select Semester First"}</option>
+                      {resSemester && globalCourses
                         .filter(c => {
                           const courseDeptNormalized = normalizeDept(c.department);
                           const teacherDeptNormalized = normalizeDept(teacherProfile.department || "Computer Science");
@@ -3103,9 +3096,13 @@ export default function Faculty({ onOpenAuth }) {
                           <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">Semester</label>
                           <select
                             value={assignSemester}
-                            onChange={(e) => setAssignSemester(e.target.value)}
+                            onChange={(e) => {
+                              setAssignSemester(e.target.value);
+                              setAssignCourse(""); // Reset course selection
+                            }}
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
                           >
+                            <option value="" disabled>Select Semester</option>
                             {(semestersList.length > 0 ? semestersList.map(s => s.name) : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"]).map(sem => (
                               <option key={sem} value={sem}>{sem}</option>
                             ))}
@@ -3119,8 +3116,8 @@ export default function Faculty({ onOpenAuth }) {
                             required
                             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white focus:border-indigo-500 focus:outline-none font-bold text-slate-800"
                           >
-                            <option value="" disabled>Select Course</option>
-                            {globalCourses
+                            <option value="" disabled>{assignSemester ? "Select Course" : "Select Semester First"}</option>
+                            {assignSemester && globalCourses
                               .filter(c => {
                                 const courseDeptNormalized = normalizeDept(c.department);
                                 const teacherDeptNormalized = normalizeDept(teacherProfile.department || "Computer Science");
