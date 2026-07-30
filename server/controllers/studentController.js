@@ -10,6 +10,7 @@ const Notice = require("../models/Notice");
 const Task = require("../models/Task");
 const Schedule = require("../models/Schedule");
 const PersonalizedCourse = require("../models/PersonalizedCourse");
+const Course = require("../models/Course");
 
 // Helper to get Student Profile by user ID
 const getStudentProfileHelper = async (userId) => {
@@ -85,11 +86,22 @@ exports.getResources = async (req, res) => {
   try {
     const student = await getStudentProfileHelper(req.user.id);
     
+    const deptBase = student.department.replace(/department|engineering/gi, "").trim();
+    const deptRegex = new RegExp(deptBase, "i");
+    const semNumMatch = student.semester.match(/\d+/);
+    const semRegex = semNumMatch ? new RegExp(`^${semNumMatch[0]}`, "i") : new RegExp(`^${student.semester}`, "i");
+
     // We fetch subjects matching department and semester, or general ones
     const query = {
       $or: [
-        { department: student.department, semester: student.semester },
-        { department: "All", semester: "All" },
+        { 
+          department: { $regex: deptRegex }, 
+          semester: { $regex: semRegex } 
+        },
+        { 
+          department: "All", 
+          semester: "All" 
+        },
       ]
     };
     
@@ -108,9 +120,19 @@ exports.getAttendance = async (req, res) => {
     const student = await getStudentProfileHelper(req.user.id);
     const attendanceLogs = await Attendance.find({ student: student._id });
     
+    const deptBase = student.department.replace(/department|engineering/gi, "").trim();
+    const deptRegex = new RegExp(deptBase, "i");
+    const semNumMatch = student.semester.match(/\d+/);
+    const semRegex = semNumMatch ? new RegExp(`^${semNumMatch[0]}`, "i") : new RegExp(`^${student.semester}`, "i");
+
     // Get all subjects in the department/semester or classes
-    const classes = await Class.find({ department: student.department, semester: student.semester }).populate("faculty");
-    const subjects = await Subject.find({ department: student.department });
+    const classes = await Class.find({ 
+      department: { $regex: deptRegex }, 
+      semester: { $regex: semRegex } 
+    }).populate("faculty");
+    const subjects = await Subject.find({ 
+      department: { $regex: deptRegex } 
+    });
 
     // Fetch personalized courses for this student
     const personalizedCourses = await PersonalizedCourse.find({ student: student._id }).populate("faculty");
@@ -118,10 +140,19 @@ exports.getAttendance = async (req, res) => {
     const coursesDetails = [];
     
     // Compile attendance statistics per subject
-    // We prioritize classes assigned in the semester, but fallback to general subjects
-    const subjectsToMap = classes.length > 0
-      ? classes.map(c => ({ code: c.subjectCode, name: c.subjectName, teacher: c.faculty?.name || "Faculty Member", credits: 4, personalized: false }))
-      : subjects.map(s => ({ code: s.code, name: s.name, teacher: "Faculty Member", credits: s.credits, personalized: false }));
+    // We prioritize classes assigned in the semester, but fallback to general subjects or courses
+    let subjectsToMap = [];
+    if (classes.length > 0) {
+      subjectsToMap = classes.map(c => ({ code: c.subjectCode, name: c.subjectName, teacher: c.faculty?.name || "Faculty Member", credits: 4, personalized: false }));
+    } else if (subjects.length > 0) {
+      subjectsToMap = subjects.map(s => ({ code: s.code, name: s.name, teacher: "Faculty Member", credits: s.credits, personalized: false }));
+    } else {
+      const courses = await Course.find({ 
+        department: { $regex: deptRegex }, 
+        semesters: { $regex: semRegex } 
+      });
+      subjectsToMap = courses.map(c => ({ code: c.code, name: c.name, teacher: "Faculty Member", credits: c.credits, personalized: false }));
+    }
 
     // Append personalized courses
     personalizedCourses.forEach(pc => {
@@ -196,8 +227,10 @@ exports.getAttendance = async (req, res) => {
         else if (sched.time.includes("02:00 PM")) period = "3rd Period (02:00 PM - 03:30 PM)";
         else period = `Period (${sched.time})`;
       } else {
-        // Fallbacks based on subject code
-        if (log.subjectCode === "CS-301") period = "1st Period (09:00 AM - 10:30 AM)";
+        // Fallbacks based on log.period or subject code
+        if (log.period) {
+          period = log.period;
+        } else if (log.subjectCode === "CS-301") period = "1st Period (09:00 AM - 10:30 AM)";
         else if (log.subjectCode === "CS-302") period = "2nd Period (11:00 AM - 12:30 PM)";
         else if (log.subjectCode === "CS-303") period = "3rd Period (02:00 PM - 03:30 PM)";
         else period = "1st Period (09:00 AM - 10:30 AM)";
@@ -312,16 +345,27 @@ exports.getNotices = async (req, res) => {
   try {
     const student = await getStudentProfileHelper(req.user.id);
     
+    const deptBase = student.department.replace(/department|engineering/gi, "").trim();
+    const deptRegex = new RegExp(deptBase, "i");
+    const semNumMatch = student.semester.match(/\d+/);
+    const semRegex = semNumMatch ? new RegExp(`^${semNumMatch[0]}`, "i") : new RegExp(`^${student.semester}`, "i");
+
     // Fetch notices for student's department/semester or "All"
     const query = {
-      $or: [
-        { department: student.department },
-        { department: "All" },
-      ],
-      $or: [
-        { semester: student.semester },
-        { semester: "All" },
-      ],
+      $and: [
+        {
+          $or: [
+            { department: { $regex: deptRegex } },
+            { department: "All" }
+          ]
+        },
+        {
+          $or: [
+            { semester: { $regex: semRegex } },
+            { semester: "All" }
+          ]
+        }
+      ]
     };
     
     const notices = await Notice.find(query).sort({ createdAt: -1 });
