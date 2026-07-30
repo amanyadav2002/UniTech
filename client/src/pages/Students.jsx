@@ -54,6 +54,8 @@ export default function Students({ onOpenAuth }) {
   const [bookmarkFilter, setBookmarkFilter] = useState("all");
   const [bookmarkSearch, setBookmarkSearch] = useState("");
   const [selectedResourceCourse, setSelectedResourceCourse] = useState(null);
+  const [previewFileUrl, setPreviewFileUrl] = useState(null);
+  const [previewFileName, setPreviewFileName] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const filterDateInputRef = useRef(null);
 
@@ -352,7 +354,8 @@ export default function Students({ onOpenAuth }) {
         courseName: r.subjectName,
         dueDate: r.dueDate || r.uploadedDate,
         status: "Pending",
-        content: r.description
+        content: r.description,
+        link: r.fileUrl
       }));
       setNotesList(notes);
       setAssignmentsList(assigns);
@@ -2428,14 +2431,58 @@ export default function Students({ onOpenAuth }) {
                                 <h5 className="font-bold text-slate-800 text-base mb-1.5">{note.title}</h5>
                                 <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-4">{note.content}</p>
                               </div>
+                              {note.link && note.link !== "#" && (
+                                <div className="mt-1 mb-4 p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                                  <div className="flex items-center gap-2 truncate">
+                                    <span className="text-base shrink-0">
+                                      {note.link.match(/\.(pdf)$/i) ? "📕" : note.link.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? "🖼️" : "📁"}
+                                    </span>
+                                    <span className="text-[10px] font-extrabold text-slate-600 truncate max-w-[120px] md:max-w-[160px]">
+                                      {note.link.substring(note.link.lastIndexOf('/') + 1) || "attachment"}
+                                    </span>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        setPreviewFileUrl(note.link);
+                                        setPreviewFileName(note.title);
+                                      }}
+                                      className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-100 transition"
+                                    >
+                                      Preview
+                                    </button>
+                                    <a
+                                      href={note.link}
+                                      download={note.title}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-[10px] font-extrabold text-slate-700 hover:text-slate-900 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 transition"
+                                    >
+                                      Download
+                                    </a>
+                                  </div>
+                                </div>
+                              )}
                               <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">PDF Handout</span>
-                                <button
-                                  onClick={() => alert(`Downloading: ${note.title}`)}
-                                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-                                >
-                                  Download Material &rarr;
-                                </button>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                  {note.link && note.link !== "#" 
+                                    ? (note.link.match(/\.pdf$/i) ? "PDF Handout" : note.link.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? "Image Handout" : "Attachment")
+                                    : "No Attachment"
+                                  }
+                                </span>
+                                {note.link && note.link !== "#" ? (
+                                  <button
+                                    onClick={() => {
+                                      setPreviewFileUrl(note.link);
+                                      setPreviewFileName(note.title);
+                                    }}
+                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                                  >
+                                    Preview Material &rarr;
+                                  </button>
+                                ) : (
+                                  <span className="text-xs text-slate-400 font-medium">No Attachment</span>
+                                )}
                               </div>
                             </div>
                           ))
@@ -2490,14 +2537,64 @@ export default function Students({ onOpenAuth }) {
                                 </p>
                                 <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-4">{assign.content}</p>
                               </div>
+                              {assign.link && assign.link !== "#" && (
+                                <div className="mt-1 mb-4 p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                                  <div className="flex items-center gap-2 truncate">
+                                    <span className="text-base shrink-0">
+                                      {assign.link.match(/\.(pdf)$/i) ? "📕" : assign.link.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? "🖼️" : "📁"}
+                                    </span>
+                                    <span className="text-[10px] font-extrabold text-slate-600 truncate max-w-[120px] md:max-w-[160px]">
+                                      {assign.link.substring(assign.link.lastIndexOf('/') + 1) || "attachment"}
+                                    </span>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        setPreviewFileUrl(assign.link);
+                                        setPreviewFileName(assign.title);
+                                      }}
+                                      className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-100 transition"
+                                    >
+                                      Preview
+                                    </button>
+                                    <a
+                                      href={assign.link}
+                                      download={assign.title}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-[10px] font-extrabold text-slate-700 hover:text-slate-900 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 transition"
+                                    >
+                                      Download
+                                    </a>
+                                  </div>
+                                </div>
+                              )}
                               <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">LMS Submit Portal</span>
-                                <button
-                                  onClick={() => alert(`Opening submission console: ${assign.title}`)}
-                                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-                                >
-                                  Submit Assignment &rarr;
-                                </button>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                  {assign.link && assign.link !== "#" 
+                                    ? (assign.link.match(/\.pdf$/i) ? "PDF Prompt" : assign.link.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? "Image Prompt" : "Prompt Attachment")
+                                    : "LMS Submit Portal"
+                                  }
+                                </span>
+                                <div className="flex items-center gap-3">
+                                  {assign.link && assign.link !== "#" && (
+                                    <button
+                                      onClick={() => {
+                                        setPreviewFileUrl(assign.link);
+                                        setPreviewFileName(assign.title);
+                                      }}
+                                      className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 border-r border-slate-200 pr-3"
+                                    >
+                                      Preview Prompt
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => alert(`Opening submission console: ${assign.title}`)}
+                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                                  >
+                                    Submit &rarr;
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           ))
@@ -2966,6 +3063,81 @@ export default function Students({ onOpenAuth }) {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Resource Preview Modal */}
+        {previewFileUrl && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
+            <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-4xl w-full flex flex-col max-h-[90vh] animate-scaleIn border border-slate-200/50">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2 bg-indigo-50 text-indigo-600 rounded-xl text-lg font-bold">
+                    {previewFileUrl.match(/\.(pdf)$/i) ? "📕" : previewFileUrl.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? "🖼️" : "📁"}
+                  </span>
+                  <div>
+                    <h3 className="font-extrabold text-slate-800 text-lg tracking-tight truncate max-w-[240px] sm:max-w-md md:max-w-xl">{previewFileName}</h3>
+                    <p className="text-[10px] text-slate-400 font-semibold truncate max-w-[200px] sm:max-w-xs md:max-w-sm">{previewFileUrl.substring(previewFileUrl.lastIndexOf('/') + 1)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setPreviewFileUrl(null);
+                    setPreviewFileName("");
+                  }}
+                  className="p-1.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 text-slate-400 hover:text-slate-800 transition"
+                  title="Close Preview"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body Content */}
+              <div className="flex-1 overflow-y-auto min-h-[300px] flex items-center justify-center p-2 bg-slate-50/50 rounded-2xl border border-slate-100">
+                {previewFileUrl.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? (
+                  <img
+                    src={previewFileUrl}
+                    alt={previewFileName}
+                    className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-sm bg-white"
+                  />
+                ) : previewFileUrl.match(/\.(pdf)$/i) ? (
+                  <iframe
+                    src={previewFileUrl}
+                    className="w-full h-[60vh] rounded-xl border border-slate-200 bg-white"
+                    title={previewFileName}
+                  />
+                ) : (
+                  <div className="text-center p-8 space-y-4 max-w-sm">
+                    <div className="text-4xl">📎</div>
+                    <h4 className="font-bold text-slate-700 text-sm">Preview not supported for this file type</h4>
+                    <p className="text-xs text-slate-400 font-medium">You can still download this file and open it locally on your device.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-4">
+                <button
+                  onClick={() => {
+                    setPreviewFileUrl(null);
+                    setPreviewFileName("");
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-extrabold text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition border border-slate-200"
+                >
+                  Close
+                </button>
+                <a
+                  href={previewFileUrl}
+                  download={previewFileName}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold px-5 py-2 shadow-md transition active:scale-[0.98] flex items-center gap-1.5"
+                >
+                  <span>📥</span> Download File
+                </a>
+              </div>
             </div>
           </div>
         )}

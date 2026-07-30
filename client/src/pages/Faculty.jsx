@@ -688,7 +688,7 @@ export default function Faculty({ onOpenAuth }) {
   const handleFinalSubmitAttendance = async () => {
     setShowAttendanceConfirmModal(false);
     try {
-      const activeClass = coursesList.find(c => c.code === attendanceCourse) || FALLBACK_COURSES.find(c => c.code === attendanceCourse);
+      const activeClass = coursesList.find(c => c.code === attendanceCourse) || globalCourses.find(c => c.code === attendanceCourse) || FALLBACK_COURSES.find(c => c.code === attendanceCourse);
       const records = studentRoster.map(s => ({
         studentUsn: s.id,
         present: s.present,
@@ -797,7 +797,7 @@ export default function Faculty({ onOpenAuth }) {
     if (!resTitle.trim() || !resLink.trim()) return;
 
     try {
-      const courseObj = coursesList.find(c => c.code === resCourse) || FALLBACK_COURSES.find(c => c.code === resCourse);
+      const courseObj = coursesList.find(c => c.code === resCourse) || globalCourses.find(c => c.code === resCourse) || FALLBACK_COURSES.find(c => c.code === resCourse);
       const updated = await facultyService.uploadResource({
         title: resTitle.trim(),
         description: resDesc.trim() || "No details provided.",
@@ -1108,7 +1108,7 @@ export default function Faculty({ onOpenAuth }) {
     if (!assignTitle.trim() || !assignDueDate) return;
 
     try {
-      const courseObj = coursesList.find(c => c.code === assignCourse) || FALLBACK_COURSES.find(c => c.code === assignCourse);
+      const courseObj = coursesList.find(c => c.code === assignCourse) || globalCourses.find(c => c.code === assignCourse) || FALLBACK_COURSES.find(c => c.code === assignCourse);
       const updated = await facultyService.uploadResource({
         title: assignTitle.trim(),
         description: assignDesc.trim() || "No details provided.",
