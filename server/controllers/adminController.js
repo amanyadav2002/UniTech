@@ -806,13 +806,45 @@ exports.getNotices = async (req, res) => {
 
 exports.createNotice = async (req, res) => {
   try {
-    const { title, category, content, date, author, faculty, important, department, semester } = req.body;
+    const {
+      title,
+      category,
+      content,
+      date,
+      author,
+      faculty,
+      important,
+      department,
+      semester,
+      targetAudience,
+      targetDepartments,
+      targetSemesters,
+      visibleTo
+    } = req.body;
     
     // Fallback faculty ID from existing teacher if not specified
     let targetFaculty = faculty;
     if (!targetFaculty) {
       const firstFac = await Teacher.findOne();
       targetFaculty = firstFac ? firstFac._id : null;
+    }
+
+    let targetDepts = [];
+    if (Array.isArray(targetDepartments)) {
+      targetDepts = targetDepartments;
+    } else if (typeof targetDepartments === "string" && targetDepartments) {
+      targetDepts = [targetDepartments];
+    } else {
+      targetDepts = department ? [department] : ["All"];
+    }
+
+    let targetSems = [];
+    if (Array.isArray(targetSemesters)) {
+      targetSems = targetSemesters;
+    } else if (typeof targetSemesters === "string" && targetSemesters) {
+      targetSems = [targetSemesters];
+    } else {
+      targetSems = semester ? [semester] : ["All"];
     }
 
     const newNotice = new Notice({
@@ -823,8 +855,12 @@ exports.createNotice = async (req, res) => {
       author: author || "Administrator",
       faculty: targetFaculty,
       important: important || false,
-      department: department || "All",
-      semester: semester || "All",
+      department: targetDepts[0] || "All",
+      semester: targetSems[0] || "All",
+      targetAudience: targetAudience || "everyone",
+      targetDepartments: targetDepts,
+      targetSemesters: targetSems,
+      visibleTo: visibleTo || "Both"
     });
 
     await newNotice.save();

@@ -19,6 +19,7 @@ import {
   Search,
   Bell,
   Clock,
+  RefreshCw,
   Plus,
   Trash2,
   Edit,
@@ -95,6 +96,7 @@ export default function Faculty({ onOpenAuth }) {
   
   // Dashboard active tab navigation
   const [activeTab, setActiveTab] = useState("overview");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [resourceSubTab, setResourceSubTab] = useState("materials");
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [noticeSearch, setNoticeSearch] = useState("");
@@ -395,6 +397,17 @@ export default function Faculty({ onOpenAuth }) {
       setErrorPortal(err.message || "Failed to load portal data.");
     } finally {
       setLoadingPortal(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadAllFacultyData();
+    } catch (err) {
+      console.error("Refresh failed:", err);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -1957,6 +1970,18 @@ export default function Faculty({ onOpenAuth }) {
             <FileText size={18} className={activeTab === 'assignments' ? 'text-white' : 'text-zinc-400'} />
             <span>Assignments</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab("notices")}
+            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
+              activeTab === "notices"
+                ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/15"
+                : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
+            }`}
+          >
+            <Bell size={18} className={activeTab === 'notices' ? 'text-white' : 'text-zinc-400'} />
+            <span>Notice Board</span>
+          </button>
         </nav>
 
         {/* Sign Out */}
@@ -2053,6 +2078,16 @@ export default function Faculty({ onOpenAuth }) {
                 </div>
               )}
             </div>
+
+            {/* Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing || loadingPortal}
+              className="p-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 hover:bg-slate-50 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
+              title="Refresh Data"
+            >
+              <RefreshCw size={20} className={`${isRefreshing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
+            </button>
 
             {/* Notification Icon */}
             <button
@@ -3921,13 +3956,15 @@ export default function Faculty({ onOpenAuth }) {
                           >
                             <Bookmark size={14} fill={isBookmarked(notice.id) ? "currentColor" : "none"} />
                           </button>
-                          <button
-                            onClick={() => handleDeleteNotice(notice.id)}
-                            className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
-                            title="Delete Notice"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {notice.isOwner && (
+                            <button
+                              onClick={() => handleDeleteNotice(notice.id)}
+                              className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
+                              title="Delete Notice"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))

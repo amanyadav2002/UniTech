@@ -282,7 +282,44 @@ exports.submitGrade = async (req, res) => {
 exports.getNotices = async (req, res) => {
   try {
     const teacher = await getTeacherProfileHelper(req.user.id);
-    const notices = await Notice.find({ faculty: teacher._id }).sort({ createdAt: -1 });
+    
+    const deptBase = teacher.department.replace(/department|engineering/gi, "").trim();
+    const deptRegex = new RegExp(deptBase, "i");
+
+    // Query notices that are:
+    // 1. Created by this teacher, OR
+    // 2. Targeted to teachers and matching their department
+    const query = {
+      $or: [
+        // Owner of the notice
+        { faculty: teacher._id },
+        // New targeted notices
+        {
+          visibleTo: { $in: ["Teacher", "Both"] },
+          $or: [
+            { targetAudience: "everyone" },
+            {
+              targetAudience: { $in: ["departments", "both"] },
+              $or: [
+                { targetDepartments: { $in: ["All", "All Departments"] } },
+                { targetDepartments: { $regex: deptRegex } }
+              ]
+            }
+          ]
+        },
+        // Legacy notices fallback (if targetAudience doesn't exist)
+        {
+          targetAudience: { $exists: false },
+          visibleTo: { $exists: false },
+          $or: [
+            { department: { $regex: deptRegex } },
+            { department: "All" }
+          ]
+        }
+      ]
+    };
+
+    const notices = await Notice.find(query).sort({ createdAt: -1 });
     
     // Map to fields expected by UI
     const mapped = notices.map(n => ({
@@ -295,6 +332,7 @@ exports.getNotices = async (req, res) => {
       important: n.important,
       department: n.department,
       semester: n.semester,
+      isOwner: n.faculty.toString() === teacher._id.toString()
     }));
     res.json(mapped);
   } catch (error) {
@@ -322,14 +360,33 @@ exports.createNotice = async (req, res) => {
       date: new Date().toISOString().split("T")[0],
       author: teacher.name,
       faculty: teacher._id,
-      department: department || "All",
+      department: department || teacher.department || "All",
       semester: semester || "All",
+      targetAudience: "departments",
+      targetDepartments: [department || teacher.department || "All"],
+      targetSemesters: [semester || "All"],
+      visibleTo: "Both"
     });
 
     await newNotice.save();
     
-    // Return all notices by this faculty
-    const list = await Notice.find({ faculty: teacher._id }).sort({ createdAt: -1 });
+    // Return all notices visible/owned by this faculty
+    const listQuery = {
+      $or: [
+        { faculty: teacher._id },
+        {
+          visibleTo: { $in: ["Teacher", "Both"] },
+          $or: [
+            { targetAudience: "everyone" },
+            {
+              targetAudience: { $in: ["departments", "both"] },
+              targetDepartments: { $in: [teacher.department, "All"] }
+            }
+          ]
+        }
+      ]
+    };
+    const list = await Notice.find(listQuery).sort({ createdAt: -1 });
     res.json(list.map(n => ({
       id: n._id.toString(),
       title: n.title,
@@ -340,6 +397,7 @@ exports.createNotice = async (req, res) => {
       important: n.important,
       department: n.department,
       semester: n.semester,
+      isOwner: n.faculty.toString() === teacher._id.toString()
     })));
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -395,7 +453,40 @@ exports.deleteNotice = async (req, res) => {
       return res.status(404).json({ message: "Notice not found" });
     }
 
-    const list = await Notice.find({ faculty: teacher._id }).sort({ createdAt: -1 });
+    const deptBase = teacher.department.replace(/department|engineering/gi, "").trim();
+    const deptRegex = new RegExp(deptBase, "i");
+
+    const query = {
+      $or: [
+        // Owner of the notice
+        { faculty: teacher._id },
+        // New targeted notices
+        {
+          visibleTo: { $in: ["Teacher", "Both"] },
+          $or: [
+            { targetAudience: "everyone" },
+            {
+              targetAudience: { $in: ["departments", "both"] },
+              $or: [
+                { targetDepartments: { $in: ["All", "All Departments"] } },
+                { targetDepartments: { $regex: deptRegex } }
+              ]
+            }
+          ]
+        },
+        // Legacy notices fallback (if targetAudience doesn't exist)
+        {
+          targetAudience: { $exists: false },
+          visibleTo: { $exists: false },
+          $or: [
+            { department: { $regex: deptRegex } },
+            { department: "All" }
+          ]
+        }
+      ]
+    };
+
+    const list = await Notice.find(query).sort({ createdAt: -1 });
     res.json(list.map(n => ({
       id: n._id.toString(),
       title: n.title,
@@ -406,6 +497,11 @@ exports.deleteNotice = async (req, res) => {
       important: n.important,
       department: n.department,
       semester: n.semester,
+      isOwner: n.faculty ? n.faculty.toString() === teacher._id.toString() : false,
+      targetAudience: n.targetAudience,
+      targetDepartments: n.targetDepartments,
+      targetSemesters: n.targetSemesters,
+      visibleTo: n.visibleTo
     })));
   } catch (error) {
     res.status(500).json({ message: error.message });

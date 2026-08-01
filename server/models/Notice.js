@@ -44,6 +44,24 @@ const NoticeSchema = new mongoose.Schema(
       type: String, // e.g. "6th Sem" or "All"
       default: "All",
     },
+    targetAudience: {
+      type: String,
+      enum: ["departments", "semesters", "both", "everyone"],
+      required: true,
+      default: "everyone",
+    },
+    targetDepartments: [{
+      type: String,
+    }],
+    targetSemesters: [{
+      type: String,
+    }],
+    visibleTo: {
+      type: String,
+      enum: ["Teacher", "Student", "Both"],
+      required: true,
+      default: "Both",
+    },
     visibleUntil: {
       type: Date,
     },

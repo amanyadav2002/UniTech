@@ -54,6 +54,12 @@ export default function Admin() {
   const [toast, setToast] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Restructured Notice States
+  const [noticeTargetAudience, setNoticeTargetAudience] = useState("everyone");
+  const [noticeSelectedDepts, setNoticeSelectedDepts] = useState([]);
+  const [noticeSelectedSems, setNoticeSelectedSems] = useState([]);
+  const [noticeVisibleTo, setNoticeVisibleTo] = useState("Both");
+
   // Stats & Charts data
   const [stats, setStats] = useState({});
   const [charts, setCharts] = useState({});
@@ -162,7 +168,7 @@ export default function Admin() {
       } else if (activeSection === "leaves") {
         const data = await apiFetch("/leaves");
         setLeaveRequests(data.requests);
-      } else if (activeSection === "notices") {
+      } else if (activeSection === "notifications") {
         const data = await apiFetch("/notices");
         setNotices(data.notices);
       } else if (activeSection === "events") {
@@ -205,6 +211,16 @@ export default function Admin() {
       setExpandedMenus(prev => ({ ...prev, academics: true }));
     }
   };
+
+  // Reset notice states on modal toggle
+  useEffect(() => {
+    if (crudModal?.type === "notice") {
+      setNoticeTargetAudience("everyone");
+      setNoticeSelectedDepts([]);
+      setNoticeSelectedSems([]);
+      setNoticeVisibleTo("Both");
+    }
+  }, [crudModal]);
 
   // Load lookup values (departments, semesters) once on mount
   useEffect(() => {
@@ -255,6 +271,13 @@ export default function Admin() {
     if (crudModal.type === "course") {
       body.branches = crudModal.mode === "edit" ? (crudModal.data.branches || []) : [];
       body.semesters = body.semesters ? body.semesters.split(",").map(s => s.trim()) : [];
+    }
+
+    if (crudModal.type === "notice") {
+      body.targetAudience = noticeTargetAudience;
+      body.targetDepartments = noticeTargetAudience === "everyone" ? ["All"] : (noticeTargetAudience === "semesters" ? [] : noticeSelectedDepts);
+      body.targetSemesters = noticeTargetAudience === "everyone" ? ["All"] : (noticeTargetAudience === "departments" ? [] : noticeSelectedSems);
+      body.visibleTo = noticeVisibleTo;
     }
 
     try {
@@ -562,11 +585,10 @@ export default function Admin() {
           {[
             { id: "attendance", label: "Attendance", icon: <CheckSquare className="h-5 w-5" /> },
             { id: "leaves", label: "Leave Requests", icon: <MessageSquare className="h-5 w-5" /> },
-            { id: "notices", label: "Notice Board", icon: <Bell className="h-5 w-5" /> },
             { id: "events", label: "Event Management", icon: <Calendar className="h-5 w-5" /> },
             { id: "monitoring", label: "Security Monitoring", icon: <ShieldAlert className="h-5 w-5" /> },
             { id: "reports", label: "Reports", icon: <FileText className="h-5 w-5" /> },
-            { id: "notifications", label: "Notifications Center", icon: <Bell className="h-5 w-5" /> },
+            { id: "notifications", label: "Notice Broadcast", icon: <Bell className="h-5 w-5" /> },
             { id: "settings", label: "Settings", icon: <Settings className="h-5 w-5" /> },
           ].map((item) => (
             <button
@@ -676,7 +698,7 @@ export default function Admin() {
                         { title: "Present Today", value: stats.presentToday, icon: <Check className="h-6 w-6 text-teal-400" />, desc: "Active in classes", sectionId: "attendance" },
                         { title: "Absent Today", value: stats.absentToday, icon: <X className="h-6 w-6 text-rose-400" />, desc: "Unexcused absences", sectionId: "attendance" },
                         { title: "Visitors Today", value: stats.visitorsToday, icon: <Users className="h-6 w-6 text-sky-400" />, desc: "Gate log entries", sectionId: "monitoring" },
-                        { title: "Active Notices", value: stats.activeNotices, icon: <Bell className="h-6 w-6 text-purple-400" />, desc: "Published alerts", sectionId: "notices" },
+                        { title: "Active Notices", value: stats.activeNotices, icon: <Bell className="h-6 w-6 text-purple-400" />, desc: "Published alerts", sectionId: "notifications" },
                         { title: "Pending Leaves", value: stats.pendingLeaves, icon: <MessageSquare className="h-6 w-6 text-pink-400" />, desc: "Requires admin sign", sectionId: "leaves" },
                         { title: "Security Alerts", value: stats.securityAlerts, icon: <ShieldAlert className="h-6 w-6 text-red-400 animate-bounce" />, desc: "Requires gate attention", sectionId: "monitoring" },
                       ].map((item, idx) => (
@@ -783,7 +805,7 @@ export default function Admin() {
                             <p className="text-[9px] text-slate-500">Register new USN</p>
                           </button>
                           <button
-                            onClick={() => { setActiveSection("notices"); setCrudModal({ type: "notice", mode: "add" }); }}
+                            onClick={() => { setActiveSection("notifications"); setCrudModal({ type: "notice", mode: "add" }); }}
                             className="p-4 bg-slate-900 border border-slate-800 hover:border-purple-500/30 rounded-xl text-left transition-all hover:bg-slate-900/50 group"
                           >
                             <Bell className="h-5 w-5 text-purple-400 group-hover:scale-110 transition-transform" />
@@ -1674,59 +1696,7 @@ export default function Admin() {
                   </div>
                 )}
 
-                {/* -------------------- 9. NOTICE BOARD PANEL -------------------- */}
-                {activeSection === "notices" && (
-                  <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-6">
-                    <div className="flex justify-between items-center">
-                      <h4 className="font-bold text-white">Notice Board Broadcasts</h4>
-                      <button
-                        onClick={() => setCrudModal({ type: "notice", mode: "add" })}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2"
-                      >
-                        <Plus className="h-4.5 w-4.5" />
-                        <span>Publish Announcement</span>
-                      </button>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {notices.map((notice) => (
-                        <div key={notice._id} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4 hover:border-slate-700 transition-all flex flex-col justify-between">
-                          <div className="space-y-3">
-                            <div className="flex justify-between items-start gap-2">
-                              <div>
-                                <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
-                                  notice.category === "exams" ? "bg-rose-500/10 text-rose-400" :
-                                  notice.category === "events" ? "bg-sky-500/10 text-sky-400" : "bg-purple-500/10 text-purple-400"
-                                }`}>{notice.category}</span>
-                                <h5 className="font-bold text-white text-lg mt-1">{notice.title}</h5>
-                              </div>
-                              {notice.important && (
-                                <span className="bg-red-500/20 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded animate-pulse">URGENT</span>
-                              )}
-                            </div>
-                            <p className="text-sm text-slate-300 leading-relaxed">{notice.content}</p>
-                          </div>
-
-                          <div className="pt-4 border-t border-slate-800 flex justify-between items-center text-xs text-slate-500">
-                            <div>
-                              <span>Target: </span>
-                              <span className="text-slate-300 font-semibold">{notice.department} ({notice.semester})</span>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <span>By: {notice.author}</span>
-                              <button
-                                onClick={() => handleDelete("notice", notice._id)}
-                                className="text-rose-500 hover:text-rose-400 p-1 hover:bg-slate-800 rounded"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {/* -------------------- 10. EVENT MANAGEMENT PANEL -------------------- */}
                 {activeSection === "events" && (
@@ -1908,76 +1878,129 @@ export default function Admin() {
                   </div>
                 )}
 
-                {/* -------------------- 13. NOTIFICATIONS CENTER -------------------- */}
+                {/* -------------------- 13. NOTICE BROADCAST PANEL -------------------- */}
                 {activeSection === "notifications" && (
                   <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-6">
-                    <h4 className="font-bold text-white">Broadcast Announcements Center</h4>
-                    <p className="text-xs text-slate-500">Send in-app notifications and websocket triggers targeted department or semester-wise.</p>
-
-                    <form onSubmit={handleSendNotification} className="space-y-4 max-w-xl">
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-5 flex-wrap gap-4">
                       <div className="space-y-1">
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Announcement Title</label>
-                        <input
-                          type="text"
-                          name="title"
-                          required
-                          placeholder="e.g. Campus Holiday Alert"
-                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
-                        />
+                        <h4 className="font-extrabold text-white text-xl tracking-tight">Notice Broadcast Announcements</h4>
+                        <p className="text-xs text-slate-400">Target announcements and track portal status across departments and semesters.</p>
                       </div>
-
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Target Role Audience</label>
-                        <select
-                          name="targetRole"
-                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
-                        >
-                          <option value="all">All Roles</option>
-                          <option value="student">Students Only</option>
-                          <option value="faculty">Faculty Only</option>
-                          <option value="security">Security Staff Only</option>
-                        </select>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Target Department</label>
-                          <input
-                            type="text"
-                            name="targetDept"
-                            defaultValue="All"
-                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Target Semester</label>
-                          <input
-                            type="text"
-                            name="targetSemester"
-                            defaultValue="All"
-                            className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Detailed Message</label>
-                        <textarea
-                          name="message"
-                          required
-                          rows="4"
-                          placeholder="Type details of your announcement here..."
-                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
-                        ></textarea>
-                      </div>
-
                       <button
-                        type="submit"
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2"
+                        onClick={() => setCrudModal({ type: "notice", mode: "add" })}
+                        className="bg-gradient-to-tr from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/35 transition-all duration-300 active:scale-95 border border-blue-400/25 shrink-0"
                       >
-                        <Bell className="h-4.5 w-4.5" /> Broadcast Announcement
+                        <Plus className="h-5 w-5" />
+                        <span>Publish Announcement</span>
                       </button>
-                    </form>
+                    </div>
+
+                    {notices.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center text-center p-12 border border-dashed border-slate-800 rounded-2xl bg-slate-950/40 backdrop-blur-sm space-y-4">
+                        <div className="p-4 bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20 animate-pulse">
+                          <Bell className="h-10 w-10" />
+                        </div>
+                        <div className="space-y-1">
+                          <h5 className="text-white font-bold text-lg">No Announcements Broadcasted</h5>
+                          <p className="text-slate-400 text-sm max-w-sm">Publish your first campus announcement, department update, or exam alert to get started.</p>
+                        </div>
+                        <button
+                          onClick={() => setCrudModal({ type: "notice", mode: "add" })}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-blue-500/20"
+                        >
+                          Publish Notice Now
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {notices.map((notice) => (
+                          <div key={notice._id} className="bg-slate-900 border border-slate-800/80 p-6 rounded-2xl space-y-4 hover:border-slate-700 transition-all hover:shadow-xl hover:shadow-black/40 flex flex-col justify-between group">
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-start gap-2">
+                                <div>
+                                  <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${
+                                    notice.category === "exams" ? "bg-rose-500/10 border-rose-500/20 text-rose-400" :
+                                    notice.category === "events" ? "bg-sky-500/10 border-sky-500/20 text-sky-400" : "bg-purple-500/10 border-purple-500/20 text-purple-400"
+                                  }`}>{notice.category}</span>
+                                  <h5 className="font-bold text-white text-lg mt-2 group-hover:text-blue-400 transition-colors duration-200">{notice.title}</h5>
+                                </div>
+                                {notice.important && (
+                                  <span className="bg-red-600 text-white font-extrabold text-[9px] px-2 py-0.5 rounded-full shadow-md shadow-red-600/30 uppercase tracking-wider animate-pulse shrink-0">URGENT</span>
+                                )}
+                              </div>
+                              <p className="text-sm text-slate-300 leading-relaxed font-normal">{notice.content}</p>
+                            </div>
+
+                            <div className="space-y-3">
+                              {/* Metadata tags */}
+                              <div className="space-y-2 text-xs border-t border-slate-800/80 pt-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider w-16">Audience</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {notice.targetAudience === "everyone" && (
+                                      <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20 font-medium">Everyone</span>
+                                    )}
+                                    {notice.targetAudience === "departments" && (
+                                      notice.targetDepartments?.map(d => (
+                                        <span key={d} className="bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 font-medium">{d}</span>
+                                      ))
+                                    )}
+                                    {notice.targetAudience === "semesters" && (
+                                      notice.targetSemesters?.map(s => (
+                                        <span key={s} className="bg-teal-500/10 text-teal-400 px-2 py-0.5 rounded border border-teal-500/20 font-medium">{s}</span>
+                                      ))
+                                    )}
+                                    {notice.targetAudience === "both" && (
+                                      <>
+                                        {notice.targetDepartments?.map(d => (
+                                          <span key={d} className="bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 font-medium">{d}</span>
+                                        ))}
+                                        {notice.targetSemesters?.map(s => (
+                                          <span key={s} className="bg-teal-500/10 text-teal-400 px-2 py-0.5 rounded border border-teal-500/20 font-medium">{s}</span>
+                                        ))}
+                                      </>
+                                    )}
+                                    {!notice.targetAudience && (
+                                      <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-medium">{notice.department} ({notice.semester})</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider w-16">Portal</span>
+                                  <span className="text-slate-300 font-semibold">
+                                    {notice.visibleTo === "Both" ? "Teachers & Students" : (notice.visibleTo === "Teacher" ? "Teachers Only" : "Students Only")}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Footer metrics & actions */}
+                              <div className="pt-3 border-t border-slate-800/80 flex justify-between items-center text-xs text-slate-500">
+                                <div className="flex items-center gap-2">
+                                  <div className="h-6 w-6 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold text-[10px] uppercase border border-slate-700">
+                                    {notice.author ? notice.author[0] : "A"}
+                                  </div>
+                                  <span>{notice.author}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-1.5 text-slate-400">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    <span>{notice.date}</span>
+                                  </div>
+                                  <button
+                                    onClick={() => handleDelete("notice", notice._id)}
+                                    className="text-rose-400 hover:text-white p-1.5 hover:bg-rose-500/20 border border-transparent hover:border-rose-500/30 rounded-lg transition-all"
+                                    title="Delete Announcement"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2449,45 +2472,136 @@ export default function Admin() {
                       <input type="text" name="author" defaultValue="Dr. Robert Vance" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white" />
                     </div>
                   </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs font-bold uppercase text-slate-400">Department Target</label>
+                      <label className="text-xs font-bold uppercase text-slate-400">Target Audience</label>
                       <select
-                        name="department"
-                        required
-                        defaultValue={crudModal.mode === "edit" ? crudModal.data?.department : "All"}
+                        value={noticeTargetAudience}
+                        onChange={(e) => {
+                          setNoticeTargetAudience(e.target.value);
+                          setNoticeSelectedDepts([]);
+                          setNoticeSelectedSems([]);
+                        }}
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
                       >
-                        <option value="All">All Departments</option>
-                        {departments.map((dept) => (
-                          <option key={dept._id} value={dept.name}>
-                            {dept.name}
-                          </option>
-                        ))}
+                        <option value="everyone">Everyone</option>
+                        <option value="departments">Departments</option>
+                        <option value="semesters">Specific Semesters</option>
+                        <option value="both">Both (Departments & Semesters)</option>
                       </select>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-bold uppercase text-slate-400">Semester Target</label>
+                      <label className="text-xs font-bold uppercase text-slate-400">Portal Visibility</label>
                       <select
-                        name="semester"
-                        required
-                        defaultValue={crudModal.mode === "edit" ? crudModal.data?.semester : "All"}
+                        value={noticeVisibleTo}
+                        onChange={(e) => setNoticeVisibleTo(e.target.value)}
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
                       >
-                        <option value="All">All Semesters</option>
-                        {(semesters.length > 0 ? semesters.map(s => s.name) : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"]).map(semName => (
-                          <option key={semName} value={semName}>{semName}</option>
-                        ))}
+                        <option value="Both">Both (Teachers & Students)</option>
+                        <option value="Teacher">Teachers Only</option>
+                        <option value="Student">Students Only</option>
                       </select>
                     </div>
                   </div>
+
+                  {/* Departments Checklist */}
+                  {(noticeTargetAudience === "departments" || noticeTargetAudience === "both") && (
+                    <div className="space-y-2 border border-slate-800 p-4 rounded-xl bg-slate-950/50">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold uppercase text-slate-400">Target Departments</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allDeptNames = departments.map(d => d.name);
+                            if (noticeSelectedDepts.length === allDeptNames.length) {
+                              setNoticeSelectedDepts([]);
+                            } else {
+                              setNoticeSelectedDepts(allDeptNames);
+                            }
+                          }}
+                          className="text-[10px] text-blue-400 hover:text-blue-300 font-semibold"
+                        >
+                          {noticeSelectedDepts.length === departments.length ? "Deselect All" : "Select All"}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto scrollbar-thin">
+                        {departments.map((dept) => {
+                          const isChecked = noticeSelectedDepts.includes(dept.name);
+                          return (
+                            <label key={dept._id} className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer hover:text-white">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setNoticeSelectedDepts(noticeSelectedDepts.filter(name => name !== dept.name));
+                                  } else {
+                                    setNoticeSelectedDepts([...noticeSelectedDepts, dept.name]);
+                                  }
+                                }}
+                                className="rounded bg-slate-950 border border-slate-800 text-blue-600 focus:ring-0 focus:ring-offset-0 h-4 w-4"
+                              />
+                              <span className="truncate">{dept.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Semesters Checklist */}
+                  {(noticeTargetAudience === "semesters" || noticeTargetAudience === "both") && (
+                    <div className="space-y-2 border border-slate-800 p-4 rounded-xl bg-slate-950/50">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold uppercase text-slate-400">Target Semesters</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allSems = semesters.length > 0 ? semesters.map(s => s.name) : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"];
+                            if (noticeSelectedSems.length === allSems.length) {
+                              setNoticeSelectedSems([]);
+                            } else {
+                              setNoticeSelectedSems(allSems);
+                            }
+                          }}
+                          className="text-[10px] text-blue-400 hover:text-blue-300 font-semibold"
+                        >
+                          {noticeSelectedSems.length === (semesters.length > 0 ? semesters.length : 8) ? "Deselect All" : "Select All"}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto scrollbar-thin">
+                        {(semesters.length > 0 ? semesters.map(s => s.name) : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"]).map((semName) => {
+                          const isChecked = noticeSelectedSems.includes(semName);
+                          return (
+                            <label key={semName} className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer hover:text-white">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setNoticeSelectedSems(noticeSelectedSems.filter(name => name !== semName));
+                                  } else {
+                                    setNoticeSelectedSems([...noticeSelectedSems, semName]);
+                                  }
+                                }}
+                                className="rounded bg-slate-950 border border-slate-800 text-blue-600 focus:ring-0 focus:ring-offset-0 h-4 w-4"
+                              />
+                              <span>{semName}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2">
-                    <input type="checkbox" name="important" value="true" className="h-4 w-4 rounded bg-slate-950 border border-slate-800" />
+                    <input type="checkbox" name="important" value="true" className="h-4 w-4 rounded bg-slate-950 border border-slate-800 text-blue-600" />
                     <label className="text-xs font-bold uppercase text-slate-400">Mark as Important (Urgent)</label>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold uppercase text-slate-400">Notice Body Content</label>
-                    <textarea name="content" required rows="4" placeholder="Enter notice details..." className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white"></textarea>
+                    <textarea name="content" required rows="4" placeholder="Enter notice details..." className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"></textarea>
                   </div>
                 </>
               )}
