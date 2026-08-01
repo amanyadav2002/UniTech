@@ -352,17 +352,61 @@ exports.getNotices = async (req, res) => {
 
     // Fetch notices for student's department/semester or "All"
     const query = {
-      $and: [
+      $or: [
+        // New target-based logic
         {
+          visibleTo: { $in: ["Student", "Both"] },
           $or: [
-            { department: { $regex: deptRegex } },
-            { department: "All" }
+            { targetAudience: "everyone" },
+            {
+              targetAudience: "departments",
+              $or: [
+                { targetDepartments: { $in: ["All", "All Departments"] } },
+                { targetDepartments: { $regex: deptRegex } }
+              ]
+            },
+            {
+              targetAudience: "semesters",
+              $or: [
+                { targetSemesters: { $in: ["All", "All Semesters"] } },
+                { targetSemesters: { $regex: semRegex } }
+              ]
+            },
+            {
+              targetAudience: "both",
+              $and: [
+                {
+                  $or: [
+                    { targetDepartments: { $in: ["All", "All Departments"] } },
+                    { targetDepartments: { $regex: deptRegex } }
+                  ]
+                },
+                {
+                  $or: [
+                    { targetSemesters: { $in: ["All", "All Semesters"] } },
+                    { targetSemesters: { $regex: semRegex } }
+                  ]
+                }
+              ]
+            }
           ]
         },
+        // Legacy fallback
         {
-          $or: [
-            { semester: { $regex: semRegex } },
-            { semester: "All" }
+          targetAudience: { $exists: false },
+          $and: [
+            {
+              $or: [
+                { department: { $regex: deptRegex } },
+                { department: "All" }
+              ]
+            },
+            {
+              $or: [
+                { semester: { $regex: semRegex } },
+                { semester: "All" }
+              ]
+            }
           ]
         }
       ]

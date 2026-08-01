@@ -40,6 +40,7 @@ import {
   Briefcase,
   FlaskConical,
   X,
+  RefreshCw,
 } from "lucide-react";
 
 import studentService from "../services/studentService";
@@ -50,6 +51,7 @@ export default function Students({ onOpenAuth }) {
   
   // Dashboard navigation tab
   const [activeTab, setActiveTab] = useState("overview");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [bookmarkFilter, setBookmarkFilter] = useState("all");
   const [bookmarkSearch, setBookmarkSearch] = useState("");
@@ -281,6 +283,53 @@ export default function Students({ onOpenAuth }) {
   const [totalEarnedCredits, setTotalEarnedCredits] = useState(74);
   const [gpaHistory, setGpaHistory] = useState([]);
   const [noticesList, setNoticesList] = useState([]);
+  const [readNotices, setReadNotices] = useState(() => {
+    try {
+      const stored = localStorage.getItem(`read_notices_${user?.id}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [hiddenNotices, setHiddenNotices] = useState(() => {
+    try {
+      const stored = localStorage.getItem(`hidden_notices_${user?.id}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`read_notices_${user.id}`, JSON.stringify(readNotices));
+    }
+  }, [readNotices, user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`hidden_notices_${user.id}`, JSON.stringify(hiddenNotices));
+    }
+  }, [hiddenNotices, user?.id]);
+
+  const handleMarkAllAsRead = () => {
+    const allIds = (noticesList || []).map(n => n.id);
+    setReadNotices(allIds);
+  };
+
+  const handleClearAllNotices = () => {
+    const allIds = filteredNotices.map(n => n.id);
+    setHiddenNotices(prev => [...new Set([...prev, ...allIds])]);
+  };
+
+  const handleHideNotice = (noticeId) => {
+    setHiddenNotices(prev => [...prev, noticeId]);
+  };
+
+  const handleResetHiddenNotices = () => {
+    setHiddenNotices([]);
+  };
+
   const [notesList, setNotesList] = useState([]);
   const [assignmentsList, setAssignmentsList] = useState([]);
   const [scheduleTimeline, setScheduleTimeline] = useState([]);
@@ -410,6 +459,17 @@ export default function Students({ onOpenAuth }) {
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadAllData();
+    } catch (err) {
+      console.error("Refresh failed:", err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     loadAllData();
   }, [user]);
@@ -503,11 +563,14 @@ export default function Students({ onOpenAuth }) {
   const [selectedNotice, setSelectedNotice] = useState(null);
 
   const filteredNotices = (noticesList || []).filter((n) => {
+    if (hiddenNotices.includes(n.id)) return false;
     const matchesSearch = n.title.toLowerCase().includes(noticeSearch.toLowerCase()) || 
                           n.content.toLowerCase().includes(noticeSearch.toLowerCase());
     const matchesCategory = noticeCategory === "all" || n.category === noticeCategory;
     return matchesSearch && matchesCategory;
   });
+
+  const unreadCount = (noticesList || []).filter(n => !readNotices.includes(n.id) && !hiddenNotices.includes(n.id)).length;
 
   // Notes and assignments are fetched dynamically from studentService
 
@@ -1148,6 +1211,16 @@ export default function Students({ onOpenAuth }) {
                 )}
               </div>
 
+              {/* Refresh Button */}
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing || loadingPortal}
+                className="p-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 hover:bg-slate-50 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
+                title="Refresh Data"
+              >
+                <RefreshCw size={20} className={`${isRefreshing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
+              </button>
+
               {/* Notification Bell */}
               <button
                 onClick={() => setActiveTab("notices")}
@@ -1155,9 +1228,11 @@ export default function Students({ onOpenAuth }) {
                 title="Campus Notices"
               >
                 <Bell size={20} />
-                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-4 ring-white">
-                  {noticesList.length}
-                </span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-4 ring-white animate-bounce">
+                    {unreadCount}
+                  </span>
+                )}
               </button>
 
               {/* Quick Live stats badge */}
@@ -2224,6 +2299,41 @@ export default function Students({ onOpenAuth }) {
 
               </div>
 
+              {/* Notices Actions row */}
+              <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 font-bold">
+                    Showing {filteredNotices.length} announcements
+                  </span>
+                  {hiddenNotices.length > 0 && (
+                    <button
+                      onClick={handleResetHiddenNotices}
+                      className="text-xs text-indigo-600 hover:text-indigo-700 font-bold hover:underline"
+                    >
+                      Restore dismissed ({hiddenNotices.length})
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleMarkAllAsRead}
+                    disabled={unreadCount === 0}
+                    className="text-xs text-slate-500 hover:text-slate-800 font-bold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Mark all as read
+                  </button>
+                  <span className="h-3 w-px bg-slate-200"></span>
+                  <button
+                    onClick={handleClearAllNotices}
+                    disabled={filteredNotices.length === 0}
+                    className="text-xs text-rose-500 hover:text-rose-600 font-bold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Dismiss all
+                  </button>
+                </div>
+              </div>
+
               {/* Notices List */}
               <div className="space-y-4">
                 {filteredNotices.length === 0 ? (
@@ -2237,21 +2347,31 @@ export default function Students({ onOpenAuth }) {
                       key={notice.id} 
                       className={`bg-white rounded-2xl p-6 shadow-sm border transition-all duration-200 hover:shadow-md cursor-pointer ${
                         notice.important ? "border-l-4 border-l-red-500 border-slate-200/50" : "border-slate-200/50"
-                      }`}
-                      onClick={() => setSelectedNotice(notice)}
+                      } ${!readNotices.includes(notice.id) ? "ring-1 ring-indigo-50" : ""}`}
+                      onClick={() => {
+                        setSelectedNotice(notice);
+                        if (!readNotices.includes(notice.id)) {
+                          setReadNotices(prev => [...prev, notice.id]);
+                        }
+                      }}
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                          notice.category === "exams" 
-                            ? "bg-rose-50 text-rose-600 border border-rose-100" 
-                            : notice.category === "events" 
-                              ? "bg-amber-50 text-amber-600 border border-amber-100" 
-                              : "bg-indigo-50 text-indigo-600 border border-indigo-100"
-                        }`}>
-                          {notice.category}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                            notice.category === "exams" 
+                              ? "bg-rose-50 text-rose-600 border border-rose-100" 
+                              : notice.category === "events" 
+                                ? "bg-amber-50 text-amber-600 border border-amber-100" 
+                                : "bg-indigo-50 text-indigo-600 border border-indigo-100"
+                          }`}>
+                            {notice.category}
+                          </span>
+                          {!readNotices.includes(notice.id) && (
+                            <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse" title="Unread Notice" />
+                          )}
+                        </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
                             <Calendar size={12} />
                             {notice.date}
@@ -2269,6 +2389,16 @@ export default function Students({ onOpenAuth }) {
                             title={isBookmarked(notice.id) ? "Remove Bookmark" : "Bookmark Notice"}
                           >
                             <Bookmark size={14} fill={isBookmarked(notice.id) ? "currentColor" : "none"} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleHideNotice(notice.id);
+                            }}
+                            className="p-1.5 rounded-lg border border-slate-200/40 text-slate-400 hover:text-rose-600 hover:border-rose-100 bg-white transition-all"
+                            title="Dismiss Notice"
+                          >
+                            <X size={14} />
                           </button>
                         </div>
                       </div>
