@@ -52,6 +52,7 @@ export default function Admin() {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Stats & Charts data
   const [stats, setStats] = useState({});
@@ -101,9 +102,9 @@ export default function Admin() {
   };
 
   // Fetch Dashboard data
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = await apiFetch("/stats");
       setStats(data.stats);
       setCharts(data.charts);
@@ -112,16 +113,16 @@ export default function Admin() {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   // Fetch lists based on section
-  const fetchSectionData = async () => {
+  const fetchSectionData = async (silent = false) => {
     try {
       setError(null);
       if (activeSection === "dashboard") {
-        await fetchDashboardData();
+        await fetchDashboardData(silent);
       } else if (activeSection === "students") {
         const data = await apiFetch(`/students?search=${searchTerm}&department=${deptFilter}&semester=${semFilter}&page=${currentPage}`);
         setStudents(data.students);
@@ -179,6 +180,29 @@ export default function Admin() {
       }
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchSectionData(true);
+      showToast("Dashboard data refreshed!");
+    } catch (err) {
+      showToast("Refresh failed: " + err.message, "error");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleCardClick = (sectionId) => {
+    if (!sectionId) return;
+    setActiveSection(sectionId);
+    // Auto-expand menus based on target section
+    if (["students", "faculty", "security", "admins"].includes(sectionId)) {
+      setExpandedMenus(prev => ({ ...prev, userManagement: true }));
+    } else if (["departments", "courses", "timetable", "semester"].includes(sectionId)) {
+      setExpandedMenus(prev => ({ ...prev, academics: true }));
     }
   };
 
@@ -394,10 +418,10 @@ export default function Admin() {
       <AnimatePresence>
         {toast && (
           <motion.div
-            initial={{ opacity: 0, y: -50 }}
+            initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className={`fixed top-6 right-6 z-[200] px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 border font-semibold ${
+            exit={{ opacity: 0, y: 50 }}
+            className={`fixed bottom-6 right-6 z-[200] px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 border font-semibold ${
               toast.type === "error" ? "bg-red-500/10 border-red-500/30 text-red-400" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
             }`}
           >
@@ -412,24 +436,37 @@ export default function Admin() {
         sidebarOpen ? "w-64" : "w-20"
       }`}>
         {/* Header Branding */}
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-500/30">
-              U
-            </div>
-            {sidebarOpen && (
-              <div className="flex flex-col">
-                <span className="font-bold text-lg leading-none tracking-tight">UniTech</span>
-                <span className="text-[10px] text-blue-400 uppercase tracking-widest font-semibold mt-0.5">Admin Portal</span>
+        <div className={`p-6 border-b border-slate-800 flex items-center ${
+          sidebarOpen ? "justify-between" : "justify-center"
+        }`}>
+          {sidebarOpen ? (
+            <>
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-500/30">
+                  U
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-bold text-lg leading-none tracking-tight">UniTech</span>
+                  <span className="text-[10px] text-blue-400 uppercase tracking-widest font-semibold mt-0.5">Admin Portal</span>
+                </div>
               </div>
-            )}
-          </div>
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded-lg hidden lg:block"
-          >
-            {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded-lg hidden lg:block"
+                title="Collapse Sidebar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded-lg flex items-center justify-center transition-all duration-200"
+              title="Expand Sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          )}
         </div>
 
         {/* Sidebar Nav Items */}
@@ -576,6 +613,16 @@ export default function Admin() {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing || loading}
+              className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 hover:bg-slate-800 transition-all duration-300 flex items-center justify-center group relative shadow-md disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+              title="Refresh Data"
+            >
+              <RefreshCw className={`h-[18px] w-[18px] text-slate-400 group-hover:text-white transition-colors ${isRefreshing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
+            </button>
+
             {/* Admin Profile */}
             <div className="flex items-center gap-3 pl-4 border-l border-slate-800">
               <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 text-white flex items-center justify-center font-bold">
@@ -622,23 +669,27 @@ export default function Admin() {
                     {/* STATS CARDS */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
                       {[
-                        { title: "Total Students", value: stats.totalStudents, icon: <GraduationCap className="h-6 w-6 text-blue-400" />, desc: "Registered undergraduates" },
-                        { title: "Total Faculty", value: stats.totalFaculty, icon: <Briefcase className="h-6 w-6 text-emerald-400" />, desc: "Teaching & professors" },
-                        { title: "Departments", value: stats.totalDepartments, icon: <Building className="h-6 w-6 text-amber-400" />, desc: "Academics wings" },
-                        { title: "Courses", value: stats.totalCourses, icon: <BookOpen className="h-6 w-6 text-indigo-400" />, desc: "Degree streams" },
-                        { title: "Present Today", value: stats.presentToday, icon: <Check className="h-6 w-6 text-teal-400" />, desc: "Active in classes" },
-                        { title: "Absent Today", value: stats.absentToday, icon: <X className="h-6 w-6 text-rose-400" />, desc: "Unexcused absences" },
-                        { title: "Visitors Today", value: stats.visitorsToday, icon: <Users className="h-6 w-6 text-sky-400" />, desc: "Gate log entries" },
-                        { title: "Active Notices", value: stats.activeNotices, icon: <Bell className="h-6 w-6 text-purple-400" />, desc: "Published alerts" },
-                        { title: "Pending Leaves", value: stats.pendingLeaves, icon: <MessageSquare className="h-6 w-6 text-pink-400" />, desc: "Requires admin sign" },
-                        { title: "Security Alerts", value: stats.securityAlerts, icon: <ShieldAlert className="h-6 w-6 text-red-400 animate-bounce" />, desc: "Requires gate attention" },
+                        { title: "Total Students", value: stats.totalStudents, icon: <GraduationCap className="h-6 w-6 text-blue-400" />, desc: "Registered undergraduates", sectionId: "students" },
+                        { title: "Total Faculty", value: stats.totalFaculty, icon: <Briefcase className="h-6 w-6 text-emerald-400" />, desc: "Teaching & professors", sectionId: "faculty" },
+                        { title: "Departments", value: stats.totalDepartments, icon: <Building className="h-6 w-6 text-amber-400" />, desc: "Academics wings", sectionId: "departments" },
+                        { title: "Courses", value: stats.totalCourses, icon: <BookOpen className="h-6 w-6 text-indigo-400" />, desc: "Degree streams", sectionId: "courses" },
+                        { title: "Present Today", value: stats.presentToday, icon: <Check className="h-6 w-6 text-teal-400" />, desc: "Active in classes", sectionId: "attendance" },
+                        { title: "Absent Today", value: stats.absentToday, icon: <X className="h-6 w-6 text-rose-400" />, desc: "Unexcused absences", sectionId: "attendance" },
+                        { title: "Visitors Today", value: stats.visitorsToday, icon: <Users className="h-6 w-6 text-sky-400" />, desc: "Gate log entries", sectionId: "monitoring" },
+                        { title: "Active Notices", value: stats.activeNotices, icon: <Bell className="h-6 w-6 text-purple-400" />, desc: "Published alerts", sectionId: "notices" },
+                        { title: "Pending Leaves", value: stats.pendingLeaves, icon: <MessageSquare className="h-6 w-6 text-pink-400" />, desc: "Requires admin sign", sectionId: "leaves" },
+                        { title: "Security Alerts", value: stats.securityAlerts, icon: <ShieldAlert className="h-6 w-6 text-red-400 animate-bounce" />, desc: "Requires gate attention", sectionId: "monitoring" },
                       ].map((item, idx) => (
-                        <div key={idx} className="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex items-start gap-4 hover:border-slate-700 transition-all hover:-translate-y-1 duration-200">
-                          <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                        <div
+                          key={idx}
+                          onClick={() => handleCardClick(item.sectionId)}
+                          className="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex items-start gap-4 hover:border-slate-700 hover:bg-slate-900/40 transition-all hover:-translate-y-1 duration-200 cursor-pointer select-none group/card"
+                        >
+                          <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 group-hover/card:border-slate-700 transition-colors">
                             {item.icon}
                           </div>
                           <div>
-                            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">{item.title}</p>
+                            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider group-hover/card:text-slate-400 transition-colors">{item.title}</p>
                             <h3 className="text-2xl font-bold text-white mt-1">{item.value ?? 0}</h3>
                             <p className="text-[10px] text-slate-400 mt-0.5">{item.desc}</p>
                           </div>
