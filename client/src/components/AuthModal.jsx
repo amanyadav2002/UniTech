@@ -522,19 +522,33 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                 </div>
               )}
 
-              {/* Email Input */}
+              {/* Email/Identifier Input */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">
-                  Email Address
+                  {tab === "signup"
+                    ? "Email Address"
+                    : role === "student"
+                      ? "Email Address or USN"
+                      : role === "faculty"
+                        ? "Email Address or ID"
+                        : "Email Address"}
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                     <Mail className="h-5 w-5" />
                   </span>
                   <input
-                    type="email"
+                    type={tab === "signup" ? "email" : "text"}
                     required
-                    placeholder="name@university.edu"
+                    placeholder={
+                      tab === "signup"
+                        ? "name@university.edu"
+                        : role === "student"
+                          ? "e.g. anubhav@unitech.edu or 1RI23CS185"
+                          : role === "faculty"
+                            ? "e.g. faculty@unitech.edu or CS001"
+                            : "name@university.edu"
+                    }
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"

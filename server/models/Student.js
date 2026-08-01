@@ -37,6 +37,10 @@ const StudentSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+    password: {
+      type: String,
+      required: true,
+    },
     phone: {
       type: String,
       required: true,

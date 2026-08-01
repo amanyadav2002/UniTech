@@ -62,21 +62,18 @@ const seedDatabase = async () => {
     await Report.deleteMany({});
 
     console.log("Collections cleared successfully.");
-    console.log("Seeding default login credentials...");
-
-    // Hash default password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash("password123", salt);
-
     // 1. Seed Admin User & Profile
+    const salt = await bcrypt.genSalt(10);
+    const adminHashedPassword = await bcrypt.hash("admin123", salt);
+
     const adminUser = new User({
       name: "UniTech Administrator",
-      email: "admin@unitech.edu",
-      password: hashedPassword,
+      username: "admin@unitech",
+      password: adminHashedPassword,
       role: "admin",
     });
     const savedAdminUser = await adminUser.save();
-    
+
     const adminProfile = new Admin({
       user: savedAdminUser._id,
       name: "UniTech Administrator",
@@ -86,30 +83,29 @@ const seedDatabase = async () => {
       department: "Administration",
     });
     await adminProfile.save();
-    console.log("Admin account seeded successfully: admin@unitech.edu / password123");
+    console.log("Admin account seeded successfully: admin@unitech / admin123");
 
-    // 2. Seed Security User & Profile
-    const securityUser = new User({
-      name: "Chief Officer Marcus",
-      email: "security@unitech.edu",
-      password: hashedPassword,
-      role: "security",
-    });
-    const savedSecurityUser = await securityUser.save();
-    
-    const securityProfile = new Security({
-      user: savedSecurityUser._id,
-      name: "Chief Officer Marcus",
-      id: "SEC001",
-      phone: "+1 (555) 019-7777",
-      mail: "security@unitech.edu",
-      gateNumber: "Gate 1",
-      shift: "Day",
-    });
-    await securityProfile.save();
-    console.log("Security account seeded successfully: security@unitech.edu / password123");
+    // 3. Seed Departments
+    const depts = [
+      { name: "Computer Science Department", code: "CS" },
+      { name: "Information Science Department", code: "IS" },
+      { name: "Electronics & Communication Department", code: "EC" },
+      { name: "Mechanical Engineering Department", code: "ME" },
+      { name: "Civil Engineering Department", code: "CV" }
+    ];
+    for (const d of depts) {
+      await new Department(d).save();
+    }
+    console.log("Departments seeded successfully.");
 
-    console.log("Database cleared and initial credentials seeded successfully!");
+    // 4. Seed Semesters
+    const sems = ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"];
+    for (const s of sems) {
+      await new Semester({ name: s }).save();
+    }
+    console.log("Semesters seeded successfully.");
+
+    console.log("Database cleared and initial base configurations seeded successfully!");
     mongoose.connection.close();
   } catch (error) {
     console.error("Seeding error:", error);
