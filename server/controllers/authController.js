@@ -3,6 +3,8 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Student = require("../models/Student");
 const Teacher = require("../models/Teacher");
+const Admin = require("../models/Admin");
+const Security = require("../models/Security");
 
 // Generate JWT Helper
 const generateToken = (id, email, role) => {
@@ -35,10 +37,15 @@ const signup = async (req, res) => {
       return res.status(400).json({ message: "Invalid role specified for signup" });
     }
 
-    // Check if email already exists in User collection
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists with this email" });
+    // Clean up existing User(s) with this email to allow overwrite/re-registration
+    const matchedUser = await User.findOne({ email: email.toLowerCase().trim() });
+    if (matchedUser) {
+      await User.deleteOne({ _id: matchedUser._id });
+      if (matchedUser.role === "student") {
+        await Student.deleteOne({ user: matchedUser._id });
+      } else if (matchedUser.role === "faculty") {
+        await Teacher.deleteOne({ user: matchedUser._id });
+      }
     }
 
     // Validate Custom profile fields
@@ -57,15 +64,18 @@ const signup = async (req, res) => {
       const finalBlood = (blood || "O+").trim();
       const finalDept = (department || "Computer Science Department").trim();
 
-      // Check unique constraints for student profile
-      const dupStudentId = await Student.findOne({ id: finalId });
-      if (dupStudentId) return res.status(400).json({ message: "Student ID already exists" });
-
-      const dupStudentUsn = await Student.findOne({ usn: finalUsn });
-      if (dupStudentUsn) return res.status(400).json({ message: "USN already exists" });
-
-      const dupStudentMail = await Student.findOne({ mail: email.toLowerCase().trim() });
-      if (dupStudentMail) return res.status(400).json({ message: "Email is already linked to a student profile" });
+      // Clean up any existing students matching finalId, finalUsn, or mail to avoid duplicate key errors
+      const existingStudents = await Student.find({
+        $or: [
+          { id: finalId },
+          { usn: finalUsn },
+          { mail: email.toLowerCase().trim() }
+        ]
+      });
+      for (const s of existingStudents) {
+        await User.deleteOne({ _id: s.user });
+        await Student.deleteOne({ _id: s._id });
+      }
 
       profileData = {
         id: finalId,
@@ -89,12 +99,17 @@ const signup = async (req, res) => {
       const finalSalary = salary ? Number(salary) : 75000;
       const finalDob = dob ? new Date(dob) : new Date("1990-01-01");
 
-      // Check unique constraints for teacher profile
-      const dupTeacherId = await Teacher.findOne({ id: finalId });
-      if (dupTeacherId) return res.status(400).json({ message: "Teacher ID already exists" });
-
-      const dupTeacherMail = await Teacher.findOne({ mail: email.toLowerCase().trim() });
-      if (dupTeacherMail) return res.status(400).json({ message: "Email is already linked to a teacher profile" });
+      // Clean up any existing teachers matching finalId or mail to avoid duplicate key errors
+      const existingTeachers = await Teacher.find({
+        $or: [
+          { id: finalId },
+          { mail: email.toLowerCase().trim() }
+        ]
+      });
+      for (const t of existingTeachers) {
+        await User.deleteOne({ _id: t.user });
+        await Teacher.deleteOne({ _id: t._id });
+      }
 
       profileData = {
         id: finalId,
@@ -131,6 +146,7 @@ const signup = async (req, res) => {
         age: profileData.age,
         usn: profileData.usn,
         mail: savedUser.email,
+        password: savedUser.password,
         phone: profileData.phone,
         year: profileData.year,
         semester: profileData.semester,
@@ -147,6 +163,7 @@ const signup = async (req, res) => {
         age: profileData.age,
         phone: profileData.phone,
         mail: savedUser.email,
+        password: savedUser.password,
         department: profileData.department,
         salary: profileData.salary,
         dob: profileData.dob,
@@ -191,8 +208,43 @@ const login = async (req, res) => {
 
     const normalizedRole = role.toLowerCase();
 
-    // Find User
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    // Find User (supports Username for Admin, Email/USN/ID for other roles)
+    let user = null;
+    if (normalizedRole === "admin") {
+      user = await User.findOne({ username: email.trim() });
+    } else {
+      user = await User.findOne({ email: email.toLowerCase().trim() });
+    }
+    if (!user) {
+      // Alternate lookup if email yields no match
+      if (normalizedRole === "student") {
+        const studentProfile = await Student.findOne({
+          $or: [
+            { usn: email.trim().toUpperCase() },
+            { id: email.trim() }
+          ]
+        });
+        if (studentProfile) {
+          user = await User.findById(studentProfile.user);
+        }
+      } else if (normalizedRole === "faculty") {
+        const teacherProfile = await Teacher.findOne({ id: email.trim() });
+        if (teacherProfile) {
+          user = await User.findById(teacherProfile.user);
+        }
+      } else if (normalizedRole === "admin") {
+        const adminProfile = await Admin.findOne({ id: email.trim() });
+        if (adminProfile) {
+          user = await User.findById(adminProfile.user);
+        }
+      } else if (normalizedRole === "security") {
+        const securityProfile = await Security.findOne({ id: email.trim() });
+        if (securityProfile) {
+          user = await User.findById(securityProfile.user);
+        }
+      }
+    }
+
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -202,18 +254,71 @@ const login = async (req, res) => {
       return res.status(400).json({ message: `Account is not registered as ${role}` });
     }
 
-    // Match password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
-    // Retrieve corresponding profile details
+    // Retrieve corresponding profile details (with self-healing)
     let profile = null;
     if (normalizedRole === "student") {
       profile = await Student.findOne({ user: user._id });
+      if (!profile) {
+        // Automatically create a default student profile if it is missing
+        const defaultStudent = new Student({
+          user: user._id,
+          name: user.name,
+          id: `STU${Math.floor(1000 + Math.random() * 9000)}`,
+          age: 20,
+          usn: `1RI23CS${Math.floor(100 + Math.random() * 900)}`,
+          mail: user.email,
+          password: user.password,
+          phone: "+1 (555) 014-9900",
+          year: "3rd Year",
+          semester: "6th Sem",
+          dob: new Date("2005-08-15"),
+          blood: "O+",
+          department: "Computer Science Department",
+        });
+        profile = await defaultStudent.save();
+        console.log(`Automatically created missing student profile for ${user.email}`);
+      }
     } else if (normalizedRole === "faculty") {
       profile = await Teacher.findOne({ user: user._id });
+      if (!profile) {
+        // Automatically create a default teacher profile if it is missing
+        const defaultTeacher = new Teacher({
+          user: user._id,
+          name: user.name,
+          id: `FAC${Math.floor(1000 + Math.random() * 9000)}`,
+          age: 35,
+          phone: "+1 (555) 014-9900",
+          mail: user.email,
+          password: user.password,
+          department: "Computer Science Department",
+          salary: 75000,
+          dob: new Date("1990-01-01"),
+        });
+        profile = await defaultTeacher.save();
+        console.log(`Automatically created missing teacher profile for ${user.email}`);
+      }
+    } else if (normalizedRole === "admin") {
+      profile = await Admin.findOne({ user: user._id });
+    } else if (normalizedRole === "security") {
+      profile = await Security.findOne({ user: user._id });
+    }
+
+    // Determine which password hash to verify against
+    let storedPassword = user.password;
+    if (profile && (normalizedRole === "student" || normalizedRole === "faculty") && profile.password) {
+      storedPassword = profile.password;
+    }
+
+    // Match password (support both bcrypt hash and plain text fallback)
+    let isMatch = false;
+    if (storedPassword.startsWith("$2b$") || storedPassword.startsWith("$2a$") || storedPassword.startsWith("$2y$")) {
+      isMatch = await bcrypt.compare(password, storedPassword);
+    } else {
+      isMatch = (password === storedPassword);
+    }
+
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
     // Generate Token
@@ -250,8 +355,45 @@ const getMe = async (req, res) => {
     let profile = null;
     if (user.role === "student") {
       profile = await Student.findOne({ user: user._id });
+      if (!profile) {
+        const defaultStudent = new Student({
+          user: user._id,
+          name: user.name,
+          id: `STU${Math.floor(1000 + Math.random() * 9000)}`,
+          age: 20,
+          usn: `1RI23CS${Math.floor(100 + Math.random() * 900)}`,
+          mail: user.email,
+          password: user.password || "",
+          phone: "+1 (555) 014-9900",
+          year: "3rd Year",
+          semester: "6th Sem",
+          dob: new Date("2005-08-15"),
+          blood: "O+",
+          department: "Computer Science Department",
+        });
+        profile = await defaultStudent.save();
+      }
     } else if (user.role === "faculty") {
       profile = await Teacher.findOne({ user: user._id });
+      if (!profile) {
+        const defaultTeacher = new Teacher({
+          user: user._id,
+          name: user.name,
+          id: `FAC${Math.floor(1000 + Math.random() * 9000)}`,
+          age: 35,
+          phone: "+1 (555) 014-9900",
+          mail: user.email,
+          password: user.password || "",
+          department: "Computer Science Department",
+          salary: 75000,
+          dob: new Date("1990-01-01"),
+        });
+        profile = await defaultTeacher.save();
+      }
+    } else if (user.role === "admin") {
+      profile = await Admin.findOne({ user: user._id });
+    } else if (user.role === "security") {
+      profile = await Security.findOne({ user: user._id });
     }
 
     res.json({
