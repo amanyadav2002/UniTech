@@ -19,7 +19,6 @@ import {
   Search,
   Bell,
   Clock,
-  RefreshCw,
   Plus,
   Trash2,
   Edit,
@@ -96,7 +95,6 @@ export default function Faculty({ onOpenAuth }) {
   
   // Dashboard active tab navigation
   const [activeTab, setActiveTab] = useState("overview");
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [resourceSubTab, setResourceSubTab] = useState("materials");
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [noticeSearch, setNoticeSearch] = useState("");
@@ -397,17 +395,6 @@ export default function Faculty({ onOpenAuth }) {
       setErrorPortal(err.message || "Failed to load portal data.");
     } finally {
       setLoadingPortal(false);
-    }
-  };
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await loadAllFacultyData();
-    } catch (err) {
-      console.error("Refresh failed:", err);
-    } finally {
-      setIsRefreshing(false);
     }
   };
 
@@ -1972,15 +1959,15 @@ export default function Faculty({ onOpenAuth }) {
           </button>
 
           <button
-            onClick={() => setActiveTab("notices")}
+            onClick={() => setActiveTab("calendar")}
             className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
-              activeTab === "notices"
+              activeTab === "calendar"
                 ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/15"
                 : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
             }`}
           >
-            <Bell size={18} className={activeTab === 'notices' ? 'text-white' : 'text-zinc-400'} />
-            <span>Notice Board</span>
+            <Calendar size={18} className={activeTab === 'calendar' ? 'text-white' : 'text-zinc-400'} />
+            <span>Event Calendar</span>
           </button>
         </nav>
 
@@ -2003,6 +1990,7 @@ export default function Faculty({ onOpenAuth }) {
           <div>
             <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">
               {activeTab === "overview" && "Dashboard Overview"}
+              {activeTab === "calendar" && "Event Calendar"}
               {activeTab === "attendance" && "Class Attendance Sheets"}
               {activeTab === "students" && "Registered Students Directory"}
               {activeTab === "resources" && "Study Materials"}
@@ -2078,16 +2066,6 @@ export default function Faculty({ onOpenAuth }) {
                 </div>
               )}
             </div>
-
-            {/* Refresh Button */}
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing || loadingPortal}
-              className="p-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 hover:bg-slate-50 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
-              title="Refresh Data"
-            >
-              <RefreshCw size={20} className={`${isRefreshing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
-            </button>
 
             {/* Notification Icon */}
             <button
@@ -2366,6 +2344,157 @@ export default function Faculty({ onOpenAuth }) {
                 </form>
               </div>
 
+            </div>
+
+            {/* Row 4: Notice Board */}
+            <div className="w-full">
+              {/* Recent Campus Notices */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                      <Bell className="h-5 w-5 text-indigo-600" /> Recent Announcements
+                    </h4>
+                    <button 
+                      onClick={() => setActiveTab("notices")}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                    >
+                      View All ({notices.length})
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-400 font-medium mb-5">Latest college notifications and exam department circulars.</p>
+
+                  <div className="space-y-3.5 max-h-[220px] overflow-y-auto pr-1">
+                    {notices.length === 0 ? (
+                      <div className="text-center py-8 text-slate-400 space-y-2">
+                        <Bell size={36} className="mx-auto text-slate-300" />
+                        <p className="text-sm font-medium">No notices published yet.</p>
+                      </div>
+                    ) : (
+                      notices.slice(0, 3).map((notice) => (
+                        <div key={notice.id} className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-sm transition-all duration-200">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                                notice.category === "exams"
+                                  ? "bg-rose-50 text-rose-700 border border-rose-100"
+                                  : notice.category === "events"
+                                    ? "bg-amber-50 text-amber-700 border border-amber-100"
+                                    : "bg-blue-50 text-blue-700 border border-blue-100"
+                              }`}>
+                                {notice.category}
+                              </span>
+                              {notice.important && (
+                                <span className="text-[9px] font-black uppercase bg-red-100 text-red-700 px-1.5 py-0.2 rounded border border-red-200 animate-pulse">
+                                  Urgent
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-semibold">{notice.date}</span>
+                          </div>
+                          <h5 className="font-bold text-slate-800 text-sm leading-snug">{notice.title}</h5>
+                          <p className="text-xs text-slate-500 leading-relaxed font-semibold mt-1 truncate">{notice.content}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* --- TAB: EVENT CALENDAR --- */}
+        {activeTab === "calendar" && (
+          <div className="grid gap-8 lg:grid-cols-5 animate-fadeIn">
+            {/* Calendar Widget (3 columns) */}
+            <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/50 shadow-sm lg:col-span-3 flex flex-col justify-between space-y-6">
+              <div>
+                <div className="border-b border-slate-100 pb-4 mb-6">
+                  <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-indigo-600" /> Academic & Event Calendar
+                  </h3>
+                  <p className="text-xs text-slate-400 font-semibold mt-1">Monthly calendar view showing academic schedules, holidays, and events.</p>
+                </div>
+
+                <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-200/60 text-center">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Current Month</span>
+                  <h3 className="text-3xl font-extrabold text-slate-800 mt-1">
+                    {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
+                  </h3>
+                  <div className="grid grid-cols-7 gap-3 mt-6 text-xs text-slate-400 font-bold uppercase tracking-wider">
+                    <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                  </div>
+                  <div className="grid grid-cols-7 gap-3 mt-3 text-sm font-semibold text-slate-700">
+                    {(() => {
+                      const today = new Date();
+                      const year = today.getFullYear();
+                      const month = today.getMonth();
+                      const currentDate = today.getDate();
+                      const firstDay = new Date(year, month, 1).getDay();
+                      const totalDays = new Date(year, month + 1, 0).getDate();
+                      
+                      const daySlots = [];
+                      for (let i = 0; i < firstDay; i++) {
+                        daySlots.push(<span key={`empty-${i}`} className="p-2" />);
+                      }
+                      for (let day = 1; day <= totalDays; day++) {
+                        const isToday = day === currentDate;
+                        daySlots.push(
+                          <span
+                            key={`day-${day}`}
+                            className={`p-2 rounded-xl flex items-center justify-center transition-all ${
+                              isToday ? "bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/30" : "hover:bg-slate-200/50 cursor-pointer"
+                            }`}
+                          >
+                            {day}
+                          </span>
+                        );
+                      }
+                      return daySlots;
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Upcoming Campus Events list (2 columns) */}
+            <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200/50 lg:col-span-2 flex flex-col justify-between">
+              <div>
+                <div className="border-b border-slate-100 pb-4 mb-6">
+                  <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                    <span>📅</span> Upcoming Deadlines & Events
+                  </h3>
+                  <p className="text-xs text-slate-400 font-semibold mt-1">Important schedules for the current academic month.</p>
+                </div>
+
+                <div className="space-y-4">
+                  {[
+                    { date: "Aug 5, 2026", title: "Course Registration Deadline", desc: "Last day to enroll and register courses for the Odd Semester.", type: "academic" },
+                    { date: "Aug 10, 2026", title: "Hackathon Prep Workshop", desc: "CS department workshop on competitive coding strategies.", type: "workshop" },
+                    { date: "Aug 15, 2026", title: "Independence Day Holiday", desc: "National holiday. College operations remain closed.", type: "holiday" },
+                    { date: "Aug 24, 2026", title: "Mid-Term Examinations Phase I", desc: "Phase I tests begin for all undergraduate semesters.", type: "exam" },
+                    { date: "Aug 31, 2026", title: "Project Synopsis Submission", desc: "Final submission of project synopses for final year students.", type: "academic" }
+                  ].map((evt, idx) => (
+                    <div key={idx} className="flex gap-4 items-start p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 ${
+                        evt.type === "exam" ? "bg-rose-50 text-rose-700 border border-rose-100" :
+                        evt.type === "holiday" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
+                        evt.type === "workshop" ? "bg-amber-50 text-amber-700 border border-amber-100" :
+                        "bg-blue-50 text-blue-700 border border-blue-100"
+                      }`}>
+                        {evt.type}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-slate-400">{evt.date}</p>
+                        <h4 className="text-sm font-bold text-slate-800 leading-tight">{evt.title}</h4>
+                        <p className="text-xs text-slate-500 font-medium leading-relaxed">{evt.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -3956,15 +4085,13 @@ export default function Faculty({ onOpenAuth }) {
                           >
                             <Bookmark size={14} fill={isBookmarked(notice.id) ? "currentColor" : "none"} />
                           </button>
-                          {notice.isOwner && (
-                            <button
-                              onClick={() => handleDeleteNotice(notice.id)}
-                              className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
-                              title="Delete Notice"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleDeleteNotice(notice.id)}
+                            className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition shrink-0"
+                            title="Delete Notice"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </div>
                     ))
