@@ -31,6 +31,7 @@ import {
   MapPin,
   CheckCircle,
   ChevronRight,
+  ChevronLeft,
   ClipboardList,
   CheckSquare,
   X,
@@ -188,6 +189,7 @@ export default function Faculty({ onOpenAuth }) {
 
   const [scheduleTimeline, setScheduleTimeline] = useState([]);
   const [notices, setNotices] = useState([]);
+  const [events, setEvents] = useState([]);
   const [resources, setResources] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -338,6 +340,14 @@ export default function Faculty({ onOpenAuth }) {
       const nt = await facultyService.getNotices();
       setNotices(nt);
 
+      // Fetch events
+      try {
+        const evData = await facultyService.getEvents();
+        setEvents(evData.events || []);
+      } catch (err) {
+        console.error("Failed to load events in Faculty portal", err);
+      }
+
       // Fetch tasks
       const tk = await studentService.getTasks(); // Tasks collection is shared
       setTasks(tk);
@@ -469,6 +479,7 @@ export default function Faculty({ onOpenAuth }) {
   const [isAttDayOpen, setIsAttDayOpen] = useState(false);
   const [isAttMonthOpen, setIsAttMonthOpen] = useState(false);
   const [isAttYearOpen, setIsAttYearOpen] = useState(false);
+  const [calViewDate, setCalViewDate] = useState(new Date());
 
   const currentYearNum = new Date().getFullYear();
   const attYearsList = Array.from({ length: Math.max(1, currentYearNum - 2026 + 1) }, (_, i) => (2026 + i).toString());
@@ -2420,36 +2431,121 @@ export default function Faculty({ onOpenAuth }) {
 
                 <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-200/60 text-center">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Current Month</span>
-                  <h3 className="text-3xl font-extrabold text-slate-800 mt-1">
-                    {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
-                  </h3>
+                  <div className="flex items-center justify-between mt-1 max-w-[280px] mx-auto">
+                    <button
+                      type="button"
+                      onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                      className="p-1.5 hover:bg-slate-200 rounded-full text-slate-600 transition cursor-pointer"
+                      title="Previous Month"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <h3 className="text-2xl font-extrabold text-slate-800">
+                      {calViewDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                      className="p-1.5 hover:bg-slate-200 rounded-full text-slate-600 transition cursor-pointer"
+                      title="Next Month"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </div>
                   <div className="grid grid-cols-7 gap-3 mt-6 text-xs text-slate-400 font-bold uppercase tracking-wider">
                     <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
                   </div>
                   <div className="grid grid-cols-7 gap-3 mt-3 text-sm font-semibold text-slate-700">
                     {(() => {
-                      const today = new Date();
-                      const year = today.getFullYear();
-                      const month = today.getMonth();
-                      const currentDate = today.getDate();
+                      const todayObj = new Date();
+                      const year = calViewDate.getFullYear();
+                      const month = calViewDate.getMonth();
                       const firstDay = new Date(year, month, 1).getDay();
                       const totalDays = new Date(year, month + 1, 0).getDate();
                       
+                      const getParsedDate = (dateStr) => {
+                        if (!dateStr) return null;
+                        let match = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+                        if (match) {
+                          return {
+                            day: parseInt(match[1], 10),
+                            month: parseInt(match[2], 10),
+                            year: parseInt(match[3], 10)
+                          };
+                        }
+                        match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+                        if (match) {
+                          return {
+                            day: parseInt(match[3], 10),
+                            month: parseInt(match[2], 10),
+                            year: parseInt(match[1], 10)
+                          };
+                        }
+                        const d = new Date(dateStr);
+                        if (!isNaN(d.getTime())) {
+                          return {
+                            day: d.getDate(),
+                            month: d.getMonth() + 1,
+                            year: d.getFullYear()
+                          };
+                        }
+                        return null;
+                      };
+
                       const daySlots = [];
                       for (let i = 0; i < firstDay; i++) {
-                        daySlots.push(<span key={`empty-${i}`} className="p-2" />);
+                        daySlots.push(<div key={`empty-${i}`} className="w-8 h-11" />);
                       }
                       for (let day = 1; day <= totalDays; day++) {
-                        const isToday = day === currentDate;
+                        const isToday = day === todayObj.getDate() && month === todayObj.getMonth() && year === todayObj.getFullYear();
+                        const dayEvents = events.filter(evt => {
+                          const parsed = getParsedDate(evt.date);
+                          if (!parsed) return false;
+                          return parsed.day === day && parsed.month === (month + 1) && parsed.year === year;
+                        });
+
+                        const isHoliday = dayEvents.some(evt => evt.type?.toLowerCase().includes("holiday"));
+
+                        let eventClass = "";
+                        if (dayEvents.length > 0) {
+                          const primaryEvent = dayEvents[0];
+                          const type = primaryEvent.type?.toLowerCase() || "";
+                          if (type.includes("holiday")) {
+                            eventClass = "bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/20";
+                          } else if (type.includes("exam") || type.includes("test") || type.includes("ia") || type.includes("practical")) {
+                            eventClass = "bg-rose-500 text-white font-bold shadow-lg shadow-rose-500/20";
+                          } else if (type.includes("workshop") || type.includes("visit")) {
+                            eventClass = "bg-amber-500 text-white font-bold shadow-lg shadow-amber-500/20";
+                          } else {
+                            eventClass = "bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/20";
+                          }
+                        }
+
+                        let dayStyle = "text-slate-700 hover:bg-slate-200/50 cursor-pointer";
+                        if (isToday) {
+                          dayStyle = "bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/30";
+                        } else if (eventClass) {
+                          dayStyle = eventClass;
+                        }
+
                         daySlots.push(
-                          <span
+                          <div
                             key={`day-${day}`}
-                            className={`p-2 rounded-xl flex items-center justify-center transition-all ${
-                              isToday ? "bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/30" : "hover:bg-slate-200/50 cursor-pointer"
-                            }`}
+                            className="flex flex-col items-center justify-center gap-0.5 mx-auto"
                           >
-                            {day}
-                          </span>
+                            <span
+                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${dayStyle}`}
+                            >
+                              {day}
+                            </span>
+                            <span className="h-3 text-[9px] font-extrabold tracking-wider leading-none flex items-center justify-center">
+                              {isHoliday ? (
+                                <span className="text-emerald-600 dark:text-emerald-400">H</span>
+                              ) : (
+                                <span className="opacity-0">H</span>
+                              )}
+                            </span>
+                          </div>
                         );
                       }
                       return daySlots;
@@ -2470,29 +2566,33 @@ export default function Faculty({ onOpenAuth }) {
                 </div>
 
                 <div className="space-y-4">
-                  {[
-                    { date: "Aug 5, 2026", title: "Course Registration Deadline", desc: "Last day to enroll and register courses for the Odd Semester.", type: "academic" },
-                    { date: "Aug 10, 2026", title: "Hackathon Prep Workshop", desc: "CS department workshop on competitive coding strategies.", type: "workshop" },
-                    { date: "Aug 15, 2026", title: "Independence Day Holiday", desc: "National holiday. College operations remain closed.", type: "holiday" },
-                    { date: "Aug 24, 2026", title: "Mid-Term Examinations Phase I", desc: "Phase I tests begin for all undergraduate semesters.", type: "exam" },
-                    { date: "Aug 31, 2026", title: "Project Synopsis Submission", desc: "Final submission of project synopses for final year students.", type: "academic" }
-                  ].map((evt, idx) => (
-                    <div key={idx} className="flex gap-4 items-start p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                      <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 ${
-                        evt.type === "exam" ? "bg-rose-50 text-rose-700 border border-rose-100" :
-                        evt.type === "holiday" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
-                        evt.type === "workshop" ? "bg-amber-50 text-amber-700 border border-amber-100" :
-                        "bg-blue-50 text-blue-700 border border-blue-100"
-                      }`}>
-                        {evt.type}
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs font-bold text-slate-400">{evt.date}</p>
-                        <h4 className="text-sm font-bold text-slate-800 leading-tight">{evt.title}</h4>
-                        <p className="text-xs text-slate-500 font-medium leading-relaxed">{evt.desc}</p>
-                      </div>
+                  {events.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 text-xs font-semibold">
+                      No campus events scheduled.
                     </div>
-                  ))}
+                  ) : (
+                    events.map((evt, idx) => (
+                      <div key={evt._id || idx} className="flex gap-4 items-start p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                        <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 border ${
+                          evt.type?.toLowerCase().includes("exam") || evt.type?.toLowerCase().includes("test") || evt.type?.toLowerCase().includes("ia") || evt.type?.toLowerCase().includes("practical")
+                            ? "bg-rose-50 text-rose-700 border-rose-200" :
+                          evt.type?.toLowerCase().includes("holiday")
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                          evt.type?.toLowerCase().includes("workshop") || evt.type?.toLowerCase().includes("visit")
+                            ? "bg-amber-50 text-amber-700 border-amber-200" :
+                          "bg-blue-50 text-blue-700 border-blue-200"
+                        }`}>
+                          {evt.type}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-slate-400">{evt.time ? `${evt.date} • ${evt.time}` : evt.date}</p>
+                          <h4 className="text-sm font-bold text-slate-800 leading-tight">{evt.title}</h4>
+                          <p className="text-xs text-slate-500 font-medium leading-relaxed">{evt.description}</p>
+                          {evt.location && <p className="text-[10px] text-slate-400 font-semibold">Venue: {evt.location}</p>}
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
