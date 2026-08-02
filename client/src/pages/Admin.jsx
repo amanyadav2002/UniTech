@@ -586,6 +586,7 @@ export default function Admin() {
             { id: "attendance", label: "Attendance", icon: <CheckSquare className="h-5 w-5" /> },
             { id: "leaves", label: "Leave Requests", icon: <MessageSquare className="h-5 w-5" /> },
             { id: "events", label: "Event Management", icon: <Calendar className="h-5 w-5" /> },
+            { id: "calendar", label: "Event Calendar", icon: <Calendar className="h-5 w-5" /> },
             { id: "monitoring", label: "Security Monitoring", icon: <ShieldAlert className="h-5 w-5" /> },
             { id: "reports", label: "Reports", icon: <FileText className="h-5 w-5" /> },
             { id: "notifications", label: "Notice Broadcast", icon: <Bell className="h-5 w-5" /> },
@@ -627,7 +628,7 @@ export default function Admin() {
         <header className="h-20 bg-slate-950/40 backdrop-blur-md border-b border-slate-800 px-8 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
             <h2 className="text-xl font-bold text-white capitalize leading-none">
-              {activeSection.replace(/([A-Z])/g, " $1")}
+              {activeSection === "calendar" ? "Event Calendar" : activeSection.replace(/([A-Z])/g, " $1")}
             </h2>
             <span className="text-xs text-slate-500 bg-slate-800 px-2.5 py-1 rounded-full font-semibold">
               ACADEMIC YEAR: 2026-27
@@ -768,7 +769,7 @@ export default function Admin() {
                     </div>
 
                     {/* TIMELINE & ACTIVITY WIDGETS */}
-                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                       {/* Timeline Feed */}
                       <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-4">
                         <h4 className="font-bold text-white">Recent Activity Timeline</h4>
@@ -830,29 +831,98 @@ export default function Admin() {
                           </button>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                )}
 
-                      {/* Interactive Calendar widget */}
-                      <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-4">
-                        <h4 className="font-bold text-white">Academic Calendar</h4>
-                        <div className="p-4 bg-slate-900 rounded-xl border border-slate-800 text-center">
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Today's Date</span>
-                          <h3 className="text-2xl font-bold text-white mt-1">{new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h3>
-                          <div className="grid grid-cols-7 gap-2 mt-4 text-[10px] text-slate-500 font-bold uppercase">
+                {/* -------------------- EVENT CALENDAR PANEL -------------------- */}
+                {activeSection === "calendar" && (
+                  <div className="grid gap-8 lg:grid-cols-5 animate-fadeIn">
+                    {/* Calendar Widget (3 columns) */}
+                    <div className="bg-slate-950 p-6 md:p-8 rounded-2xl border border-slate-800 lg:col-span-3 flex flex-col justify-between space-y-6">
+                      <div>
+                        <div className="border-b border-slate-800 pb-4 mb-6">
+                          <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+                            <Calendar className="h-5 w-5 text-blue-500" /> Academic & Event Calendar
+                          </h3>
+                          <p className="text-xs text-slate-400 font-semibold mt-1">Monthly calendar view showing academic schedules, holidays, and events.</p>
+                        </div>
+
+                        <div className="p-6 bg-slate-900 rounded-xl border border-slate-800 text-center">
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Current Month</span>
+                          <h3 className="text-3xl font-extrabold text-white mt-1">
+                            {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
+                          </h3>
+                          <div className="grid grid-cols-7 gap-3 mt-6 text-xs text-slate-500 font-bold uppercase tracking-wider">
                             <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
                           </div>
-                          <div className="grid grid-cols-7 gap-2 mt-2 text-xs font-semibold text-slate-300">
-                            {Array.from({ length: 31 }, (_, i) => {
-                              const day = i + 1;
-                              const isToday = day === new Date().getDate();
-                              return (
-                                <span key={day} className={`p-1.5 rounded-lg flex items-center justify-center ${
-                                  isToday ? "bg-blue-600 text-white font-bold" : "hover:bg-slate-800"
-                                }`}>
-                                  {day}
-                                </span>
-                              );
-                            })}
+                          <div className="grid grid-cols-7 gap-3 mt-3 text-sm font-semibold text-slate-300">
+                            {(() => {
+                              const today = new Date();
+                              const year = today.getFullYear();
+                              const month = today.getMonth();
+                              const currentDate = today.getDate();
+                              const firstDay = new Date(year, month, 1).getDay();
+                              const totalDays = new Date(year, month + 1, 0).getDate();
+                              
+                              const daySlots = [];
+                              for (let i = 0; i < firstDay; i++) {
+                                daySlots.push(<span key={`empty-${i}`} className="p-2" />);
+                              }
+                              for (let day = 1; day <= totalDays; day++) {
+                                const isToday = day === currentDate;
+                                daySlots.push(
+                                  <span
+                                    key={`day-${day}`}
+                                    className={`p-2 rounded-lg flex items-center justify-center transition-all ${
+                                      isToday ? "bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/30" : "hover:bg-slate-850 cursor-pointer"
+                                    }`}
+                                  >
+                                    {day}
+                                  </span>
+                                );
+                              }
+                              return daySlots;
+                            })()}
                           </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Upcoming Campus Events list (2 columns) */}
+                    <div className="bg-slate-950 rounded-2xl p-6 md:p-8 border border-slate-800 lg:col-span-2 flex flex-col justify-between">
+                      <div>
+                        <div className="border-b border-slate-800 pb-4 mb-6">
+                          <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+                            <span>📅</span> Upcoming Deadlines & Events
+                          </h3>
+                          <p className="text-xs text-slate-400 font-semibold mt-1">Important schedules for the current academic month.</p>
+                        </div>
+
+                        <div className="space-y-4">
+                          {[
+                            { date: "Aug 5, 2026", title: "Course Registration Deadline", desc: "Last day to enroll and register courses for the Odd Semester.", type: "academic" },
+                            { date: "Aug 10, 2026", title: "Hackathon Prep Workshop", desc: "CS department workshop on competitive coding strategies.", type: "workshop" },
+                            { date: "Aug 15, 2026", title: "Independence Day Holiday", desc: "National holiday. College operations remain closed.", type: "holiday" },
+                            { date: "Aug 24, 2026", title: "Mid-Term Examinations Phase I", desc: "Phase I tests begin for all undergraduate semesters.", type: "exam" },
+                            { date: "Aug 31, 2026", title: "Project Synopsis Submission", desc: "Final submission of project synopses for final year students.", type: "academic" }
+                          ].map((evt, idx) => (
+                            <div key={idx} className="flex gap-4 items-start p-3 rounded-xl border border-slate-900 hover:bg-slate-900/40 transition-colors">
+                              <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 ${
+                                evt.type === "exam" ? "bg-rose-950/40 text-rose-400 border border-rose-900" :
+                                evt.type === "holiday" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
+                                evt.type === "workshop" ? "bg-amber-950/40 text-amber-400 border border-amber-900" :
+                                "bg-blue-950/40 text-blue-400 border border-blue-900"
+                              }`}>
+                                {evt.type}
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-xs font-bold text-slate-500">{evt.date}</p>
+                                <h4 className="text-sm font-bold text-white leading-tight">{evt.title}</h4>
+                                <p className="text-xs text-slate-400 font-medium leading-relaxed">{evt.desc}</p>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>

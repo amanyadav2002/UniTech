@@ -40,7 +40,6 @@ import {
   Briefcase,
   FlaskConical,
   X,
-  RefreshCw,
 } from "lucide-react";
 
 import studentService from "../services/studentService";
@@ -51,7 +50,6 @@ export default function Students({ onOpenAuth }) {
   
   // Dashboard navigation tab
   const [activeTab, setActiveTab] = useState("overview");
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [bookmarkFilter, setBookmarkFilter] = useState("all");
   const [bookmarkSearch, setBookmarkSearch] = useState("");
@@ -283,53 +281,6 @@ export default function Students({ onOpenAuth }) {
   const [totalEarnedCredits, setTotalEarnedCredits] = useState(74);
   const [gpaHistory, setGpaHistory] = useState([]);
   const [noticesList, setNoticesList] = useState([]);
-  const [readNotices, setReadNotices] = useState(() => {
-    try {
-      const stored = localStorage.getItem(`read_notices_${user?.id}`);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [hiddenNotices, setHiddenNotices] = useState(() => {
-    try {
-      const stored = localStorage.getItem(`hidden_notices_${user?.id}`);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    if (user?.id) {
-      localStorage.setItem(`read_notices_${user.id}`, JSON.stringify(readNotices));
-    }
-  }, [readNotices, user?.id]);
-
-  useEffect(() => {
-    if (user?.id) {
-      localStorage.setItem(`hidden_notices_${user.id}`, JSON.stringify(hiddenNotices));
-    }
-  }, [hiddenNotices, user?.id]);
-
-  const handleMarkAllAsRead = () => {
-    const allIds = (noticesList || []).map(n => n.id);
-    setReadNotices(allIds);
-  };
-
-  const handleClearAllNotices = () => {
-    const allIds = filteredNotices.map(n => n.id);
-    setHiddenNotices(prev => [...new Set([...prev, ...allIds])]);
-  };
-
-  const handleHideNotice = (noticeId) => {
-    setHiddenNotices(prev => [...prev, noticeId]);
-  };
-
-  const handleResetHiddenNotices = () => {
-    setHiddenNotices([]);
-  };
-
   const [notesList, setNotesList] = useState([]);
   const [assignmentsList, setAssignmentsList] = useState([]);
   const [scheduleTimeline, setScheduleTimeline] = useState([]);
@@ -459,17 +410,6 @@ export default function Students({ onOpenAuth }) {
     }
   };
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await loadAllData();
-    } catch (err) {
-      console.error("Refresh failed:", err);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
   useEffect(() => {
     loadAllData();
   }, [user]);
@@ -563,14 +503,11 @@ export default function Students({ onOpenAuth }) {
   const [selectedNotice, setSelectedNotice] = useState(null);
 
   const filteredNotices = (noticesList || []).filter((n) => {
-    if (hiddenNotices.includes(n.id)) return false;
     const matchesSearch = n.title.toLowerCase().includes(noticeSearch.toLowerCase()) || 
                           n.content.toLowerCase().includes(noticeSearch.toLowerCase());
     const matchesCategory = noticeCategory === "all" || n.category === noticeCategory;
     return matchesSearch && matchesCategory;
   });
-
-  const unreadCount = (noticesList || []).filter(n => !readNotices.includes(n.id) && !hiddenNotices.includes(n.id)).length;
 
   // Notes and assignments are fetched dynamically from studentService
 
@@ -1103,6 +1040,18 @@ export default function Students({ onOpenAuth }) {
             </button>
 
             <button
+              onClick={() => setActiveTab("calendar")}
+              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
+                activeTab === "calendar"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              <Calendar size={20} />
+              Event Calendar
+            </button>
+
+            <button
               onClick={() => setActiveTab("profile")}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
                 activeTab === "profile"
@@ -1135,6 +1084,7 @@ export default function Students({ onOpenAuth }) {
             <div>
               <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">
                 {activeTab === "overview" && "Dashboard Overview"}
+                {activeTab === "calendar" && "Event Calendar"}
                 {activeTab === "courses" && "Academics & Attendance"}
                 {activeTab === "grades" && "Academics Performance"}
                 {activeTab === "notices" && "Campus Notification Desk"}
@@ -1211,16 +1161,6 @@ export default function Students({ onOpenAuth }) {
                 )}
               </div>
 
-              {/* Refresh Button */}
-              <button
-                onClick={handleRefresh}
-                disabled={isRefreshing || loadingPortal}
-                className="p-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 hover:bg-slate-50 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
-                title="Refresh Data"
-              >
-                <RefreshCw size={20} className={`${isRefreshing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
-              </button>
-
               {/* Notification Bell */}
               <button
                 onClick={() => setActiveTab("notices")}
@@ -1228,11 +1168,9 @@ export default function Students({ onOpenAuth }) {
                 title="Campus Notices"
               >
                 <Bell size={20} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-4 ring-white animate-bounce">
-                    {unreadCount}
-                  </span>
-                )}
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-4 ring-white">
+                  {noticesList.length}
+                </span>
               </button>
 
               {/* Quick Live stats badge */}
@@ -1653,6 +1591,156 @@ export default function Students({ onOpenAuth }) {
 
               </div>
 
+              {/* Row 5: Notice Board */}
+              <div className="w-full mt-8">
+                {/* Recent Announcements */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <Bell className="h-5 w-5 text-indigo-600" /> Recent Announcements
+                      </h4>
+                      <button 
+                        onClick={() => setActiveTab("notices")}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+                      >
+                        View All ({noticesList.length})
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-400 font-medium mb-5">Latest college notifications and exam department circulars.</p>
+
+                    <div className="space-y-3.5 max-h-[220px] overflow-y-auto pr-1">
+                      {noticesList.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 space-y-2">
+                          <Bell size={36} className="mx-auto text-slate-300" />
+                          <p className="text-sm font-medium">No notices published yet.</p>
+                        </div>
+                      ) : (
+                        noticesList.slice(0, 3).map((notice) => (
+                          <div key={notice.id} className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-sm transition-all duration-200">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                                  notice.category === "exams"
+                                    ? "bg-rose-50 text-rose-700 border border-rose-100"
+                                    : notice.category === "events"
+                                      ? "bg-amber-50 text-amber-700 border border-amber-100"
+                                      : "bg-blue-50 text-blue-700 border border-blue-100"
+                                }`}>
+                                  {notice.category}
+                                </span>
+                                {notice.important && (
+                                  <span className="text-[9px] font-black uppercase bg-red-100 text-red-700 px-1.5 py-0.2 rounded border border-red-200 animate-pulse">
+                                    Urgent
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-semibold">{notice.date}</span>
+                            </div>
+                            <h5 className="font-bold text-slate-800 text-sm leading-snug">{notice.title}</h5>
+                            <p className="text-xs text-slate-500 leading-relaxed font-semibold mt-1 truncate">{notice.content}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* --- TAB: EVENT CALENDAR --- */}
+          {activeTab === "calendar" && (
+            <div className="grid gap-8 lg:grid-cols-5 animate-fadeIn">
+              {/* Calendar Widget (3 columns) */}
+              <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/50 shadow-sm lg:col-span-3 flex flex-col justify-between space-y-6">
+                <div>
+                  <div className="border-b border-slate-100 pb-4 mb-6">
+                    <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-indigo-600" /> Academic & Event Calendar
+                    </h3>
+                    <p className="text-xs text-slate-400 font-semibold mt-1">Monthly calendar view showing academic schedules, holidays, and events.</p>
+                  </div>
+
+                  <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-200/60 text-center">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Current Month</span>
+                    <h3 className="text-3xl font-extrabold text-slate-800 mt-1">
+                      {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
+                    </h3>
+                    <div className="grid grid-cols-7 gap-3 mt-6 text-xs text-slate-400 font-bold uppercase tracking-wider">
+                      <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                    </div>
+                    <div className="grid grid-cols-7 gap-3 mt-3 text-sm font-semibold text-slate-700">
+                      {(() => {
+                        const today = new Date();
+                        const year = today.getFullYear();
+                        const month = today.getMonth();
+                        const currentDate = today.getDate();
+                        const firstDay = new Date(year, month, 1).getDay();
+                        const totalDays = new Date(year, month + 1, 0).getDate();
+                        
+                        const daySlots = [];
+                        for (let i = 0; i < firstDay; i++) {
+                          daySlots.push(<span key={`empty-${i}`} className="p-2" />);
+                        }
+                        for (let day = 1; day <= totalDays; day++) {
+                          const isToday = day === currentDate;
+                          daySlots.push(
+                            <span
+                              key={`day-${day}`}
+                              className={`p-2 rounded-xl flex items-center justify-center transition-all ${
+                                isToday ? "bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/30" : "hover:bg-slate-200/50 cursor-pointer"
+                              }`}
+                            >
+                              {day}
+                            </span>
+                          );
+                        }
+                        return daySlots;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Upcoming Campus Events list (2 columns) */}
+              <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200/50 lg:col-span-2 flex flex-col justify-between">
+                <div>
+                  <div className="border-b border-slate-100 pb-4 mb-6">
+                    <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                      <span>📅</span> Upcoming Deadlines & Events
+                    </h3>
+                    <p className="text-xs text-slate-400 font-semibold mt-1">Important schedules for the current academic month.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {[
+                      { date: "Aug 5, 2026", title: "Course Registration Deadline", desc: "Last day to enroll and register courses for the Odd Semester.", type: "academic" },
+                      { date: "Aug 10, 2026", title: "Hackathon Prep Workshop", desc: "CS department workshop on competitive coding strategies.", type: "workshop" },
+                      { date: "Aug 15, 2026", title: "Independence Day Holiday", desc: "National holiday. College operations remain closed.", type: "holiday" },
+                      { date: "Aug 24, 2026", title: "Mid-Term Examinations Phase I", desc: "Phase I tests begin for all undergraduate semesters.", type: "exam" },
+                      { date: "Aug 31, 2026", title: "Project Synopsis Submission", desc: "Final submission of project synopses for final year students.", type: "academic" }
+                    ].map((evt, idx) => (
+                      <div key={idx} className="flex gap-4 items-start p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                        <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 ${
+                          evt.type === "exam" ? "bg-rose-50 text-rose-700 border border-rose-100" :
+                          evt.type === "holiday" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
+                          evt.type === "workshop" ? "bg-amber-50 text-amber-700 border border-amber-100" :
+                          "bg-blue-50 text-blue-700 border border-blue-100"
+                        }`}>
+                          {evt.type}
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-slate-400">{evt.date}</p>
+                          <h4 className="text-sm font-bold text-slate-800 leading-tight">{evt.title}</h4>
+                          <p className="text-xs text-slate-500 font-medium leading-relaxed">{evt.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -2299,41 +2387,6 @@ export default function Students({ onOpenAuth }) {
 
               </div>
 
-              {/* Notices Actions row */}
-              <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400 font-bold">
-                    Showing {filteredNotices.length} announcements
-                  </span>
-                  {hiddenNotices.length > 0 && (
-                    <button
-                      onClick={handleResetHiddenNotices}
-                      className="text-xs text-indigo-600 hover:text-indigo-700 font-bold hover:underline"
-                    >
-                      Restore dismissed ({hiddenNotices.length})
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleMarkAllAsRead}
-                    disabled={unreadCount === 0}
-                    className="text-xs text-slate-500 hover:text-slate-800 font-bold transition disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Mark all as read
-                  </button>
-                  <span className="h-3 w-px bg-slate-200"></span>
-                  <button
-                    onClick={handleClearAllNotices}
-                    disabled={filteredNotices.length === 0}
-                    className="text-xs text-rose-500 hover:text-rose-600 font-bold transition disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Dismiss all
-                  </button>
-                </div>
-              </div>
-
               {/* Notices List */}
               <div className="space-y-4">
                 {filteredNotices.length === 0 ? (
@@ -2347,31 +2400,21 @@ export default function Students({ onOpenAuth }) {
                       key={notice.id} 
                       className={`bg-white rounded-2xl p-6 shadow-sm border transition-all duration-200 hover:shadow-md cursor-pointer ${
                         notice.important ? "border-l-4 border-l-red-500 border-slate-200/50" : "border-slate-200/50"
-                      } ${!readNotices.includes(notice.id) ? "ring-1 ring-indigo-50" : ""}`}
-                      onClick={() => {
-                        setSelectedNotice(notice);
-                        if (!readNotices.includes(notice.id)) {
-                          setReadNotices(prev => [...prev, notice.id]);
-                        }
-                      }}
+                      }`}
+                      onClick={() => setSelectedNotice(notice)}
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                            notice.category === "exams" 
-                              ? "bg-rose-50 text-rose-600 border border-rose-100" 
-                              : notice.category === "events" 
-                                ? "bg-amber-50 text-amber-600 border border-amber-100" 
-                                : "bg-indigo-50 text-indigo-600 border border-indigo-100"
-                          }`}>
-                            {notice.category}
-                          </span>
-                          {!readNotices.includes(notice.id) && (
-                            <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse" title="Unread Notice" />
-                          )}
-                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                          notice.category === "exams" 
+                            ? "bg-rose-50 text-rose-600 border border-rose-100" 
+                            : notice.category === "events" 
+                              ? "bg-amber-50 text-amber-600 border border-amber-100" 
+                              : "bg-indigo-50 text-indigo-600 border border-indigo-100"
+                        }`}>
+                          {notice.category}
+                        </span>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
                             <Calendar size={12} />
                             {notice.date}
@@ -2389,16 +2432,6 @@ export default function Students({ onOpenAuth }) {
                             title={isBookmarked(notice.id) ? "Remove Bookmark" : "Bookmark Notice"}
                           >
                             <Bookmark size={14} fill={isBookmarked(notice.id) ? "currentColor" : "none"} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleHideNotice(notice.id);
-                            }}
-                            className="p-1.5 rounded-lg border border-slate-200/40 text-slate-400 hover:text-rose-600 hover:border-rose-100 bg-white transition-all"
-                            title="Dismiss Notice"
-                          >
-                            <X size={14} />
                           </button>
                         </div>
                       </div>
