@@ -13,7 +13,6 @@ const EventSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["Workshop", "Hackathon", "Cultural Event", "Sports", "Guest Lecture"],
       required: true,
     },
     date: {
@@ -22,11 +21,9 @@ const EventSchema = new mongoose.Schema(
     },
     time: {
       type: String, // HH:MM AM/PM
-      required: true,
     },
     location: {
       type: String,
-      required: true,
     },
     registrations: [
       {

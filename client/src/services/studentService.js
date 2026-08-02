@@ -61,6 +61,10 @@ const studentService = {
     const response = await API.post("/student/gpa", data);
     return response.data;
   },
+  getEvents: async () => {
+    const response = await API.get("/student/events");
+    return response.data;
+  },
 };
 
 export default studentService;

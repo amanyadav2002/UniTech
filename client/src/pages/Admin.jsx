@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, GraduationCap, Briefcase, Shield, BookOpen, Building, Calendar,
   Clock, CheckSquare, FileText, BookMarked, MessageSquare, AlertTriangle, BarChart3,
-  Download, Bell, Settings, LogOut, ChevronDown, ChevronRight, Menu, X, Plus, Edit,
+  Download, Bell, Settings, LogOut, ChevronDown, ChevronRight, ChevronLeft, Menu, X, Plus, Edit,
   Trash2, UserCheck, UserX, Search, ShieldAlert, Sparkles, Filter, Check, RefreshCw,
   Info, Eye, HelpCircle, FileSpreadsheet, Lock, ArrowLeft
 } from "lucide-react";
@@ -97,6 +97,136 @@ export default function Admin() {
   const [crudModal, setCrudModal] = useState(null); // { type: 'student'|'faculty'|'security'|'admin'|'dept'|'course'|'subject'|'notice'|'event'|'visitor'|'material'|'assignment', mode: 'add'|'edit', data: {} }
   const [resetPassModal, setResetPassModal] = useState(null); // { userId, name }
 
+  // Custom Event Date states
+  const [evDay, setEvDay] = useState("");
+  const [evMonth, setEvMonth] = useState("");
+  const [evYear, setEvYear] = useState("");
+  const [isEvDayOpen, setIsEvDayOpen] = useState(false);
+  const [isEvMonthOpen, setIsEvMonthOpen] = useState(false);
+  const [isEvYearOpen, setIsEvYearOpen] = useState(false);
+  const [evDateFormatted, setEvDateFormatted] = useState("");
+  const [evDateRaw, setEvDateRaw] = useState("");
+  const calendarInputRef = useRef(null);
+
+  const [calViewDate, setCalViewDate] = useState(new Date());
+
+  const evYearsList = ["2026", "2027", "2028", "2029", "2030"];
+
+  const getEvMaxDays = (monthNumStr, yearString) => {
+    const monthNum = parseInt(monthNumStr, 10);
+    const yrNum = parseInt(yearString, 10);
+    if (!monthNum || isNaN(monthNum)) return 31;
+    if ([4, 6, 9, 11].includes(monthNum)) return 30;
+    if (monthNum === 2) {
+      if (!yrNum || isNaN(yrNum)) return 28;
+      const isLeap = (yrNum % 4 === 0 && yrNum % 100 !== 0) || (yrNum % 400 === 0);
+      return isLeap ? 29 : 28;
+    }
+    return 31;
+  };
+
+  const handleEvDayChange = (val) => {
+    setIsEvDayOpen(true);
+    if (val === "") {
+      setEvDay("");
+      return;
+    }
+    const clean = val.replace(/\D/g, "");
+    const maxDays = getEvMaxDays(evMonth, evYear);
+    if (clean === "" || parseInt(clean, 10) <= maxDays) {
+      setEvDay(clean);
+    }
+  };
+
+  const handleEvMonthChange = (val) => {
+    setIsEvMonthOpen(true);
+    if (val === "") {
+      setEvMonth("");
+      return;
+    }
+    const clean = val.replace(/\D/g, "");
+    if (clean === "" || parseInt(clean, 10) <= 12) {
+      setEvMonth(clean);
+    }
+  };
+
+  const handleEvYearChange = (val) => {
+    setIsEvYearOpen(true);
+    const clean = val.replace(/\D/g, "");
+    setEvYear(clean);
+  };
+
+  const handleEvDayBlur = () => {
+    setTimeout(() => {
+      setIsEvDayOpen(false);
+      if (evDay) {
+        const dayNum = parseInt(evDay, 10);
+        if (dayNum < 1) {
+          setEvDay("");
+        } else {
+          setEvDay(dayNum.toString().padStart(2, "0"));
+        }
+      }
+    }, 200);
+  };
+
+  const handleEvMonthBlur = () => {
+    setTimeout(() => {
+      setIsEvMonthOpen(false);
+      if (evMonth) {
+        const mNum = parseInt(evMonth, 10);
+        if (mNum < 1) {
+          setEvMonth("");
+        } else {
+          const formattedMonth = mNum.toString().padStart(2, "0");
+          setEvMonth(formattedMonth);
+          const maxDays = getEvMaxDays(formattedMonth, evYear);
+          if (evDay && parseInt(evDay, 10) > maxDays) {
+            setEvDay(maxDays.toString().padStart(2, "0"));
+          }
+        }
+      }
+    }, 200);
+  };
+
+  const handleEvYearBlur = () => {
+    setTimeout(() => {
+      setIsEvYearOpen(false);
+      if (evYear) {
+        const yrNum = parseInt(evYear, 10);
+        if (yrNum < 1900 || yrNum > 2100) {
+          const defaultYr = new Date().getFullYear().toString();
+          setEvYear(defaultYr);
+          if (parseInt(evMonth, 10) === 2) {
+            const maxDays = getEvMaxDays("02", defaultYr);
+            if (evDay && parseInt(evDay, 10) > maxDays) {
+              setEvDay(maxDays.toString().padStart(2, "0"));
+            }
+          }
+        } else {
+          if (parseInt(evMonth, 10) === 2) {
+            const maxDays = getEvMaxDays("02", yrNum.toString());
+            if (evDay && parseInt(evDay, 10) > maxDays) {
+              setEvDay(maxDays.toString().padStart(2, "0"));
+            }
+          }
+        }
+      }
+    }, 200);
+  };
+
+  useEffect(() => {
+    if (evDay && evMonth && evYear) {
+      const formattedDay = evDay.padStart(2, "0");
+      const formattedMonth = evMonth.padStart(2, "0");
+      setEvDateFormatted(`${formattedDay}-${formattedMonth}-${evYear}`);
+      setEvDateRaw(`${evYear}-${formattedMonth}-${formattedDay}`);
+    } else {
+      setEvDateFormatted("");
+      setEvDateRaw("");
+    }
+  }, [evDay, evMonth, evYear]);
+
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
@@ -171,7 +301,7 @@ export default function Admin() {
       } else if (activeSection === "notifications") {
         const data = await apiFetch("/notices");
         setNotices(data.notices);
-      } else if (activeSection === "events") {
+      } else if (activeSection === "events" || activeSection === "calendar") {
         const data = await apiFetch("/events");
         setEvents(data.events);
       } else if (activeSection === "monitoring") {
@@ -220,6 +350,15 @@ export default function Admin() {
       setNoticeSelectedSems([]);
       setNoticeVisibleTo("Both");
     }
+    if (crudModal?.type === "event" || crudModal?.type === "calendar_event") {
+      const today = new Date();
+      setEvDay(today.getDate().toString().padStart(2, "0"));
+      setEvMonth((today.getMonth() + 1).toString().padStart(2, "0"));
+      setEvYear(today.getFullYear().toString());
+      setIsEvDayOpen(false);
+      setIsEvMonthOpen(false);
+      setIsEvYearOpen(false);
+    }
   }, [crudModal]);
 
   // Load lookup values (departments, semesters) once on mount
@@ -253,7 +392,8 @@ export default function Admin() {
       case "semester": return "/semesters";
       case "class": return "/classes";
       case "notice": return "/notices";
-      case "event": return "/events";
+      case "event":
+      case "calendar_event": return "/events";
       case "visitor": return "/security-logs";
       case "report": return "/reports";
       default: return `/${type}s`;
@@ -850,36 +990,121 @@ export default function Admin() {
 
                         <div className="p-6 bg-slate-900 rounded-xl border border-slate-800 text-center">
                           <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Current Month</span>
-                          <h3 className="text-3xl font-extrabold text-white mt-1">
-                            {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
-                          </h3>
+                          <div className="flex items-center justify-between mt-1 max-w-[280px] mx-auto">
+                            <button
+                              type="button"
+                              onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                              className="p-1.5 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition cursor-pointer"
+                              title="Previous Month"
+                            >
+                              <ChevronLeft className="h-5 w-5" />
+                            </button>
+                            <h3 className="text-2xl font-extrabold text-white">
+                              {calViewDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
+                            </h3>
+                            <button
+                              type="button"
+                              onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                              className="p-1.5 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition cursor-pointer"
+                              title="Next Month"
+                            >
+                              <ChevronRight className="h-5 w-5" />
+                            </button>
+                          </div>
                           <div className="grid grid-cols-7 gap-3 mt-6 text-xs text-slate-500 font-bold uppercase tracking-wider">
                             <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
                           </div>
                           <div className="grid grid-cols-7 gap-3 mt-3 text-sm font-semibold text-slate-300">
                             {(() => {
-                              const today = new Date();
-                              const year = today.getFullYear();
-                              const month = today.getMonth();
-                              const currentDate = today.getDate();
+                              const todayObj = new Date();
+                              const year = calViewDate.getFullYear();
+                              const month = calViewDate.getMonth();
                               const firstDay = new Date(year, month, 1).getDay();
                               const totalDays = new Date(year, month + 1, 0).getDate();
                               
+                               const getParsedDate = (dateStr) => {
+                                if (!dateStr) return null;
+                                let match = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+                                if (match) {
+                                  return {
+                                    day: parseInt(match[1], 10),
+                                    month: parseInt(match[2], 10),
+                                    year: parseInt(match[3], 10)
+                                  };
+                                }
+                                match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+                                if (match) {
+                                  return {
+                                    day: parseInt(match[3], 10),
+                                    month: parseInt(match[2], 10),
+                                    year: parseInt(match[1], 10)
+                                  };
+                                }
+                                const d = new Date(dateStr);
+                                if (!isNaN(d.getTime())) {
+                                  return {
+                                    day: d.getDate(),
+                                    month: d.getMonth() + 1,
+                                    year: d.getFullYear()
+                                  };
+                                }
+                                return null;
+                              };
+
                               const daySlots = [];
                               for (let i = 0; i < firstDay; i++) {
-                                daySlots.push(<span key={`empty-${i}`} className="p-2" />);
+                                daySlots.push(<div key={`empty-${i}`} className="w-8 h-11" />);
                               }
                               for (let day = 1; day <= totalDays; day++) {
-                                const isToday = day === currentDate;
+                                const isToday = day === todayObj.getDate() && month === todayObj.getMonth() && year === todayObj.getFullYear();
+                                const dayEvents = events.filter(evt => {
+                                  const parsed = getParsedDate(evt.date);
+                                  if (!parsed) return false;
+                                  return parsed.day === day && parsed.month === (month + 1) && parsed.year === year;
+                                });
+
+                                const isHoliday = dayEvents.some(evt => evt.type?.toLowerCase().includes("holiday"));
+
+                                let eventClass = "";
+                                if (dayEvents.length > 0) {
+                                  const primaryEvent = dayEvents[0];
+                                  const type = primaryEvent.type?.toLowerCase() || "";
+                                  if (type.includes("holiday")) {
+                                    eventClass = "bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/30";
+                                  } else if (type.includes("exam") || type.includes("test") || type.includes("ia") || type.includes("practical")) {
+                                    eventClass = "bg-rose-600 text-white font-bold shadow-lg shadow-rose-600/30";
+                                  } else if (type.includes("workshop") || type.includes("visit")) {
+                                    eventClass = "bg-amber-600 text-white font-bold shadow-lg shadow-amber-600/30";
+                                  } else {
+                                    eventClass = "bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/30";
+                                  }
+                                }
+
+                                let dayStyle = "text-slate-300 hover:bg-slate-800 cursor-pointer";
+                                if (isToday) {
+                                  dayStyle = "bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/30";
+                                } else if (eventClass) {
+                                  dayStyle = eventClass;
+                                }
+
                                 daySlots.push(
-                                  <span
+                                  <div
                                     key={`day-${day}`}
-                                    className={`p-2 rounded-lg flex items-center justify-center transition-all ${
-                                      isToday ? "bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/30" : "hover:bg-slate-850 cursor-pointer"
-                                    }`}
+                                    className="flex flex-col items-center justify-center gap-0.5 mx-auto"
                                   >
-                                    {day}
-                                  </span>
+                                    <span
+                                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${dayStyle}`}
+                                    >
+                                      {day}
+                                    </span>
+                                    <span className="h-3 text-[9px] font-extrabold tracking-wider leading-none flex items-center justify-center">
+                                      {isHoliday ? (
+                                        <span className="text-emerald-500 dark:text-emerald-400">H</span>
+                                      ) : (
+                                        <span className="opacity-0">H</span>
+                                      )}
+                                    </span>
+                                  </div>
                                 );
                               }
                               return daySlots;
@@ -892,37 +1117,57 @@ export default function Admin() {
                     {/* Upcoming Campus Events list (2 columns) */}
                     <div className="bg-slate-950 rounded-2xl p-6 md:p-8 border border-slate-800 lg:col-span-2 flex flex-col justify-between">
                       <div>
-                        <div className="border-b border-slate-800 pb-4 mb-6">
-                          <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
-                            <span>📅</span> Upcoming Deadlines & Events
-                          </h3>
-                          <p className="text-xs text-slate-400 font-semibold mt-1">Important schedules for the current academic month.</p>
+                        <div className="border-b border-slate-800 pb-4 mb-6 flex justify-between items-center">
+                          <div>
+                            <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+                              <span>📅</span> Campus Events & Deadlines
+                            </h3>
+                            <p className="text-xs text-slate-500 font-semibold mt-1">Schedules managed by university administration.</p>
+                          </div>
+                          <button
+                            onClick={() => setCrudModal({ type: "calendar_event", mode: "add" })}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-lg shadow-blue-600/15"
+                            title="Schedule Event"
+                          >
+                            <Plus className="h-3.5 w-3.5" /> Add
+                          </button>
                         </div>
 
-                        <div className="space-y-4">
-                          {[
-                            { date: "Aug 5, 2026", title: "Course Registration Deadline", desc: "Last day to enroll and register courses for the Odd Semester.", type: "academic" },
-                            { date: "Aug 10, 2026", title: "Hackathon Prep Workshop", desc: "CS department workshop on competitive coding strategies.", type: "workshop" },
-                            { date: "Aug 15, 2026", title: "Independence Day Holiday", desc: "National holiday. College operations remain closed.", type: "holiday" },
-                            { date: "Aug 24, 2026", title: "Mid-Term Examinations Phase I", desc: "Phase I tests begin for all undergraduate semesters.", type: "exam" },
-                            { date: "Aug 31, 2026", title: "Project Synopsis Submission", desc: "Final submission of project synopses for final year students.", type: "academic" }
-                          ].map((evt, idx) => (
-                            <div key={idx} className="flex gap-4 items-start p-3 rounded-xl border border-slate-900 hover:bg-slate-900/40 transition-colors">
-                              <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 ${
-                                evt.type === "exam" ? "bg-rose-950/40 text-rose-400 border border-rose-900" :
-                                evt.type === "holiday" ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
-                                evt.type === "workshop" ? "bg-amber-950/40 text-amber-400 border border-amber-900" :
-                                "bg-blue-950/40 text-blue-400 border border-blue-900"
-                              }`}>
-                                {evt.type}
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-xs font-bold text-slate-500">{evt.date}</p>
-                                <h4 className="text-sm font-bold text-white leading-tight">{evt.title}</h4>
-                                <p className="text-xs text-slate-400 font-medium leading-relaxed">{evt.desc}</p>
-                              </div>
+                        <div className="space-y-4 max-h-[460px] overflow-y-auto pr-1">
+                          {events.length === 0 ? (
+                            <div className="text-center py-12 text-slate-500 text-xs font-semibold">
+                              No campus events created yet.
                             </div>
-                          ))}
+                          ) : (
+                            events.map((evt, idx) => (
+                              <div key={evt._id || idx} className="flex gap-4 items-start p-3 rounded-xl border border-slate-900 bg-slate-900/20 hover:bg-slate-900/40 transition-colors relative group">
+                                <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 ${
+                                  evt.type?.toLowerCase().includes("exam") || evt.type?.toLowerCase().includes("test") || evt.type?.toLowerCase().includes("ia") || evt.type?.toLowerCase().includes("practical")
+                                    ? "bg-rose-950/40 text-rose-400 border border-rose-900" :
+                                  evt.type?.toLowerCase().includes("holiday")
+                                    ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
+                                  evt.type?.toLowerCase().includes("workshop") || evt.type?.toLowerCase().includes("visit")
+                                    ? "bg-amber-950/40 text-amber-400 border border-amber-900" :
+                                  "bg-blue-950/40 text-blue-400 border border-blue-900"
+                                }`}>
+                                  {evt.type}
+                                </div>
+                                <div className="space-y-1 pr-6">
+                                  <p className="text-xs font-bold text-slate-500">{evt.time ? `${evt.date} • ${evt.time}` : evt.date}</p>
+                                  <h4 className="text-sm font-bold text-white leading-tight">{evt.title}</h4>
+                                  <p className="text-xs text-slate-400 font-medium leading-relaxed">{evt.description}</p>
+                                  {evt.location && <p className="text-[10px] text-slate-500 font-bold">Venue: {evt.location}</p>}
+                                </div>
+                                <button
+                                  onClick={() => handleDelete("event", evt._id)}
+                                  className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 text-rose-500 hover:text-rose-400 transition-opacity p-1 bg-slate-900/80 rounded border border-slate-800"
+                                  title="Delete Event"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ))
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2676,6 +2921,178 @@ export default function Admin() {
                 </>
               )}
 
+              {/* CALENDAR EVENT FIELDS */}
+              {crudModal.type === "calendar_event" && (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase text-slate-400">Event Title</label>
+                    <input type="text" name="title" required placeholder="e.g. Independence Day Holiday, IA1 Exams..." className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold uppercase text-slate-400">Event Type</label>
+                      <select name="type" required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                        <option value="Holiday">Holiday</option>
+                        <option value="Test">Test</option>
+                        <option value="Practicals">Practicals</option>
+                        <option value="Workshop">Workshop</option>
+                        <option value="Industrial Visit">Industrial Visit</option>
+                        <option value="Hackathon">Hackathon</option>
+                        <option value="Guest Lecture">Guest Lecture</option>
+                        <option value="Others">Others</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold uppercase text-slate-400">Date (DD-MM-YYYY)</label>
+                      <div className="flex items-center gap-2">
+                        <div className="grid grid-cols-3 gap-2 flex-1">
+                          {/* Day Input & Dropdown */}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              required
+                              placeholder="DD"
+                              value={evDay}
+                              onChange={(e) => handleEvDayChange(e.target.value)}
+                              onFocus={() => setIsEvDayOpen(true)}
+                              onBlur={handleEvDayBlur}
+                              className="w-full rounded-xl border border-slate-800 px-2 py-2 text-xs bg-slate-950 focus:border-blue-500 focus:outline-none font-bold text-white text-center"
+                            />
+                            {isEvDayOpen && (
+                              <ul className="absolute z-50 w-full bg-slate-900 border border-slate-800 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                                {Array.from({ length: getEvMaxDays(evMonth, evYear) }, (_, i) => (i + 1).toString().padStart(2, "0")).map((d) => (
+                                  <li
+                                    key={d}
+                                    onMouseDown={() => {
+                                      setEvDay(d);
+                                      setIsEvDayOpen(false);
+                                    }}
+                                    className="px-2 py-1.5 hover:bg-slate-800 hover:text-white cursor-pointer text-xs font-semibold text-center text-slate-300"
+                                  >
+                                    {d}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+
+                          {/* Month Input & Dropdown */}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              required
+                              placeholder="MM"
+                              value={evMonth}
+                              onChange={(e) => handleEvMonthChange(e.target.value)}
+                              onFocus={() => setIsEvMonthOpen(true)}
+                              onBlur={handleEvMonthBlur}
+                              className="w-full rounded-xl border border-slate-800 px-2 py-2 text-xs bg-slate-950 focus:border-blue-500 focus:outline-none font-bold text-white text-center"
+                            />
+                            {isEvMonthOpen && (
+                              <ul className="absolute z-50 w-full bg-slate-900 border border-slate-800 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                                {Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0")).map((m) => (
+                                  <li
+                                    key={m}
+                                    onMouseDown={() => {
+                                      setEvMonth(m);
+                                      setIsEvMonthOpen(false);
+                                      const maxDays = getEvMaxDays(m, evYear);
+                                      if (evDay && parseInt(evDay, 10) > maxDays) {
+                                        setEvDay(maxDays.toString().padStart(2, "0"));
+                                      }
+                                    }}
+                                    className="px-2 py-1.5 hover:bg-slate-800 hover:text-white cursor-pointer text-xs font-semibold text-center text-slate-300"
+                                  >
+                                    {m}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+
+                          {/* Year Input & Dropdown */}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              required
+                              placeholder="YYYY"
+                              value={evYear}
+                              onChange={(e) => handleEvYearChange(e.target.value)}
+                              onFocus={() => setIsEvYearOpen(true)}
+                              onBlur={handleEvYearBlur}
+                              className="w-full rounded-xl border border-slate-800 px-2 py-2 text-xs bg-slate-950 focus:border-blue-500 focus:outline-none font-bold text-white text-center"
+                            />
+                            {isEvYearOpen && (
+                              <ul className="absolute z-50 w-full bg-slate-900 border border-slate-800 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                                {evYearsList.map((y) => (
+                                  <li
+                                    key={y}
+                                    onMouseDown={() => {
+                                      setEvYear(y);
+                                      setIsEvYearOpen(false);
+                                      const maxDays = getEvMaxDays(evMonth, y);
+                                      if (evDay && parseInt(evDay, 10) > maxDays) {
+                                        setEvDay(maxDays.toString().padStart(2, "0"));
+                                      }
+                                    }}
+                                    className="px-2 py-1.5 hover:bg-slate-800 hover:text-white cursor-pointer text-xs font-semibold text-center text-slate-300"
+                                  >
+                                    {y}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Calendar Icon trigger */}
+                        <div className="relative flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (calendarInputRef.current) {
+                                try {
+                                  calendarInputRef.current.showPicker();
+                                } catch (err) {
+                                  calendarInputRef.current.click();
+                                }
+                              }
+                            }}
+                            className="w-9 h-[34px] rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 text-blue-500 flex items-center justify-center shadow-md transition cursor-pointer"
+                            title="Pick date from calendar"
+                          >
+                            <Calendar className="h-4 w-4" />
+                          </button>
+                          <input
+                            ref={calendarInputRef}
+                            type="date"
+                            value={evDateRaw}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val) {
+                                const [y, m, d] = val.split("-");
+                                setEvYear(y);
+                                setEvMonth(m);
+                                setEvDay(d);
+                              }
+                            }}
+                            className="absolute invisible w-0 h-0"
+                          />
+                        </div>
+                      </div>
+                      <input type="hidden" name="date" value={evDateFormatted} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase text-slate-400">Event Description</label>
+                    <textarea name="description" rows="3" placeholder="Enter event summary..." className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"></textarea>
+                  </div>
+                  <input type="hidden" name="time" value="" />
+                  <input type="hidden" name="location" value="" />
+                  <input type="hidden" name="capacity" value="100" />
+                </>
+              )}
+ 
               {/* EVENT FIELDS */}
               {crudModal.type === "event" && (
                 <>
@@ -2686,12 +3103,15 @@ export default function Admin() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-bold uppercase text-slate-400">Event Type</label>
-                      <select name="type" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none">
+                      <select name="type" required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                        <option value="Holiday">Holiday</option>
+                        <option value="Test">Test</option>
+                        <option value="Practicals">Practicals</option>
                         <option value="Workshop">Workshop</option>
+                        <option value="Industrial Visit">Industrial Visit</option>
                         <option value="Hackathon">Hackathon</option>
-                        <option value="Cultural Event">Cultural Event</option>
-                        <option value="Sports">Sports</option>
                         <option value="Guest Lecture">Guest Lecture</option>
+                        <option value="Others">Others</option>
                       </select>
                     </div>
                     <div className="space-y-1">
@@ -2701,8 +3121,144 @@ export default function Admin() {
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs font-bold uppercase text-slate-400">Date (YYYY-MM-DD)</label>
-                      <input type="text" name="date" required placeholder="2026-08-10" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white" />
+                      <label className="text-xs font-bold uppercase text-slate-400">Date (DD-MM-YYYY)</label>
+                      <div className="flex items-center gap-1.5">
+                        <div className="grid grid-cols-3 gap-1 flex-1">
+                          {/* Day Input & Dropdown */}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              required
+                              placeholder="DD"
+                              value={evDay}
+                              onChange={(e) => handleEvDayChange(e.target.value)}
+                              onFocus={() => setIsEvDayOpen(true)}
+                              onBlur={handleEvDayBlur}
+                              className="w-full rounded-xl border border-slate-800 px-1 py-2 text-xs bg-slate-950 focus:border-blue-500 focus:outline-none font-bold text-white text-center"
+                            />
+                            {isEvDayOpen && (
+                              <ul className="absolute z-50 w-full bg-slate-900 border border-slate-800 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                                {Array.from({ length: getEvMaxDays(evMonth, evYear) }, (_, i) => (i + 1).toString().padStart(2, "0")).map((d) => (
+                                  <li
+                                    key={d}
+                                    onMouseDown={() => {
+                                      setEvDay(d);
+                                      setIsEvDayOpen(false);
+                                    }}
+                                    className="px-2 py-1.5 hover:bg-slate-800 hover:text-white cursor-pointer text-[10px] font-semibold text-center text-slate-300"
+                                  >
+                                    {d}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+
+                          {/* Month Input & Dropdown */}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              required
+                              placeholder="MM"
+                              value={evMonth}
+                              onChange={(e) => handleEvMonthChange(e.target.value)}
+                              onFocus={() => setIsEvMonthOpen(true)}
+                              onBlur={handleEvMonthBlur}
+                              className="w-full rounded-xl border border-slate-800 px-1 py-2 text-xs bg-slate-950 focus:border-blue-500 focus:outline-none font-bold text-white text-center"
+                            />
+                            {isEvMonthOpen && (
+                              <ul className="absolute z-50 w-full bg-slate-900 border border-slate-800 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                                {Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0")).map((m) => (
+                                  <li
+                                    key={m}
+                                    onMouseDown={() => {
+                                      setEvMonth(m);
+                                      setIsEvMonthOpen(false);
+                                      const maxDays = getEvMaxDays(m, evYear);
+                                      if (evDay && parseInt(evDay, 10) > maxDays) {
+                                        setEvDay(maxDays.toString().padStart(2, "0"));
+                                      }
+                                    }}
+                                    className="px-2 py-1.5 hover:bg-slate-800 hover:text-white cursor-pointer text-[10px] font-semibold text-center text-slate-300"
+                                  >
+                                    {m}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+
+                          {/* Year Input & Dropdown */}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              required
+                              placeholder="YYYY"
+                              value={evYear}
+                              onChange={(e) => handleEvYearChange(e.target.value)}
+                              onFocus={() => setIsEvYearOpen(true)}
+                              onBlur={handleEvYearBlur}
+                              className="w-full rounded-xl border border-slate-800 px-1 py-2 text-xs bg-slate-950 focus:border-blue-500 focus:outline-none font-bold text-white text-center"
+                            />
+                            {isEvYearOpen && (
+                              <ul className="absolute z-50 w-full bg-slate-900 border border-slate-800 rounded-xl max-h-40 overflow-y-auto mt-1 shadow-lg scrollbar-thin">
+                                {evYearsList.map((y) => (
+                                  <li
+                                    key={y}
+                                    onMouseDown={() => {
+                                      setEvYear(y);
+                                      setIsEvYearOpen(false);
+                                      const maxDays = getEvMaxDays(evMonth, y);
+                                      if (evDay && parseInt(evDay, 10) > maxDays) {
+                                        setEvDay(maxDays.toString().padStart(2, "0"));
+                                      }
+                                    }}
+                                    className="px-2 py-1.5 hover:bg-slate-800 hover:text-white cursor-pointer text-[10px] font-semibold text-center text-slate-300"
+                                  >
+                                    {y}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Calendar Icon trigger */}
+                        <div className="relative flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (calendarInputRef.current) {
+                                try {
+                                  calendarInputRef.current.showPicker();
+                                } catch (err) {
+                                  calendarInputRef.current.click();
+                                }
+                              }
+                            }}
+                            className="w-8 h-[32px] rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 text-blue-500 flex items-center justify-center shadow-md transition cursor-pointer"
+                            title="Pick date from calendar"
+                          >
+                            <Calendar className="h-3.5 w-3.5" />
+                          </button>
+                          <input
+                            ref={calendarInputRef}
+                            type="date"
+                            value={evDateRaw}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val) {
+                                const [y, m, d] = val.split("-");
+                                setEvYear(y);
+                                setEvMonth(m);
+                                setEvDay(d);
+                              }
+                            }}
+                            className="absolute invisible w-0 h-0"
+                          />
+                        </div>
+                      </div>
+                      <input type="hidden" name="date" value={evDateFormatted} />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-bold uppercase text-slate-400">Time</label>
