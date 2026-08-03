@@ -480,6 +480,7 @@ export default function Faculty({ onOpenAuth }) {
   const [isAttMonthOpen, setIsAttMonthOpen] = useState(false);
   const [isAttYearOpen, setIsAttYearOpen] = useState(false);
   const [calViewDate, setCalViewDate] = useState(new Date());
+  const facultyJumpInputRef = useRef(null);
 
   const currentYearNum = new Date().getFullYear();
   const attYearsList = Array.from({ length: Math.max(1, currentYearNum - 2026 + 1) }, (_, i) => (2026 + i).toString());
@@ -2431,7 +2432,7 @@ export default function Faculty({ onOpenAuth }) {
 
                 <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-200/60 text-center">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Current Month</span>
-                  <div className="flex items-center justify-between mt-1 max-w-[280px] mx-auto">
+                  <div className="flex items-center justify-between mt-1 max-w-[320px] mx-auto gap-4">
                     <button
                       type="button"
                       onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
@@ -2440,9 +2441,39 @@ export default function Faculty({ onOpenAuth }) {
                     >
                       <ChevronLeft className="h-5 w-5" />
                     </button>
-                    <h3 className="text-2xl font-extrabold text-slate-800">
-                      {calViewDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-2xl font-extrabold text-slate-800">
+                        {calViewDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
+                      </h3>
+                      <div className="relative flex items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (facultyJumpInputRef.current) {
+                              try { facultyJumpInputRef.current.showPicker(); } catch (err) { facultyJumpInputRef.current.click(); }
+                            }
+                          }}
+                          className="p-1 hover:bg-slate-200 rounded-lg text-indigo-600 hover:text-indigo-500 transition cursor-pointer"
+                          title="Jump to date"
+                        >
+                          <Calendar className="h-4.5 w-4.5" />
+                        </button>
+                        <input
+                          ref={facultyJumpInputRef}
+                          type="date"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val) {
+                              const parsedDate = new Date(val);
+                              if (!isNaN(parsedDate.getTime())) {
+                                setCalViewDate(parsedDate);
+                              }
+                            }
+                          }}
+                          className="absolute invisible w-0 h-0"
+                        />
+                      </div>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}

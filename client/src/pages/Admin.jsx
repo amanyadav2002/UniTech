@@ -107,6 +107,7 @@ export default function Admin() {
   const [evDateFormatted, setEvDateFormatted] = useState("");
   const [evDateRaw, setEvDateRaw] = useState("");
   const calendarInputRef = useRef(null);
+  const adminJumpInputRef = useRef(null);
 
   const [calViewDate, setCalViewDate] = useState(new Date());
 
@@ -990,7 +991,7 @@ export default function Admin() {
 
                         <div className="p-6 bg-slate-900 rounded-xl border border-slate-800 text-center">
                           <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Current Month</span>
-                          <div className="flex items-center justify-between mt-1 max-w-[280px] mx-auto">
+                          <div className="flex items-center justify-between mt-1 max-w-[320px] mx-auto gap-4">
                             <button
                               type="button"
                               onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
@@ -999,9 +1000,39 @@ export default function Admin() {
                             >
                               <ChevronLeft className="h-5 w-5" />
                             </button>
-                            <h3 className="text-2xl font-extrabold text-white">
-                              {calViewDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
-                            </h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-2xl font-extrabold text-white">
+                                {calViewDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
+                              </h3>
+                              <div className="relative flex items-center justify-center">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (adminJumpInputRef.current) {
+                                      try { adminJumpInputRef.current.showPicker(); } catch (err) { adminJumpInputRef.current.click(); }
+                                    }
+                                  }}
+                                  className="p-1 hover:bg-slate-800 rounded-lg text-blue-500 hover:text-blue-400 transition cursor-pointer"
+                                  title="Jump to date"
+                                >
+                                  <Calendar className="h-4.5 w-4.5" />
+                                </button>
+                                <input
+                                  ref={adminJumpInputRef}
+                                  type="date"
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val) {
+                                      const parsedDate = new Date(val);
+                                      if (!isNaN(parsedDate.getTime())) {
+                                        setCalViewDate(parsedDate);
+                                      }
+                                    }
+                                  }}
+                                  className="absolute invisible w-0 h-0"
+                                />
+                              </div>
+                            </div>
                             <button
                               type="button"
                               onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
