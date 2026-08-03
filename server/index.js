@@ -70,6 +70,11 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", message: "Server is running smoothly" });
 });
 
+// Home Route
+app.get("/", (req, res) => {
+  res.json({ status: "ok", message: "UniTech API Server is running. Frontend is deployed on Vercel." });
+});
+
 // Start Server and Connect DB
 const startServer = async () => {
   try {
