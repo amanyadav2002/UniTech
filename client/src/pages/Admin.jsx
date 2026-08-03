@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { API_BASE_URL } from "../config";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend, PieChart, Pie, Cell
@@ -24,7 +25,7 @@ const apiFetch = async (path, options = {}) => {
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-  const res = await fetch(`http://localhost:5000/api/admin${path}`, {
+  const res = await fetch(`${API_BASE_URL}/admin${path}`, {
     ...options,
     headers,
   });

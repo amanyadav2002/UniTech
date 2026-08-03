@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../config";
 import {
   X,
   Mail,
@@ -272,12 +273,12 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
     if (isOpen) {
       const loadLookupData = async () => {
         try {
-          const deptRes = await fetch("http://localhost:5000/api/auth/departments");
+          const deptRes = await fetch(`${API_BASE_URL}/auth/departments`);
           if (deptRes.ok) {
             const deptData = await deptRes.json();
             setDepartments(deptData.departments || []);
           }
-          const semRes = await fetch("http://localhost:5000/api/auth/semesters");
+          const semRes = await fetch(`${API_BASE_URL}/auth/semesters`);
           if (semRes.ok) {
             const semData = await semRes.json();
             setSemestersList(semData.semesters || []);

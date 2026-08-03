@@ -12,9 +12,12 @@ const socketIo = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
+
+const corsOrigin = process.env.CLIENT_URL || "*";
+
 const io = socketIo(server, {
   cors: {
-    origin: "*",
+    origin: corsOrigin,
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
   }
@@ -24,7 +27,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: "*", // Adjust in production to specific frontend domains if necessary
+  origin: corsOrigin,
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
