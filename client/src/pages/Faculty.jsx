@@ -20,6 +20,7 @@ import {
   Bell,
   Clock,
   Plus,
+  RefreshCw,
   Trash2,
   Edit,
   User,
@@ -96,6 +97,7 @@ export default function Faculty({ onOpenAuth }) {
   
   // Dashboard active tab navigation
   const [activeTab, setActiveTab] = useState("overview");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [resourceSubTab, setResourceSubTab] = useState("materials");
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [noticeSearch, setNoticeSearch] = useState("");
@@ -405,6 +407,17 @@ export default function Faculty({ onOpenAuth }) {
       setErrorPortal(err.message || "Failed to load portal data.");
     } finally {
       setLoadingPortal(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadAllFacultyData();
+    } catch (err) {
+      console.error("Refresh failed:", err);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -2077,6 +2090,16 @@ export default function Faculty({ onOpenAuth }) {
                 </div>
               )}
             </div>
+
+            {/* Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing || loadingPortal}
+              className="p-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 hover:bg-slate-50 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
+              title="Refresh Data"
+            >
+              <RefreshCw size={20} className={`${isRefreshing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
+            </button>
 
             {/* Notification Icon */}
             <button
