@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { io } from "socket.io-client";
+import { SOCKET_URL } from "../config";
 import {
   Users,
   GraduationCap,
@@ -300,7 +301,7 @@ export default function Students({ onOpenAuth }) {
   useEffect(() => {
     if (!user || user.role !== "student") return;
 
-    const socket = io("http://localhost:5000");
+    const socket = io(SOCKET_URL);
 
     socket.emit("join", { userId: user._id, role: "student" });
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../config";
 import {
   LayoutDashboard,
   Mail,
@@ -379,7 +380,7 @@ export default function Faculty({ onOpenAuth }) {
       
       // Fetch semesters
       try {
-        const semRes = await fetch("http://localhost:5000/api/auth/semesters");
+        const semRes = await fetch(`${API_BASE_URL}/auth/semesters`);
         if (semRes.ok) {
           const semData = await semRes.json();
           setSemestersList(semData.semesters || []);
@@ -390,7 +391,7 @@ export default function Faculty({ onOpenAuth }) {
 
       // Fetch global courses
       try {
-        const courseRes = await fetch("http://localhost:5000/api/auth/courses");
+        const courseRes = await fetch(`${API_BASE_URL}/auth/courses`);
         if (courseRes.ok) {
           const courseData = await courseRes.json();
           setGlobalCourses(courseData.courses || []);
