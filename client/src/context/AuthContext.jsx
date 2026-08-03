@@ -216,6 +216,135 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Social Check Handler
+  const socialCheck = async (email) => {
+    try {
+      const response = await fetch(`${API_URL}/auth/social-check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Social check failed");
+      return data;
+    } catch (err) {
+      console.error("Social check error:", err);
+      throw err;
+    }
+  };
+
+  // Social Login Handler
+  const socialLogin = async (email, provider, providerId) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/auth/social-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, provider, providerId }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Social login failed");
+
+      sessionStorage.setItem("token", data.token);
+      setToken(data.token);
+
+      const loggedInUser = data.user;
+      if (loggedInUser && loggedInUser.role === "student") {
+        const profile = loggedInUser.profile || {};
+        if (!profile.bookmarks) {
+          profile.bookmarks = [];
+        }
+        loggedInUser.profile = profile;
+      }
+
+      setUser(loggedInUser);
+      return loggedInUser;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Social Signup Handler
+  const socialSignup = async (signUpData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/auth/social-signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(signUpData),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Social signup failed");
+
+      sessionStorage.setItem("token", data.token);
+      setToken(data.token);
+
+      const registeredUser = data.user;
+      if (registeredUser && registeredUser.role === "student") {
+        const profile = registeredUser.profile || {};
+        if (!profile.bookmarks) {
+          profile.bookmarks = [];
+        }
+        registeredUser.profile = profile;
+      }
+
+      setUser(registeredUser);
+      return registeredUser;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Google ID Token Login handler
+  const loginWithGoogleToken = async (idToken) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/auth/google`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ idToken }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Google login verification failed");
+      }
+
+      if (data.exists) {
+        sessionStorage.setItem("token", data.token);
+        setToken(data.token);
+
+        const loggedInUser = data.user;
+        if (loggedInUser && loggedInUser.role === "student") {
+          const profile = loggedInUser.profile || {};
+          if (!profile.bookmarks) {
+            profile.bookmarks = [];
+          }
+          loggedInUser.profile = profile;
+        }
+
+        setUser(loggedInUser);
+      }
+      return data;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const value = {
     user,
     token,
@@ -227,6 +356,10 @@ export function AuthProvider({ children }) {
     updateUserProfile,
     addBookmark,
     removeBookmark,
+    socialCheck,
+    socialLogin,
+    socialSignup,
+    loginWithGoogleToken,
     clearError: () => setError(null),
   };
 

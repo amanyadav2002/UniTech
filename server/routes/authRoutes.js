@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { signup, login, getMe, updateProfile, addBookmark, removeBookmark } = require("../controllers/authController");
+const { signup, login, getMe, updateProfile, addBookmark, removeBookmark, checkSocialEmail, socialLogin, socialSignup, googleLogin } = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
 const Department = require("../models/Department");
 const Semester = require("../models/Semester");
@@ -13,6 +13,22 @@ router.post("/signup", signup);
 // @route   POST api/auth/login
 // @desc    Authenticate user & get token
 router.post("/login", login);
+
+// @route   POST api/auth/social-check
+// @desc    Check if email exists
+router.post("/social-check", checkSocialEmail);
+
+// @route   POST api/auth/social-login
+// @desc    Authenticate user via Google/GitHub
+router.post("/social-login", socialLogin);
+
+// @route   POST api/auth/social-signup
+// @desc    Register user via Google/GitHub
+router.post("/social-signup", socialSignup);
+
+// @route   POST api/auth/google
+// @desc    Verify Google ID token and login
+router.post("/google", googleLogin);
 
 // @route   GET api/auth/me
 // @desc    Get logged in user profile
