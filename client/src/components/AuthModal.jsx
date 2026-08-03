@@ -234,7 +234,8 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
   const [semestersList, setSemestersList] = useState([]);
 
   // Auth Context hooks
-  const { login, signup } = useAuth();
+  const { login, signup, socialCheck, socialLogin, socialSignup, loginWithGoogleToken } = useAuth();
+  const [socialAuthData, setSocialAuthData] = useState(null);
   const [localError, setLocalError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -244,6 +245,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
       setTab(defaultTab);
       setRole(defaultRole);
       setLocalError(null);
+      setSocialAuthData(null);
       setName("");
       setEmail("");
       setPassword("");
@@ -314,6 +316,127 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
+  // Google Credential Response Callback
+  const handleCredentialResponse = async (response) => {
+    const idToken = response.credential;
+    setLocalError(null);
+    setLoading(true);
+    try {
+      const res = await loginWithGoogleToken(idToken);
+      if (res.exists) {
+        // User exists and logged in successfully!
+        onClose();
+        const loggedInUser = res.user;
+        if (loggedInUser.role === "student") {
+          navigate("/students");
+        } else if (loggedInUser.role === "faculty") {
+          navigate("/faculty");
+        } else if (loggedInUser.role === "admin") {
+          navigate("/admin");
+        }
+      } else {
+        // New user! Go to complete profile screen
+        setSocialAuthData({
+          provider: "google",
+          email: res.email,
+          name: res.name,
+          providerId: res.googleId,
+        });
+        setName(res.name || "");
+        setEmail(res.email);
+        setTab("social-signup");
+        setRole("student");
+      }
+    } catch (err) {
+      setLocalError(err.message || "Google authentication failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initialize and Render Google Sign-In Button
+  useEffect(() => {
+    if (isOpen && window.google && tab !== "social-signup") {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "422348845354-706a2hbhkq9931gfi8fg509mbuqc2760.apps.googleusercontent.com",
+          callback: handleCredentialResponse,
+        });
+
+        // Delay slightly to ensure DOM element exists
+        setTimeout(() => {
+          const btnParent = document.getElementById("google-signin-button");
+          if (btnParent) {
+            window.google.accounts.id.renderButton(
+              btnParent,
+              {
+                theme: "outline",
+                size: "large",
+                width: btnParent.offsetWidth || 380,
+                text: "continue_with",
+                shape: "pill"
+              }
+            );
+          }
+        }, 100);
+      } catch (err) {
+        console.error("Failed to initialize Google Sign In:", err);
+      }
+    }
+  }, [isOpen, tab]);
+
+  // Listen to message events from social oauth popup (for GitHub simulator)
+  useEffect(() => {
+    const handleMessage = async (event) => {
+      if (event.data && event.data.type === "oauth-success") {
+        const { provider, email, name: oAuthName, id } = event.data;
+        if (provider !== "github") return; // Google is handled natively
+        setLocalError(null);
+        setLoading(true);
+        try {
+          const checkRes = await socialCheck(email);
+          if (checkRes.exists) {
+            const loggedInUser = await socialLogin(email, provider, id);
+            onClose();
+            if (loggedInUser.role === "student") {
+              navigate("/students");
+            } else if (loggedInUser.role === "faculty") {
+              navigate("/faculty");
+            } else if (loggedInUser.role === "admin") {
+              navigate("/admin");
+            }
+          } else {
+            setSocialAuthData({ provider, email, name: oAuthName, providerId: id });
+            setName(oAuthName || "");
+            setEmail(email);
+            setTab("social-signup");
+            setRole("student");
+          }
+        } catch (err) {
+          setLocalError(err.message || "Social authentication failed.");
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [socialCheck, socialLogin, navigate, onClose]);
+
+  const handleSocialClick = (provider) => {
+    const width = 500;
+    const height = 650;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    const popup = window.open(
+      `${window.location.origin}/oauth-simulator.html?provider=${provider}`,
+      `Simulated ${provider} Login`,
+      `width=${width},height=${height},left=${left},top=${top}`
+    );
+    if (popup) popup.focus();
+  };
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
@@ -329,7 +452,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
     try {
       if (tab === "login") {
         await login(email, password, role);
-      } else {
+      } else if (tab === "signup") {
         const signupData = {
           name,
           email,
@@ -353,6 +476,31 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
         }
 
         await signup(signupData);
+      } else if (tab === "social-signup") {
+        const signupData = {
+          name: name || (socialAuthData && socialAuthData.name) || "Social User",
+          email: socialAuthData.email,
+          role,
+          provider: socialAuthData.provider,
+          providerId: socialAuthData.providerId,
+          id: customId,
+          age: Number(age),
+          phone,
+          dob,
+        };
+
+        if (role === "student") {
+          signupData.usn = usn;
+          signupData.year = year;
+          signupData.semester = semester;
+          signupData.blood = blood;
+          signupData.department = department;
+        } else if (role === "faculty") {
+          signupData.department = department;
+          signupData.salary = Number(salary);
+        }
+
+        await socialSignup(signupData);
       }
       onClose();
       if (role === "student") {
@@ -403,7 +551,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
       <div className="absolute inset-0" onClick={onClose}></div>
 
       {/* Modal Card */}
-      <div className={`relative w-full transition-all duration-300 ${tab === "signup" ? "max-w-2xl" : "max-w-md"} max-h-[90vh] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200`}>
+      <div className={`relative w-full transition-all duration-300 ${tab === "signup" || tab === "social-signup" ? "max-w-2xl" : "max-w-md"} max-h-[90vh] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200`}>
         
         {/* Header decoration banner */}
         <div className="h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 shrink-0"></div>
@@ -426,47 +574,65 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
               <span className="text-xl font-bold text-slate-800">UniTech</span>
             </div>
             <h2 className="text-xl font-bold text-slate-900">
-              {tab === "login" ? "Welcome Back" : "Create an Account"}
+              {tab === "login" ? "Welcome Back" : tab === "social-signup" ? "Complete Your Profile" : "Create an Account"}
             </h2>
             <p className="text-sm text-slate-500 mt-1">
               {tab === "login"
                 ? "Enter your credentials to access your dashboard"
-                : "Join UniTech portal to start managing academic tasks"}
+                : tab === "social-signup"
+                  ? `Linked ${socialAuthData?.provider === "google" ? "Google" : "GitHub"} account: ${socialAuthData?.email}`
+                  : "Join UniTech portal to start managing academic tasks"}
             </p>
           </div>
 
-          {/* Login / Sign Up Tabs */}
-          <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
+          {/* Back Button for Social Signup */}
+          {tab === "social-signup" && (
             <button
+              type="button"
               onClick={() => {
                 setTab("login");
-                setLocalError(null);
-                // Reset role to student if current role was admin and we switch tabs
-                if (role === "admin") setRole("student");
+                setSocialAuthData(null);
               }}
-              className={`flex-1 py-1.5 text-sm font-semibold rounded-lg transition-all ${
-                tab === "login"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-slate-600 hover:text-slate-800"
-              }`}
+              className="text-xs text-blue-600 hover:text-blue-700 font-semibold mb-2 inline-flex items-center gap-1 focus:outline-none"
             >
-              Login
+              &larr; Back to Sign In
             </button>
-            <button
-              onClick={() => {
-                setTab("signup");
-                setLocalError(null);
-                setRole("student");
-              }}
-              className={`flex-1 py-1.5 text-sm font-semibold rounded-lg transition-all ${
-                tab === "signup"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-slate-600 hover:text-slate-800"
-              }`}
-            >
-              Sign Up
-            </button>
-          </div>
+          )}
+
+          {/* Login / Sign Up Tabs */}
+          {tab !== "social-signup" && (
+            <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
+              <button
+                onClick={() => {
+                  setTab("login");
+                  setLocalError(null);
+                  // Reset role to student if current role was admin and we switch tabs
+                  if (role === "admin") setRole("student");
+                }}
+                className={`flex-1 py-1.5 text-sm font-semibold rounded-lg transition-all ${
+                  tab === "login"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-slate-600 hover:text-slate-800"
+                }`}
+              >
+                Login
+              </button>
+              <button
+                onClick={() => {
+                  setTab("signup");
+                  setLocalError(null);
+                  setRole("student");
+                }}
+                className={`flex-1 py-1.5 text-sm font-semibold rounded-lg transition-all ${
+                  tab === "signup"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-slate-600 hover:text-slate-800"
+                }`}
+              >
+                Sign Up
+              </button>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-3">
             {localError && (
@@ -500,9 +666,9 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
             </div>
 
             {/* Input Form layout */}
-            <div className={tab === "signup" ? "grid grid-cols-1 md:grid-cols-2 gap-4 pt-2" : "space-y-3"}>
-              {/* Name Input (Sign Up Only) */}
-              {tab === "signup" && (
+            <div className={tab === "signup" || tab === "social-signup" ? "grid grid-cols-1 md:grid-cols-2 gap-4 pt-2" : "space-y-3"}>
+              {/* Name Input (Sign Up / Social Signup Only) */}
+              {(tab === "signup" || tab === "social-signup") && (
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">
                     Full Name
@@ -526,7 +692,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
               {/* Email/Identifier Input */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">
-                  {tab === "signup"
+                  {tab === "signup" || tab === "social-signup"
                     ? "Email Address"
                     : role === "student"
                       ? "Email Address or USN"
@@ -539,10 +705,11 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                     <Mail className="h-5 w-5" />
                   </span>
                   <input
-                    type={tab === "signup" ? "email" : "text"}
+                    type={tab === "signup" || tab === "social-signup" ? "email" : "text"}
                     required
+                    disabled={tab === "social-signup"}
                     placeholder={
-                      tab === "signup"
+                      tab === "signup" || tab === "social-signup"
                         ? "name@university.edu"
                         : role === "student"
                           ? "e.g. anubhav@unitech.edu or 1RI23CS185"
@@ -552,55 +719,57 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                     }
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                    className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
 
               {/* Password Input */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-sm font-semibold text-slate-700">
-                    Password
-                  </label>
-                  {tab === "login" && (
-                    <a
-                      href="#forgot"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        alert("Forgot password mechanism is not implemented.");
-                      }}
-                      className="text-xs text-blue-600 hover:text-blue-700 hover:underline font-semibold"
-                    >
-                      Forgot Password?
-                    </a>
-                  )}
-                </div>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                    <Lock className="h-5 w-5" />
-                  </span>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    required
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 pl-10 pr-10 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
+              {tab !== "social-signup" && (
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-sm font-semibold text-slate-700">
+                      Password
+                    </label>
+                    {tab === "login" && (
+                      <a
+                        href="#forgot"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          alert("Forgot password mechanism is not implemented.");
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-700 hover:underline font-semibold"
+                      >
+                        Forgot Password?
+                      </a>
                     )}
-                  </button>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                      <Lock className="h-5 w-5" />
+                    </span>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 pl-10 pr-10 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Confirm Password (Sign Up Only) */}
               {tab === "signup" && (
@@ -635,8 +804,8 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                 </div>
               )}
 
-              {/* Profile fields (Sign Up Only) */}
-              {tab === "signup" && (
+              {/* Profile fields (Sign Up or Social Signup) */}
+              {(tab === "signup" || tab === "social-signup") && (
                 <>
                   {/* Custom ID */}
                   <div>
@@ -1062,93 +1231,57 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
               disabled={loading}
               className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-indigo-500/30 transition duration-200 active:scale-[0.98] text-sm mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Processing..." : tab === "login" ? "Sign In" : "Create Account"}
+              {loading ? "Processing..." : tab === "login" ? "Sign In" : tab === "social-signup" ? "Complete Registration" : "Create Account"}
             </button>
           </form>
 
-          {/* Social Logins */}
-          <div className="relative my-4 text-center">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200"></div>
-            </div>
-            <span className="relative bg-white px-3 text-xs text-slate-500 font-semibold uppercase tracking-wider">
-              Or continue with
-            </span>
-          </div>
+          {tab !== "social-signup" && (
+            <>
+              {/* Social Logins */}
+              <div className="relative my-4 text-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-200"></div>
+                </div>
+                <span className="relative bg-white px-3 text-xs text-slate-500 font-semibold uppercase tracking-wider">
+                  Or continue with
+                </span>
+              </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                alert("Google sign in simulator");
-                onClose();
-              }}
-              className="flex items-center justify-center gap-2 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition duration-150 font-semibold text-slate-700 text-sm"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.3-4.74 3.3-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                />
-              </svg>
-              Google
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                alert("GitHub sign in simulator");
-                onClose();
-              }}
-              className="flex items-center justify-center gap-2 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition duration-150 font-semibold text-slate-700 text-sm"
-            >
-              <svg className="h-4 w-4 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
-                <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.137 20.162 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
-              </svg>
-              GitHub
-            </button>
-          </div>
+              <div className="flex flex-col gap-3">
+                <div id="google-signin-button" className="w-full flex justify-center py-0.5 min-h-[40px] items-center"></div>
+              </div>
 
-          {/* Footer toggle switcher */}
-          <div className="text-center mt-4 text-sm text-slate-600">
-            {tab === "login" ? (
-              <>
-                New to UniTech?{" "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTab("signup");
-                    setRole("student");
-                  }}
-                  className="text-blue-600 hover:text-blue-700 font-semibold hover:underline"
-                >
-                  Create an account
-                </button>
-              </>
-            ) : (
-              <>
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => setTab("login")}
-                  className="text-blue-600 hover:text-blue-700 font-semibold hover:underline"
-                >
-                  Sign in
-                </button>
-              </>
-            )}
-          </div>
+              {/* Footer toggle switcher */}
+              <div className="text-center mt-4 text-sm text-slate-600">
+                {tab === "login" ? (
+                  <>
+                    New to UniTech?{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTab("signup");
+                        setRole("student");
+                      }}
+                      className="text-blue-600 hover:text-blue-700 font-semibold hover:underline"
+                    >
+                      Create an account
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Already have an account?{" "}
+                    <button
+                      type="button"
+                      onClick={() => setTab("login")}
+                      className="text-blue-600 hover:text-blue-700 font-semibold hover:underline"
+                    >
+                      Sign in
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

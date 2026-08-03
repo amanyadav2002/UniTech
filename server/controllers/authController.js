@@ -577,6 +577,356 @@ const removeBookmark = async (req, res) => {
   }
 };
 
+// @desc    Check if email is already registered
+// @route   POST /api/auth/social-check
+// @access  Public
+const checkSocialEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.json({ exists: false });
+    }
+
+    // Determine registration provider
+    let provider = "password";
+    if (user.googleId) provider = "google";
+    else if (user.githubId) provider = "github";
+
+    res.json({
+      exists: true,
+      provider,
+      role: user.role,
+    });
+  } catch (error) {
+    console.error("Check social email error:", error);
+    res.status(500).json({ message: "Server error checking email status" });
+  }
+};
+
+// @desc    Authenticate existing user via Google or GitHub
+// @route   POST /api/auth/social-login
+// @access  Public
+const socialLogin = async (req, res) => {
+  try {
+    const { email, provider, providerId } = req.body;
+
+    if (!email || !provider || !providerId) {
+      return res.status(400).json({ message: "Please provide email, provider, and providerId" });
+    }
+
+    const normalizedProvider = provider.toLowerCase();
+    if (!["google", "github"].includes(normalizedProvider)) {
+      return res.status(400).json({ message: "Invalid OAuth provider" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(404).json({ message: "User not found. Please sign up first." });
+    }
+
+    // Link the social ID if it isn't linked yet
+    let updated = false;
+    if (normalizedProvider === "google" && !user.googleId) {
+      user.googleId = providerId;
+      updated = true;
+    } else if (normalizedProvider === "github" && !user.githubId) {
+      user.githubId = providerId;
+      updated = true;
+    }
+    if (updated) {
+      await user.save();
+    }
+
+    // Retrieve corresponding profile details
+    let profile = null;
+    if (user.role === "student") {
+      profile = await Student.findOne({ user: user._id });
+    } else if (user.role === "faculty") {
+      profile = await Teacher.findOne({ user: user._id });
+    }
+
+    // Generate Token
+    const token = generateToken(user._id, user.email, user.role);
+
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        profile: profile,
+      },
+    });
+  } catch (error) {
+    console.error("Social login error:", error);
+    res.status(500).json({ message: "Server error occurred during social login" });
+  }
+};
+
+// @desc    Register a new user via Google or GitHub
+// @route   POST /api/auth/social-signup
+// @access  Public
+const socialSignup = async (req, res) => {
+  let createdUserId = null;
+  try {
+    const { name, email, role, provider, providerId } = req.body;
+
+    if (!name || !email || !role || !provider || !providerId) {
+      return res.status(400).json({ message: "Please enter all required authentication fields" });
+    }
+
+    const normalizedRole = role.toLowerCase();
+    if (!["student", "faculty"].includes(normalizedRole)) {
+      return res.status(400).json({ message: "Invalid role specified for signup" });
+    }
+
+    const normalizedProvider = provider.toLowerCase();
+    if (!["google", "github"].includes(normalizedProvider)) {
+      return res.status(400).json({ message: "Invalid OAuth provider" });
+    }
+
+    // Clean up existing User(s) with this email to allow overwrite/re-registration
+    const matchedUser = await User.findOne({ email: email.toLowerCase().trim() });
+    if (matchedUser) {
+      await User.deleteOne({ _id: matchedUser._id });
+      if (matchedUser.role === "student") {
+        await Student.deleteOne({ user: matchedUser._id });
+      } else if (matchedUser.role === "faculty") {
+        await Teacher.deleteOne({ user: matchedUser._id });
+      }
+    }
+
+    // Validate Custom profile fields
+    let profileData = {};
+    if (normalizedRole === "student") {
+      const { id, age, usn, phone, year, semester, dob, blood, department } = req.body;
+
+      // Handle fallback values if profile details are missing
+      const finalId = (id || usn || `STU${Math.floor(1000 + Math.random() * 9000)}`).trim();
+      const finalUsn = (usn || id || `1RV21CS${Math.floor(100 + Math.random() * 900)}`).trim().toUpperCase();
+      const finalAge = age ? Number(age) : 20;
+      const finalPhone = (phone || "+1 (555) 014-9900").trim();
+      const finalYear = (year || "3rd Year").trim();
+      const finalSemester = (semester || "6th Sem").trim();
+      const finalDob = dob ? new Date(dob) : new Date("2005-08-15");
+      const finalBlood = (blood || "O+").trim();
+      const finalDept = (department || "Computer Science Department").trim();
+
+      // Clean up any existing students matching finalId, finalUsn, or mail to avoid duplicate key errors
+      const existingStudents = await Student.find({
+        $or: [
+          { id: finalId },
+          { usn: finalUsn },
+          { mail: email.toLowerCase().trim() }
+        ]
+      });
+      for (const s of existingStudents) {
+        await User.deleteOne({ _id: s.user });
+        await Student.deleteOne({ _id: s._id });
+      }
+
+      profileData = {
+        id: finalId,
+        age: finalAge,
+        usn: finalUsn,
+        phone: finalPhone,
+        year: finalYear,
+        semester: finalSemester,
+        dob: finalDob,
+        blood: finalBlood,
+        department: finalDept
+      };
+    } else if (normalizedRole === "faculty") {
+      const { id, age, phone, department, salary, dob } = req.body;
+
+      // Handle fallback values if profile details are missing
+      const finalId = (id || `FAC${Math.floor(1000 + Math.random() * 9000)}`).trim();
+      const finalAge = age ? Number(age) : 35;
+      const finalPhone = (phone || "+1 (555) 014-9900").trim();
+      const finalDept = (department || "Computer Science Department").trim();
+      const finalSalary = salary ? Number(salary) : 75000;
+      const finalDob = dob ? new Date(dob) : new Date("1990-01-01");
+
+      // Clean up any existing teachers matching finalId or mail to avoid duplicate key errors
+      const existingTeachers = await Teacher.find({
+        $or: [
+          { id: finalId },
+          { mail: email.toLowerCase().trim() }
+        ]
+      });
+      for (const t of existingTeachers) {
+        await User.deleteOne({ _id: t.user });
+        await Teacher.deleteOne({ _id: t._id });
+      }
+
+      profileData = {
+        id: finalId,
+        age: finalAge,
+        phone: finalPhone,
+        department: finalDept,
+        salary: finalSalary,
+        dob: finalDob
+      };
+    }
+
+    // 1. Create Core User with Social ID
+    const newUserParams = {
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      role: normalizedRole,
+    };
+
+    if (normalizedProvider === "google") {
+      newUserParams.googleId = providerId;
+    } else if (normalizedProvider === "github") {
+      newUserParams.githubId = providerId;
+    }
+
+    const newUser = new User(newUserParams);
+    const savedUser = await newUser.save();
+    createdUserId = savedUser._id;
+
+    // 2. Create Role Profile Document
+    let savedProfile = null;
+    if (normalizedRole === "student") {
+      const newStudentProfile = new Student({
+        user: savedUser._id,
+        name: savedUser.name,
+        id: profileData.id,
+        age: profileData.age,
+        usn: profileData.usn,
+        mail: savedUser.email,
+        password: "", // social signup has no password
+        phone: profileData.phone,
+        year: profileData.year,
+        semester: profileData.semester,
+        dob: profileData.dob,
+        blood: profileData.blood,
+        department: profileData.department,
+      });
+      savedProfile = await newStudentProfile.save();
+    } else if (normalizedRole === "faculty") {
+      const newTeacherProfile = new Teacher({
+        user: savedUser._id,
+        name: savedUser.name,
+        id: profileData.id,
+        age: profileData.age,
+        phone: profileData.phone,
+        mail: savedUser.email,
+        password: "", // social signup has no password
+        department: profileData.department,
+        salary: profileData.salary,
+        dob: profileData.dob,
+      });
+      savedProfile = await newTeacherProfile.save();
+    }
+
+    // Generate Token
+    const token = generateToken(savedUser._id, savedUser.email, savedUser.role);
+
+    res.status(201).json({
+      token,
+      user: {
+        id: savedUser._id,
+        name: savedUser.name,
+        email: savedUser.email,
+        role: savedUser.role,
+        profile: savedProfile,
+      },
+    });
+  } catch (error) {
+    console.error("Social signup error:", error);
+    if (createdUserId) {
+      await User.findByIdAndDelete(createdUserId);
+    }
+    res.status(500).json({ message: error.message || "Server error occurred during social signup" });
+  }
+};
+
+// @desc    Verify Google ID Token & Authenticate User
+// @route   POST /api/auth/google
+// @access  Public
+const googleLogin = async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ message: "Google ID Token is required" });
+    }
+
+    // Verify ID Token with Google's tokeninfo API
+    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+    const tokenInfo = await response.json();
+
+    if (!response.ok) {
+      console.error("Google token verification failed:", tokenInfo);
+      return res.status(400).json({ message: tokenInfo.error_description || "Invalid Google token" });
+    }
+
+    // Verify audience (client_id) matches
+    const expectedClientId = process.env.GOOGLE_CLIENT_ID;
+    if (expectedClientId && tokenInfo.aud !== expectedClientId) {
+      return res.status(400).json({ message: "Token audience mismatch" });
+    }
+
+    const { sub: googleId, email, name } = tokenInfo;
+
+    // Find User
+    let user = await User.findOne({ email: email.toLowerCase().trim() });
+    
+    if (user) {
+      // User exists! Link Google ID if missing
+      let updated = false;
+      if (!user.googleId) {
+        user.googleId = googleId;
+        updated = true;
+      }
+      if (updated) {
+        await user.save();
+      }
+
+      // Retrieve corresponding profile details
+      let profile = null;
+      if (user.role === "student") {
+        profile = await Student.findOne({ user: user._id });
+      } else if (user.role === "faculty") {
+        profile = await Teacher.findOne({ user: user._id });
+      }
+
+      // Generate Token
+      const token = generateToken(user._id, user.email, user.role);
+
+      return res.json({
+        exists: true,
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          profile: profile,
+        },
+      });
+    } else {
+      // User does not exist, return user info for registration completion
+      return res.json({
+        exists: false,
+        googleId,
+        email,
+        name,
+      });
+    }
+  } catch (error) {
+    console.error("Google login error:", error);
+    res.status(500).json({ message: "Server error occurred during Google sign in" });
+  }
+};
+
 module.exports = {
   signup,
   login,
@@ -584,4 +934,8 @@ module.exports = {
   updateProfile,
   addBookmark,
   removeBookmark,
+  checkSocialEmail,
+  socialLogin,
+  socialSignup,
+  googleLogin,
 };
