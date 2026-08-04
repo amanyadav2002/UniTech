@@ -111,6 +111,8 @@ export default function Admin() {
   const adminJumpInputRef = useRef(null);
 
   const [calViewDate, setCalViewDate] = useState(new Date());
+  const [selectedEventDeptFilter, setSelectedEventDeptFilter] = useState("All");
+  const [selectedEventSemFilter, setSelectedEventSemFilter] = useState("All");
 
   const evYearsList = ["2026", "2027", "2028", "2029", "2030"];
 
@@ -306,6 +308,10 @@ export default function Admin() {
       } else if (activeSection === "events" || activeSection === "calendar") {
         const data = await apiFetch("/events");
         setEvents(data.events);
+        const deptData = await apiFetch("/departments");
+        setDepartments(deptData.departments);
+        const semData = await apiFetch("/semesters");
+        setSemesters(semData.semesters);
       } else if (activeSection === "monitoring") {
         const data = await apiFetch("/security-logs");
         setVisitorLogs(data.logs);
@@ -421,6 +427,7 @@ export default function Admin() {
       body.targetSemesters = noticeTargetAudience === "everyone" ? ["All"] : (noticeTargetAudience === "departments" ? [] : noticeSelectedSems);
       body.visibleTo = noticeVisibleTo;
     }
+
 
     try {
       const apiPath = getApiPath(crudModal.type);
@@ -978,233 +985,380 @@ export default function Admin() {
                 )}
 
                 {/* -------------------- EVENT CALENDAR PANEL -------------------- */}
-                {activeSection === "calendar" && (
-                  <div className="grid gap-8 lg:grid-cols-5 animate-fadeIn">
-                    {/* Calendar Widget (3 columns) */}
-                    <div className="bg-slate-950 p-6 md:p-8 rounded-2xl border border-slate-800 lg:col-span-3 flex flex-col justify-between space-y-6">
-                      <div>
-                        <div className="border-b border-slate-800 pb-4 mb-6">
-                          <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
-                            <Calendar className="h-5 w-5 text-blue-500" /> Academic & Event Calendar
-                          </h3>
-                          <p className="text-xs text-slate-400 font-semibold mt-1">Monthly calendar view showing academic schedules, holidays, and events.</p>
-                        </div>
-
-                        <div className="p-6 bg-slate-900 rounded-xl border border-slate-800 text-center">
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Current Month</span>
-                          <div className="flex items-center justify-between mt-1 max-w-[320px] mx-auto gap-4">
-                            <button
-                              type="button"
-                              onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
-                              className="p-1.5 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition cursor-pointer"
-                              title="Previous Month"
-                            >
-                              <ChevronLeft className="h-5 w-5" />
-                            </button>
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-2xl font-extrabold text-white">
-                                {calViewDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
-                              </h3>
-                              <div className="relative flex items-center justify-center">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (adminJumpInputRef.current) {
-                                      try { adminJumpInputRef.current.showPicker(); } catch (err) { adminJumpInputRef.current.click(); }
-                                    }
-                                  }}
-                                  className="p-1 hover:bg-slate-800 rounded-lg text-blue-500 hover:text-blue-400 transition cursor-pointer"
-                                  title="Jump to date"
-                                >
-                                  <Calendar className="h-4.5 w-4.5" />
-                                </button>
-                                <input
-                                  ref={adminJumpInputRef}
-                                  type="date"
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    if (val) {
-                                      const parsedDate = new Date(val);
-                                      if (!isNaN(parsedDate.getTime())) {
-                                        setCalViewDate(parsedDate);
-                                      }
-                                    }
-                                  }}
-                                  className="absolute invisible w-0 h-0"
-                                />
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
-                              className="p-1.5 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition cursor-pointer"
-                              title="Next Month"
-                            >
-                              <ChevronRight className="h-5 w-5" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-7 gap-3 mt-6 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
-                          </div>
-                          <div className="grid grid-cols-7 gap-3 mt-3 text-sm font-semibold text-slate-300">
-                            {(() => {
-                              const todayObj = new Date();
-                              const year = calViewDate.getFullYear();
-                              const month = calViewDate.getMonth();
-                              const firstDay = new Date(year, month, 1).getDay();
-                              const totalDays = new Date(year, month + 1, 0).getDate();
-                              
-                               const getParsedDate = (dateStr) => {
-                                if (!dateStr) return null;
-                                let match = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-                                if (match) {
-                                  return {
-                                    day: parseInt(match[1], 10),
-                                    month: parseInt(match[2], 10),
-                                    year: parseInt(match[3], 10)
-                                  };
-                                }
-                                match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-                                if (match) {
-                                  return {
-                                    day: parseInt(match[3], 10),
-                                    month: parseInt(match[2], 10),
-                                    year: parseInt(match[1], 10)
-                                  };
-                                }
-                                const d = new Date(dateStr);
-                                if (!isNaN(d.getTime())) {
-                                  return {
-                                    day: d.getDate(),
-                                    month: d.getMonth() + 1,
-                                    year: d.getFullYear()
-                                  };
-                                }
-                                return null;
-                              };
-
-                              const daySlots = [];
-                              for (let i = 0; i < firstDay; i++) {
-                                daySlots.push(<div key={`empty-${i}`} className="w-8 h-11" />);
-                              }
-                              for (let day = 1; day <= totalDays; day++) {
-                                const isToday = day === todayObj.getDate() && month === todayObj.getMonth() && year === todayObj.getFullYear();
-                                const dayEvents = events.filter(evt => {
-                                  const parsed = getParsedDate(evt.date);
-                                  if (!parsed) return false;
-                                  return parsed.day === day && parsed.month === (month + 1) && parsed.year === year;
-                                });
-
-                                const isHoliday = dayEvents.some(evt => evt.type?.toLowerCase().includes("holiday"));
-
-                                let eventClass = "";
-                                if (dayEvents.length > 0) {
-                                  const primaryEvent = dayEvents[0];
-                                  const type = primaryEvent.type?.toLowerCase() || "";
-                                  if (type.includes("holiday")) {
-                                    eventClass = "bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/30";
-                                  } else if (type.includes("exam") || type.includes("test") || type.includes("ia") || type.includes("practical")) {
-                                    eventClass = "bg-rose-600 text-white font-bold shadow-lg shadow-rose-600/30";
-                                  } else if (type.includes("workshop") || type.includes("visit")) {
-                                    eventClass = "bg-amber-600 text-white font-bold shadow-lg shadow-amber-600/30";
-                                  } else {
-                                    eventClass = "bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/30";
-                                  }
-                                }
-
-                                let dayStyle = "text-slate-300 hover:bg-slate-800 cursor-pointer";
-                                if (isToday) {
-                                  dayStyle = "bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/30";
-                                } else if (eventClass) {
-                                  dayStyle = eventClass;
-                                }
-
-                                daySlots.push(
-                                  <div
-                                    key={`day-${day}`}
-                                    className="flex flex-col items-center justify-center gap-0.5 mx-auto"
-                                  >
-                                    <span
-                                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${dayStyle}`}
-                                    >
-                                      {day}
-                                    </span>
-                                    <span className="h-3 text-[9px] font-extrabold tracking-wider leading-none flex items-center justify-center">
-                                      {isHoliday ? (
-                                        <span className="text-emerald-500 dark:text-emerald-400">H</span>
-                                      ) : (
-                                        <span className="opacity-0">H</span>
-                                      )}
-                                    </span>
-                                  </div>
-                                );
-                              }
-                              return daySlots;
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Upcoming Campus Events list (2 columns) */}
-                    <div className="bg-slate-950 rounded-2xl p-6 md:p-8 border border-slate-800 lg:col-span-2 flex flex-col justify-between">
-                      <div>
-                        <div className="border-b border-slate-800 pb-4 mb-6 flex justify-between items-center">
+                {/* -------------------- EVENT CALENDAR PANEL -------------------- */}
+                {activeSection === "calendar" && (() => {
+                  if (selectedEventDeptFilter === "All") {
+                    return (
+                      <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-8 animate-fadeIn">
+                        <div className="flex justify-between items-center border-b border-slate-800 pb-4">
                           <div>
-                            <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
-                              <span>📅</span> Campus Events & Deadlines
-                            </h3>
-                            <p className="text-xs text-slate-500 font-semibold mt-1">Schedules managed by university administration.</p>
+                            <h4 className="font-bold text-white text-lg flex items-center gap-2">
+                              <Calendar className="h-5 w-5 text-blue-500" /> Event Calendar
+                            </h4>
+                            <p className="text-xs text-slate-500 mt-0.5">Select a department first to manage its calendar.</p>
                           </div>
-                          <button
-                            onClick={() => setCrudModal({ type: "calendar_event", mode: "add" })}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-lg shadow-blue-600/15"
-                            title="Schedule Event"
-                          >
-                            <Plus className="h-3.5 w-3.5" /> Add
-                          </button>
                         </div>
 
-                        <div className="space-y-4 max-h-[460px] overflow-y-auto pr-1">
-                          {events.length === 0 ? (
-                            <div className="text-center py-12 text-slate-500 text-xs font-semibold">
-                              No campus events created yet.
-                            </div>
-                          ) : (
-                            events.map((evt, idx) => (
-                              <div key={evt._id || idx} className="flex gap-4 items-start p-3 rounded-xl border border-slate-900 bg-slate-900/20 hover:bg-slate-900/40 transition-colors relative group">
-                                <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 ${
-                                  evt.type?.toLowerCase().includes("exam") || evt.type?.toLowerCase().includes("test") || evt.type?.toLowerCase().includes("ia") || evt.type?.toLowerCase().includes("practical")
-                                    ? "bg-rose-950/40 text-rose-400 border border-rose-900" :
-                                  evt.type?.toLowerCase().includes("holiday")
-                                    ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
-                                  evt.type?.toLowerCase().includes("workshop") || evt.type?.toLowerCase().includes("visit")
-                                    ? "bg-amber-950/40 text-amber-400 border border-amber-900" :
-                                  "bg-blue-950/40 text-blue-400 border border-blue-900"
-                                }`}>
-                                  {evt.type}
-                                </div>
-                                <div className="space-y-1 pr-6">
-                                  <p className="text-xs font-bold text-slate-500">{evt.time ? `${evt.date} • ${evt.time}` : evt.date}</p>
-                                  <h4 className="text-sm font-bold text-white leading-tight">{evt.title}</h4>
-                                  <p className="text-xs text-slate-400 font-medium leading-relaxed">{evt.description}</p>
-                                  {evt.location && <p className="text-[10px] text-slate-500 font-bold">Venue: {evt.location}</p>}
-                                </div>
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6">
+                          <div className="text-center max-w-md mx-auto space-y-2">
+                            <h5 className="font-bold text-white text-lg">Select a Department</h5>
+                            <p className="text-sm text-slate-400">Click on a department below to view its semester-wise calendar layout.</p>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {departments.map((dept) => {
+                              const deptEventsCount = events.filter(evt => evt.department?.toLowerCase() === dept.name.toLowerCase()).length;
+                              return (
                                 <button
-                                  onClick={() => handleDelete("event", evt._id)}
-                                  className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 text-rose-500 hover:text-rose-400 transition-opacity p-1 bg-slate-900/80 rounded border border-slate-800"
-                                  title="Delete Event"
+                                  key={dept._id}
+                                  onClick={() => {
+                                    setSelectedEventDeptFilter(dept.name);
+                                    setSelectedEventSemFilter("All");
+                                  }}
+                                  className="bg-slate-950 hover:bg-slate-800/40 border border-slate-800 hover:border-blue-500/50 p-6 rounded-2xl text-left space-y-4 transition-all group active:scale-95 cursor-pointer flex flex-col justify-between"
                                 >
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <div className="h-12 w-12 rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 flex items-center justify-center text-blue-400 transition-all">
+                                    <Building className="h-6 w-6 group-hover:scale-110 transition-transform" />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="font-bold text-base text-slate-100 group-hover:text-blue-400 transition-colors">
+                                      {dept.name}
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                      {deptEventsCount} {deptEventsCount === 1 ? "Event" : "Events"}
+                                    </div>
+                                  </div>
                                 </button>
-                              </div>
-                            ))
+                              );
+                            })}
+                          </div>
+
+                          {departments.length === 0 && (
+                            <p className="text-slate-500 text-sm italic text-center py-8">No departments registered. Add departments in academics first.</p>
                           )}
                         </div>
                       </div>
+                    );
+                  }
+
+                  if (selectedEventSemFilter === "All") {
+                    const activeSemestersList = semesters.length > 0 
+                      ? semesters.map(s => s.name) 
+                      : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"];
+
+                    activeSemestersList.sort((a, b) => {
+                      const numA = parseInt(a);
+                      const numB = parseInt(b);
+                      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                      return a.localeCompare(b);
+                    });
+
+                    return (
+                      <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-8 animate-fadeIn">
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6">
+                          <div className="flex items-center gap-3 border-b border-slate-800/40 pb-4">
+                            <button
+                              onClick={() => setSelectedEventDeptFilter("All")}
+                              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white bg-slate-950 border border-slate-800 hover:border-slate-700 px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+                            >
+                              <ArrowLeft className="h-3.5 w-3.5" />
+                              <span>Back</span>
+                            </button>
+                            <span className="h-4 w-[1px] bg-slate-800 mx-1"></span>
+                            <div className="text-left">
+                              <h5 className="font-bold text-white text-md uppercase tracking-wider">{selectedEventDeptFilter}</h5>
+                              <p className="text-xs text-slate-500">Select a semester below to view its specific event calendar.</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {activeSemestersList.map((semName) => {
+                              const eventsCount = events.filter(evt => 
+                                evt.department?.toLowerCase() === selectedEventDeptFilter.toLowerCase() &&
+                                evt.semester?.toLowerCase() === semName.toLowerCase()
+                              ).length;
+
+                              return (
+                                <button
+                                  key={semName}
+                                  onClick={() => setSelectedEventSemFilter(semName)}
+                                  className="bg-slate-950 hover:bg-slate-800/40 border border-slate-800 hover:border-blue-500/55 p-5 rounded-2xl text-center space-y-3 transition-all group active:scale-95 cursor-pointer relative"
+                                >
+                                  <div className="h-10 w-10 mx-auto rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 flex items-center justify-center text-blue-400 transition-all">
+                                    <Calendar className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="font-bold text-sm text-slate-200 group-hover:text-blue-400 transition-colors">
+                                      {semName}
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                      {eventsCount} {eventsCount === 1 ? "Event" : "Events"}
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Both selected: show event calendar filtered by selection (include global and department-wide events)!
+                  const filteredEvents = events.filter(evt => {
+                    const eventDept = evt.department || "";
+                    if (eventDept && eventDept.toLowerCase() !== selectedEventDeptFilter.toLowerCase()) {
+                      return false;
+                    }
+                    const eventSem = evt.semester || "";
+                    if (eventSem && eventSem.toLowerCase() !== selectedEventSemFilter.toLowerCase()) {
+                      return false;
+                    }
+                    return true;
+                  });
+
+                  return (
+                    <div className="grid gap-8 lg:grid-cols-5 animate-fadeIn">
+                      {/* Calendar Widget (3 columns) */}
+                      <div className="bg-slate-950 p-6 md:p-8 rounded-2xl border border-slate-800 lg:col-span-3 flex flex-col justify-between space-y-6">
+                        <div>
+                          <div className="border-b border-slate-800 pb-4 mb-6 flex justify-between items-center flex-wrap gap-4">
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => setSelectedEventSemFilter("All")}
+                                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white bg-slate-900 border border-slate-800 hover:border-slate-700 px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+                              >
+                                <ArrowLeft className="h-3.5 w-3.5" />
+                                <span>Back</span>
+                              </button>
+                              <span className="h-4 w-[1px] bg-slate-800 mx-1"></span>
+                              <div>
+                                <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+                                  <Calendar className="h-5 w-5 text-blue-500" /> Academic & Event Calendar
+                                </h3>
+                                <p className="text-xs text-slate-400 font-semibold mt-1">
+                                  {selectedEventDeptFilter} &bull; {selectedEventSemFilter}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-6 bg-slate-900 rounded-xl border border-slate-800 text-center">
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Current Month</span>
+                            <div className="flex items-center justify-between mt-1 max-w-[320px] mx-auto gap-4">
+                              <button
+                                type="button"
+                                onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                                className="p-1.5 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition cursor-pointer"
+                                title="Previous Month"
+                              >
+                                <ChevronLeft className="h-5 w-5" />
+                              </button>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-2xl font-extrabold text-white">
+                                  {calViewDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
+                                </h3>
+                                <div className="relative flex items-center justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (adminJumpInputRef.current) {
+                                        try { adminJumpInputRef.current.showPicker(); } catch (err) { adminJumpInputRef.current.click(); }
+                                      }
+                                    }}
+                                    className="p-1 hover:bg-slate-800 rounded-lg text-blue-500 hover:text-blue-400 transition cursor-pointer"
+                                    title="Jump to date"
+                                  >
+                                    <Calendar className="h-4.5 w-4.5" />
+                                  </button>
+                                  <input
+                                    ref={adminJumpInputRef}
+                                    type="date"
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (val) {
+                                        const parsedDate = new Date(val);
+                                        if (!isNaN(parsedDate.getTime())) {
+                                          setCalViewDate(parsedDate);
+                                        }
+                                      }
+                                    }}
+                                    className="absolute invisible w-0 h-0"
+                                  />
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                                className="p-1.5 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition cursor-pointer"
+                                title="Next Month"
+                              >
+                                <ChevronRight className="h-5 w-5" />
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-7 gap-3 mt-6 text-xs text-slate-500 font-bold uppercase tracking-wider">
+                              <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                            </div>
+                            <div className="grid grid-cols-7 gap-3 mt-3 text-sm font-semibold text-slate-300">
+                              {(() => {
+                                const todayObj = new Date();
+                                const year = calViewDate.getFullYear();
+                                const month = calViewDate.getMonth();
+                                const firstDay = new Date(year, month, 1).getDay();
+                                const totalDays = new Date(year, month + 1, 0).getDate();
+                                
+                                const getParsedDate = (dateStr) => {
+                                  if (!dateStr) return null;
+                                  let match = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+                                  if (match) {
+                                    return {
+                                      day: parseInt(match[1], 10),
+                                      month: parseInt(match[2], 10),
+                                      year: parseInt(match[3], 10)
+                                    };
+                                  }
+                                  match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+                                  if (match) {
+                                    return {
+                                      day: parseInt(match[3], 10),
+                                      month: parseInt(match[2], 10),
+                                      year: parseInt(match[1], 10)
+                                    };
+                                  }
+                                  const d = new Date(dateStr);
+                                  if (!isNaN(d.getTime())) {
+                                    return {
+                                      day: d.getDate(),
+                                      month: d.getMonth() + 1,
+                                      year: d.getFullYear()
+                                    };
+                                  }
+                                  return null;
+                                };
+
+                                const daySlots = [];
+                                for (let i = 0; i < firstDay; i++) {
+                                  daySlots.push(<div key={`empty-${i}`} className="w-8 h-11" />);
+                                }
+                                for (let day = 1; day <= totalDays; day++) {
+                                  const isToday = day === todayObj.getDate() && month === todayObj.getMonth() && year === todayObj.getFullYear();
+                                  const dayEvents = filteredEvents.filter(evt => {
+                                    const parsed = getParsedDate(evt.date);
+                                    if (!parsed) return false;
+                                    return parsed.day === day && parsed.month === (month + 1) && parsed.year === year;
+                                  });
+
+                                  const isHoliday = dayEvents.some(evt => evt.type?.toLowerCase().includes("holiday"));
+
+                                  let eventClass = "";
+                                  if (dayEvents.length > 0) {
+                                    const primaryEvent = dayEvents[0];
+                                    const type = primaryEvent.type?.toLowerCase() || "";
+                                    if (type.includes("holiday")) {
+                                      eventClass = "bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/30";
+                                    } else if (type.includes("exam") || type.includes("test") || type.includes("ia") || type.includes("practical")) {
+                                      eventClass = "bg-rose-600 text-white font-bold shadow-lg shadow-rose-600/30";
+                                    } else if (type.includes("workshop") || type.includes("visit")) {
+                                      eventClass = "bg-amber-600 text-white font-bold shadow-lg shadow-amber-600/30";
+                                    } else {
+                                      eventClass = "bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/30";
+                                    }
+                                  }
+
+                                  let dayStyle = "text-slate-300 hover:bg-slate-800 cursor-pointer";
+                                  if (isToday) {
+                                    dayStyle = "bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/30";
+                                  } else if (eventClass) {
+                                    dayStyle = eventClass;
+                                  }
+
+                                  daySlots.push(
+                                    <div
+                                      key={`day-${day}`}
+                                      className="flex flex-col items-center justify-center gap-0.5 mx-auto"
+                                    >
+                                      <span
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${dayStyle}`}
+                                      >
+                                        {day}
+                                      </span>
+                                      <span className="h-3 text-[9px] font-extrabold tracking-wider leading-none flex items-center justify-center">
+                                        {isHoliday ? (
+                                          <span className="text-emerald-500 dark:text-emerald-400">H</span>
+                                        ) : (
+                                          <span className="opacity-0">H</span>
+                                        )}
+                                      </span>
+                                    </div>
+                                  );
+                                }
+                                return daySlots;
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Upcoming Campus Events list (2 columns) */}
+                      <div className="bg-slate-950 rounded-2xl p-6 md:p-8 border border-slate-800 lg:col-span-2 flex flex-col justify-between">
+                        <div>
+                          <div className="border-b border-slate-800 pb-4 mb-6 flex justify-between items-center">
+                            <div>
+                              <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+                                <span>📅</span> Campus Events & Deadlines
+                              </h3>
+                              <p className="text-xs text-slate-500 font-semibold mt-1">Schedules managed by university administration.</p>
+                            </div>
+                            <button
+                              onClick={() => setCrudModal({ type: "calendar_event", mode: "add" })}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-lg shadow-blue-600/15"
+                              title="Schedule Event"
+                            >
+                              <Plus className="h-3.5 w-3.5" /> Add
+                            </button>
+                          </div>
+
+                          <div className="space-y-4 max-h-[460px] overflow-y-auto pr-1">
+                            {filteredEvents.length === 0 ? (
+                              <div className="text-center py-12 text-slate-500 text-xs font-semibold">
+                                No campus events created yet.
+                              </div>
+                            ) : (
+                              filteredEvents.map((evt, idx) => (
+                                <div key={evt._id || idx} className="flex gap-4 items-start p-3 rounded-xl border border-slate-900 bg-slate-900/20 hover:bg-slate-900/40 transition-colors relative group">
+                                  <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 ${
+                                    evt.type?.toLowerCase().includes("exam") || evt.type?.toLowerCase().includes("test") || evt.type?.toLowerCase().includes("ia") || evt.type?.toLowerCase().includes("practical")
+                                      ? "bg-rose-950/40 text-rose-400 border border-rose-900" :
+                                    evt.type?.toLowerCase().includes("holiday")
+                                      ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
+                                    evt.type?.toLowerCase().includes("workshop") || evt.type?.toLowerCase().includes("visit")
+                                      ? "bg-amber-950/40 text-amber-400 border border-amber-900" :
+                                    "bg-blue-950/40 text-blue-400 border border-blue-900"
+                                  }`}>
+                                    {evt.type}
+                                  </div>
+                                  <div className="space-y-1 pr-6">
+                                    <p className="text-xs font-bold text-slate-500">{evt.time ? `${evt.date} • ${evt.time}` : evt.date}</p>
+                                    <h4 className="text-sm font-bold text-white leading-tight">{evt.title}</h4>
+                                    <p className="text-xs text-slate-400 font-medium leading-relaxed">{evt.description}</p>
+                                    {evt.location && <p className="text-[10px] text-slate-500 font-bold">Venue: {evt.location}</p>}
+                                  </div>
+                                  <button
+                                    onClick={() => handleDelete("event", evt._id)}
+                                    className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 text-rose-500 hover:text-rose-400 transition-opacity p-1 bg-slate-900/80 rounded border border-slate-800"
+                                    title="Delete Event"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* -------------------- 2. STUDENTS CRUD PANEL -------------------- */}
                 {activeSection === "students" && (
@@ -2962,6 +3116,36 @@ export default function Admin() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
+                      <label className="text-xs font-bold uppercase text-slate-400">Department</label>
+                      <select
+                        name="department"
+                        defaultValue={crudModal.mode === "edit" ? crudModal.data?.department : (selectedEventDeptFilter !== "All" ? selectedEventDeptFilter : "")}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">All Departments (Global)</option>
+                        {departments.map((dept) => (
+                          <option key={dept._id} value={dept.name}>
+                            {dept.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold uppercase text-slate-400">Semester</label>
+                      <select
+                        name="semester"
+                        defaultValue={crudModal.mode === "edit" ? crudModal.data?.semester : (selectedEventSemFilter !== "All" ? selectedEventSemFilter : "")}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">All Semesters (Global)</option>
+                        {(semesters.length > 0 ? semesters.map(s => s.name) : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"]).map(semName => (
+                          <option key={semName} value={semName}>{semName}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
                       <label className="text-xs font-bold uppercase text-slate-400">Event Type</label>
                       <select name="type" required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
                         <option value="Holiday">Holiday</option>
@@ -3131,6 +3315,36 @@ export default function Admin() {
                   <div className="space-y-1">
                     <label className="text-xs font-bold uppercase text-slate-400">Event Title</label>
                     <input type="text" name="title" required placeholder="Event name..." className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold uppercase text-slate-400">Department</label>
+                      <select
+                        name="department"
+                        defaultValue={crudModal.mode === "edit" ? crudModal.data?.department : ""}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">All Departments (Global)</option>
+                        {departments.map((dept) => (
+                          <option key={dept._id} value={dept.name}>
+                            {dept.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold uppercase text-slate-400">Semester</label>
+                      <select
+                        name="semester"
+                        defaultValue={crudModal.mode === "edit" ? crudModal.data?.semester : ""}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">All Semesters (Global)</option>
+                        {(semesters.length > 0 ? semesters.map(s => s.name) : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"]).map(semName => (
+                          <option key={semName} value={semName}>{semName}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
