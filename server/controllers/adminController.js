@@ -908,6 +908,24 @@ exports.createEvent = async (req, res) => {
   }
 };
 
+exports.updateEvent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, type, date, time, location, capacity, department, semester } = req.body;
+    const updatedEvent = await Event.findByIdAndUpdate(
+      id,
+      { title, description, type, date, time, location, capacity, department, semester },
+      { new: true, runValidators: true }
+    );
+    if (!updatedEvent) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+    res.json({ message: "Event updated successfully", event: updatedEvent });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.deleteEvent = async (req, res) => {
   try {
     const { id } = req.params;

@@ -43,6 +43,7 @@ const {
   deleteNotice,
   getEvents,
   createEvent,
+  updateEvent,
   deleteEvent,
   getSecurityMonitoringLogs,
   createVisitorLog,
@@ -133,6 +134,7 @@ router.delete("/notices/:id", deleteNotice);
 // Events
 router.get("/events", getEvents);
 router.post("/events", createEvent);
+router.put("/events/:id", updateEvent);
 router.delete("/events/:id", deleteEvent);
 
 // Security logs

@@ -231,6 +231,50 @@ export default function Admin() {
     }
   }, [evDay, evMonth, evYear]);
 
+  useEffect(() => {
+    if (crudModal && crudModal.mode === "edit" && (crudModal.type === "calendar_event" || crudModal.type === "event") && crudModal.data?.date) {
+      const parseDateStr = (dateStr) => {
+        if (!dateStr) return null;
+        let match = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+        if (match) {
+          return {
+            day: match[1].padStart(2, "0"),
+            month: match[2].padStart(2, "0"),
+            year: match[3]
+          };
+        }
+        match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (match) {
+          return {
+            day: match[3].padStart(2, "0"),
+            month: match[2].padStart(2, "0"),
+            year: match[1]
+          };
+        }
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) {
+          return {
+            day: d.getDate().toString().padStart(2, "0"),
+            month: (d.getMonth() + 1).toString().padStart(2, "0"),
+            year: d.getFullYear().toString()
+          };
+        }
+        return null;
+      };
+
+      const parsed = parseDateStr(crudModal.data.date);
+      if (parsed) {
+        setEvDay(parsed.day);
+        setEvMonth(parsed.month);
+        setEvYear(parsed.year);
+      }
+    } else if (crudModal && crudModal.mode === "add") {
+      setEvDay("");
+      setEvMonth("");
+      setEvYear("");
+    }
+  }, [crudModal]);
+
   const showToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
@@ -997,6 +1041,13 @@ export default function Admin() {
                             </h4>
                             <p className="text-xs text-slate-500 mt-0.5">Select a department first to manage its calendar.</p>
                           </div>
+                          <button
+                            onClick={() => setCrudModal({ type: "calendar_event", mode: "add" })}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95 shadow-lg shadow-blue-600/15 cursor-pointer"
+                            title="Schedule Event"
+                          >
+                            <Plus className="h-4 w-4" /> Add Event
+                          </button>
                         </div>
 
                         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6">
@@ -1056,20 +1107,29 @@ export default function Admin() {
                     return (
                       <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-8 animate-fadeIn">
                         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6">
-                          <div className="flex items-center gap-3 border-b border-slate-800/40 pb-4">
-                            <button
-                              onClick={() => setSelectedEventDeptFilter("All")}
-                              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white bg-slate-950 border border-slate-800 hover:border-slate-700 px-2.5 py-1 rounded-lg transition-all cursor-pointer"
-                            >
-                              <ArrowLeft className="h-3.5 w-3.5" />
-                              <span>Back</span>
-                            </button>
-                            <span className="h-4 w-[1px] bg-slate-800 mx-1"></span>
-                            <div className="text-left">
-                              <h5 className="font-bold text-white text-md uppercase tracking-wider">{selectedEventDeptFilter}</h5>
-                              <p className="text-xs text-slate-500">Select a semester below to view its specific event calendar.</p>
-                            </div>
-                          </div>
+                           <div className="flex items-center justify-between gap-3 border-b border-slate-800/40 pb-4">
+                             <div className="flex items-center gap-3">
+                               <button
+                                 onClick={() => setSelectedEventDeptFilter("All")}
+                                 className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white bg-slate-950 border border-slate-800 hover:border-slate-700 px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+                               >
+                                 <ArrowLeft className="h-3.5 w-3.5" />
+                                 <span>Back</span>
+                               </button>
+                               <span className="h-4 w-[1px] bg-slate-800 mx-1"></span>
+                               <div className="text-left">
+                                 <h5 className="font-bold text-white text-md uppercase tracking-wider">{selectedEventDeptFilter}</h5>
+                                 <p className="text-xs text-slate-500">Select a semester below to view its specific event calendar.</p>
+                               </div>
+                             </div>
+                             <button
+                               onClick={() => setCrudModal({ type: "calendar_event", mode: "add" })}
+                               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95 shadow-lg shadow-blue-600/15 cursor-pointer"
+                               title="Schedule Event"
+                             >
+                               <Plus className="h-4 w-4" /> Add Event
+                             </button>
+                           </div>
 
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {activeSemestersList.map((semName) => {
@@ -1115,6 +1175,47 @@ export default function Admin() {
                       return false;
                     }
                     return true;
+                  });
+
+                  const getParsedDate = (dateStr) => {
+                    if (!dateStr) return null;
+                    let match = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+                    if (match) {
+                      return {
+                        day: parseInt(match[1], 10),
+                        month: parseInt(match[2], 10),
+                        year: parseInt(match[3], 10)
+                      };
+                    }
+                    match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+                    if (match) {
+                      return {
+                        day: parseInt(match[3], 10),
+                        month: parseInt(match[2], 10),
+                        year: parseInt(match[1], 10)
+                      };
+                    }
+                    const d = new Date(dateStr);
+                    if (!isNaN(d.getTime())) {
+                      return {
+                        day: d.getDate(),
+                        month: d.getMonth() + 1,
+                        year: d.getFullYear()
+                      };
+                    }
+                    return null;
+                  };
+
+                  const getEventDateObj = (dateStr) => {
+                    const parsed = getParsedDate(dateStr);
+                    if (!parsed) return new Date(0);
+                    return new Date(parsed.year, parsed.month - 1, parsed.day);
+                  };
+
+                  const sortedEvents = [...filteredEvents].sort((a, b) => {
+                    const dateA = getEventDateObj(a.date);
+                    const dateB = getEventDateObj(b.date);
+                    return dateA - dateB;
                   });
 
                   return (
@@ -1256,12 +1357,20 @@ export default function Admin() {
                                     const type = primaryEvent.type?.toLowerCase() || "";
                                     if (type.includes("holiday")) {
                                       eventClass = "bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/30";
-                                    } else if (type.includes("exam") || type.includes("test") || type.includes("ia") || type.includes("practical")) {
+                                    } else if (type.includes("test")) {
                                       eventClass = "bg-rose-600 text-white font-bold shadow-lg shadow-rose-600/30";
-                                    } else if (type.includes("workshop") || type.includes("visit")) {
+                                    } else if (type.includes("practical")) {
+                                      eventClass = "bg-violet-600 text-white font-bold shadow-lg shadow-violet-600/30";
+                                    } else if (type.includes("workshop")) {
                                       eventClass = "bg-amber-600 text-white font-bold shadow-lg shadow-amber-600/30";
+                                    } else if (type.includes("visit")) {
+                                      eventClass = "bg-fuchsia-600 text-white font-bold shadow-lg shadow-fuchsia-600/30";
+                                    } else if (type.includes("hackathon")) {
+                                      eventClass = "bg-cyan-600 text-white font-bold shadow-lg shadow-cyan-600/30";
+                                    } else if (type.includes("lecture")) {
+                                      eventClass = "bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/30";
                                     } else {
-                                      eventClass = "bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/30";
+                                      eventClass = "bg-slate-500 text-white font-bold shadow-lg shadow-slate-500/30";
                                     }
                                   }
 
@@ -1319,21 +1428,29 @@ export default function Admin() {
                           </div>
 
                           <div className="space-y-4 max-h-[460px] overflow-y-auto pr-1">
-                            {filteredEvents.length === 0 ? (
+                            {sortedEvents.length === 0 ? (
                               <div className="text-center py-12 text-slate-500 text-xs font-semibold">
                                 No campus events created yet.
                               </div>
                             ) : (
-                              filteredEvents.map((evt, idx) => (
+                              sortedEvents.map((evt, idx) => (
                                 <div key={evt._id || idx} className="flex gap-4 items-start p-3 rounded-xl border border-slate-900 bg-slate-900/20 hover:bg-slate-900/40 transition-colors relative group">
-                                  <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 ${
-                                    evt.type?.toLowerCase().includes("exam") || evt.type?.toLowerCase().includes("test") || evt.type?.toLowerCase().includes("ia") || evt.type?.toLowerCase().includes("practical")
-                                      ? "bg-rose-950/40 text-rose-400 border border-rose-900" :
+                                  <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 border ${
                                     evt.type?.toLowerCase().includes("holiday")
-                                      ? "bg-emerald-950/40 text-emerald-400 border border-emerald-900" :
-                                    evt.type?.toLowerCase().includes("workshop") || evt.type?.toLowerCase().includes("visit")
-                                      ? "bg-amber-950/40 text-amber-400 border border-amber-900" :
-                                    "bg-blue-950/40 text-blue-400 border border-blue-900"
+                                      ? "bg-emerald-950/40 text-emerald-400 border-emerald-900" :
+                                    evt.type?.toLowerCase().includes("test")
+                                      ? "bg-rose-950/40 text-rose-400 border-rose-900" :
+                                    evt.type?.toLowerCase().includes("practical")
+                                      ? "bg-violet-950/40 text-violet-400 border-violet-900" :
+                                    evt.type?.toLowerCase().includes("workshop")
+                                      ? "bg-amber-950/40 text-amber-400 border-amber-900" :
+                                    evt.type?.toLowerCase().includes("visit")
+                                      ? "bg-fuchsia-950/40 text-fuchsia-400 border-fuchsia-900" :
+                                    evt.type?.toLowerCase().includes("hackathon")
+                                      ? "bg-cyan-950/40 text-cyan-400 border-cyan-900" :
+                                    evt.type?.toLowerCase().includes("lecture")
+                                      ? "bg-indigo-950/40 text-indigo-400 border-indigo-900" :
+                                    "bg-slate-900/60 text-slate-400 border-slate-800"
                                   }`}>
                                     {evt.type}
                                   </div>
@@ -1343,13 +1460,22 @@ export default function Admin() {
                                     <p className="text-xs text-slate-400 font-medium leading-relaxed">{evt.description}</p>
                                     {evt.location && <p className="text-[10px] text-slate-500 font-bold">Venue: {evt.location}</p>}
                                   </div>
-                                  <button
-                                    onClick={() => handleDelete("event", evt._id)}
-                                    className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 text-rose-500 hover:text-rose-400 transition-opacity p-1 bg-slate-900/80 rounded border border-slate-800"
-                                    title="Delete Event"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
+                                  <div className="absolute right-3 top-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={() => setCrudModal({ type: (evt.time || evt.location) ? "event" : "calendar_event", mode: "edit", data: evt })}
+                                      className="text-blue-500 hover:text-blue-400 p-1 bg-slate-900/80 rounded border border-slate-800"
+                                      title="Edit Event"
+                                    >
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete("event", evt._id)}
+                                      className="text-rose-500 hover:text-rose-400 p-1 bg-slate-900/80 rounded border border-slate-800"
+                                      title="Delete Event"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
                                 </div>
                               ))
                             )}
@@ -2231,7 +2357,13 @@ export default function Admin() {
                               <div><span className="text-slate-500 font-semibold">Time: </span>{ev.time}</div>
                               <div><span className="text-slate-500 font-semibold">Venue: </span>{ev.location}</div>
                             </div>
-                            <div className="flex justify-end pt-2">
+                            <div className="flex justify-end pt-2 gap-2">
+                              <button
+                                onClick={() => setCrudModal({ type: "event", mode: "edit", data: ev })}
+                                className="text-blue-500 hover:text-blue-400 p-1 hover:bg-slate-800 rounded flex items-center gap-1 text-xs font-semibold"
+                              >
+                                <Edit className="h-4 w-4" /> Edit Event
+                              </button>
                               <button
                                 onClick={() => handleDelete("event", ev._id)}
                                 className="text-rose-500 hover:text-rose-400 p-1 hover:bg-slate-800 rounded flex items-center gap-1 text-xs font-semibold"
@@ -3112,7 +3244,7 @@ export default function Admin() {
                 <>
                   <div className="space-y-1">
                     <label className="text-xs font-bold uppercase text-slate-400">Event Title</label>
-                    <input type="text" name="title" required placeholder="e.g. Independence Day Holiday, IA1 Exams..." className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500" />
+                    <input type="text" name="title" required placeholder="Enter Event Title" defaultValue={crudModal.mode === "edit" ? crudModal.data?.title : ""} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
@@ -3147,7 +3279,7 @@ export default function Admin() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-bold uppercase text-slate-400">Event Type</label>
-                      <select name="type" required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                      <select name="type" required defaultValue={crudModal.mode === "edit" ? crudModal.data?.type : "Holiday"} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
                         <option value="Holiday">Holiday</option>
                         <option value="Test">Test</option>
                         <option value="Practicals">Practicals</option>
@@ -3301,7 +3433,7 @@ export default function Admin() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold uppercase text-slate-400">Event Description</label>
-                    <textarea name="description" rows="3" placeholder="Enter event summary..." className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"></textarea>
+                    <textarea name="description" rows="3" placeholder="Enter event summary..." defaultValue={crudModal.mode === "edit" ? crudModal.data?.description : ""} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500"></textarea>
                   </div>
                   <input type="hidden" name="time" value="" />
                   <input type="hidden" name="location" value="" />
@@ -3314,7 +3446,7 @@ export default function Admin() {
                 <>
                   <div className="space-y-1">
                     <label className="text-xs font-bold uppercase text-slate-400">Event Title</label>
-                    <input type="text" name="title" required placeholder="Event name..." className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white" />
+                    <input type="text" name="title" required placeholder="Enter Event Title" defaultValue={crudModal.mode === "edit" ? crudModal.data?.title : ""} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
@@ -3349,7 +3481,7 @@ export default function Admin() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-bold uppercase text-slate-400">Event Type</label>
-                      <select name="type" required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                      <select name="type" required defaultValue={crudModal.mode === "edit" ? crudModal.data?.type : "Holiday"} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
                         <option value="Holiday">Holiday</option>
                         <option value="Test">Test</option>
                         <option value="Practicals">Practicals</option>
@@ -3362,7 +3494,7 @@ export default function Admin() {
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-bold uppercase text-slate-400">Capacity</label>
-                      <input type="number" name="capacity" defaultValue={100} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white" />
+                      <input type="number" name="capacity" defaultValue={crudModal.mode === "edit" ? crudModal.data?.capacity : 100} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white" />
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
@@ -3508,16 +3640,16 @@ export default function Admin() {
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-bold uppercase text-slate-400">Time</label>
-                      <input type="text" name="time" required placeholder="10:00 AM" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white" />
+                      <input type="text" name="time" required placeholder="10:00 AM" defaultValue={crudModal.mode === "edit" ? crudModal.data?.time : "10:00 AM"} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-bold uppercase text-slate-400">Location / Venue</label>
-                      <input type="text" name="location" required placeholder="Seminar Hall A" className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white" />
+                      <input type="text" name="location" required placeholder="Seminar Hall A" defaultValue={crudModal.mode === "edit" ? crudModal.data?.location : "Seminar Hall A"} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white" />
                     </div>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold uppercase text-slate-400">Event Description</label>
-                    <textarea name="description" rows="3" placeholder="Enter event summary..." className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white"></textarea>
+                    <textarea name="description" rows="3" placeholder="Enter event summary..." defaultValue={crudModal.mode === "edit" ? crudModal.data?.description : ""} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white"></textarea>
                   </div>
                 </>
               )}

@@ -2460,6 +2460,47 @@ export default function Faculty({ onOpenAuth }) {
             return true;
           });
 
+          const getParsedDate = (dateStr) => {
+            if (!dateStr) return null;
+            let match = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+            if (match) {
+              return {
+                day: parseInt(match[1], 10),
+                month: parseInt(match[2], 10),
+                year: parseInt(match[3], 10)
+              };
+            }
+            match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (match) {
+              return {
+                day: parseInt(match[3], 10),
+                month: parseInt(match[2], 10),
+                year: parseInt(match[1], 10)
+              };
+            }
+            const d = new Date(dateStr);
+            if (!isNaN(d.getTime())) {
+              return {
+                day: d.getDate(),
+                month: d.getMonth() + 1,
+                year: d.getFullYear()
+              };
+            }
+            return null;
+          };
+
+          const getEventDateObj = (dateStr) => {
+            const parsed = getParsedDate(dateStr);
+            if (!parsed) return new Date(0);
+            return new Date(parsed.year, parsed.month - 1, parsed.day);
+          };
+
+          const facultySortedEvents = [...facultyFilteredEvents].sort((a, b) => {
+            const dateA = getEventDateObj(a.date);
+            const dateB = getEventDateObj(b.date);
+            return dateA - dateB;
+          });
+
           return (
             <div className="grid gap-8 lg:grid-cols-5 animate-fadeIn">
               {/* Calendar Widget (3 columns) */}
@@ -2600,12 +2641,20 @@ export default function Faculty({ onOpenAuth }) {
                             const type = primaryEvent.type?.toLowerCase() || "";
                             if (type.includes("holiday")) {
                               eventClass = "bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/20";
-                            } else if (type.includes("exam") || type.includes("test") || type.includes("ia") || type.includes("practical")) {
+                            } else if (type.includes("test")) {
                               eventClass = "bg-rose-500 text-white font-bold shadow-lg shadow-rose-500/20";
-                            } else if (type.includes("workshop") || type.includes("visit")) {
+                            } else if (type.includes("practical")) {
+                              eventClass = "bg-violet-600 text-white font-bold shadow-lg shadow-violet-600/20";
+                            } else if (type.includes("workshop")) {
                               eventClass = "bg-amber-500 text-white font-bold shadow-lg shadow-amber-500/20";
+                            } else if (type.includes("visit")) {
+                              eventClass = "bg-fuchsia-600 text-white font-bold shadow-lg shadow-fuchsia-600/20";
+                            } else if (type.includes("hackathon")) {
+                              eventClass = "bg-cyan-500 text-white font-bold shadow-lg shadow-cyan-500/20";
+                            } else if (type.includes("lecture")) {
+                              eventClass = "bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/20";
                             } else {
-                              eventClass = "bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/20";
+                              eventClass = "bg-slate-500 text-white font-bold shadow-lg shadow-slate-500/20";
                             }
                           }
 
@@ -2654,23 +2703,31 @@ export default function Faculty({ onOpenAuth }) {
                   </div>
 
                   <div className="space-y-4">
-                    {facultyFilteredEvents.length === 0 ? (
+                    {facultySortedEvents.length === 0 ? (
                       <div className="text-center py-12 text-slate-400 text-xs font-semibold">
                         {calSemesterFilter === "All Semesters"
                           ? "Select a semester to view academic schedules & events."
                           : "No campus events scheduled."}
                       </div>
                     ) : (
-                      facultyFilteredEvents.map((evt, idx) => (
+                      facultySortedEvents.map((evt, idx) => (
                         <div key={evt._id || idx} className="flex gap-4 items-start p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
                           <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 border ${
-                            evt.type?.toLowerCase().includes("exam") || evt.type?.toLowerCase().includes("test") || evt.type?.toLowerCase().includes("ia") || evt.type?.toLowerCase().includes("practical")
-                              ? "bg-rose-50 text-rose-700 border-rose-200" :
                             evt.type?.toLowerCase().includes("holiday")
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                            evt.type?.toLowerCase().includes("workshop") || evt.type?.toLowerCase().includes("visit")
+                            evt.type?.toLowerCase().includes("test")
+                              ? "bg-rose-50 text-rose-700 border-rose-200" :
+                            evt.type?.toLowerCase().includes("practical")
+                              ? "bg-violet-50 text-violet-700 border-violet-200" :
+                            evt.type?.toLowerCase().includes("workshop")
                               ? "bg-amber-50 text-amber-700 border-amber-200" :
-                            "bg-blue-50 text-blue-700 border-blue-200"
+                            evt.type?.toLowerCase().includes("visit")
+                              ? "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200" :
+                            evt.type?.toLowerCase().includes("hackathon")
+                              ? "bg-cyan-50 text-cyan-700 border-cyan-200" :
+                            evt.type?.toLowerCase().includes("lecture")
+                              ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
+                            "bg-slate-50 text-slate-700 border-slate-200"
                           }`}>
                             {evt.type}
                           </div>
