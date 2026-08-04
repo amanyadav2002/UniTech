@@ -899,8 +899,8 @@ exports.getEvents = async (req, res) => {
 
 exports.createEvent = async (req, res) => {
   try {
-    const { title, description, type, date, time, location, capacity } = req.body;
-    const newEvent = new Event({ title, description, type, date, time, location, capacity });
+    const { title, description, type, date, time, location, capacity, department, semester } = req.body;
+    const newEvent = new Event({ title, description, type, date, time, location, capacity, department, semester });
     await newEvent.save();
     res.status(201).json({ message: "Event created successfully", event: newEvent });
   } catch (error) {

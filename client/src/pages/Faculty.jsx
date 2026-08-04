@@ -495,6 +495,7 @@ export default function Faculty({ onOpenAuth }) {
   const [isAttYearOpen, setIsAttYearOpen] = useState(false);
   const [calViewDate, setCalViewDate] = useState(new Date());
   const facultyJumpInputRef = useRef(null);
+  const [calSemesterFilter, setCalSemesterFilter] = useState("All Semesters");
 
   const currentYearNum = new Date().getFullYear();
   const attYearsList = Array.from({ length: Math.max(1, currentYearNum - 2026 + 1) }, (_, i) => (2026 + i).toString());
@@ -2442,217 +2443,252 @@ export default function Faculty({ onOpenAuth }) {
         )}
 
         {/* --- TAB: EVENT CALENDAR --- */}
-        {activeTab === "calendar" && (
-          <div className="grid gap-8 lg:grid-cols-5 animate-fadeIn">
-            {/* Calendar Widget (3 columns) */}
-            <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/50 shadow-sm lg:col-span-3 flex flex-col justify-between space-y-6">
-              <div>
-                <div className="border-b border-slate-100 pb-4 mb-6">
-                  <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-indigo-600" /> Academic & Event Calendar
-                  </h3>
-                  <p className="text-xs text-slate-400 font-semibold mt-1">Monthly calendar view showing academic schedules, holidays, and events.</p>
-                </div>
+        {activeTab === "calendar" && (() => {
+          const facultyFilteredEvents = calSemesterFilter === "All Semesters" ? [] : events.filter(evt => {
+            const eventDept = evt.department || "";
+            const eventSem = evt.semester || "";
+            const facultyDept = teacherProfile.department || "";
+            if (!eventDept && !eventSem) {
+              return true;
+            }
+            if (eventDept && eventDept.toLowerCase() !== facultyDept.toLowerCase()) {
+              return false;
+            }
+            if (eventSem && eventSem.toLowerCase() !== calSemesterFilter.toLowerCase()) {
+              return false;
+            }
+            return true;
+          });
 
-                <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-200/60 text-center">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Current Month</span>
-                  <div className="flex items-center justify-between mt-1 max-w-[320px] mx-auto gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
-                      className="p-1.5 hover:bg-slate-200 rounded-full text-slate-600 transition cursor-pointer"
-                      title="Previous Month"
-                    >
-                      <ChevronLeft className="h-5 w-5" />
-                    </button>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-2xl font-extrabold text-slate-800">
-                        {calViewDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
+          return (
+            <div className="grid gap-8 lg:grid-cols-5 animate-fadeIn">
+              {/* Calendar Widget (3 columns) */}
+              <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200/50 shadow-sm lg:col-span-3 flex flex-col justify-between space-y-6">
+                <div>
+                  <div className="border-b border-slate-100 pb-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-indigo-600" /> Academic & Event Calendar
                       </h3>
-                      <div className="relative flex items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (facultyJumpInputRef.current) {
-                              try { facultyJumpInputRef.current.showPicker(); } catch (err) { facultyJumpInputRef.current.click(); }
-                            }
-                          }}
-                          className="p-1 hover:bg-slate-200 rounded-lg text-indigo-600 hover:text-indigo-500 transition cursor-pointer"
-                          title="Jump to date"
-                        >
-                          <Calendar className="h-4.5 w-4.5" />
-                        </button>
-                        <input
-                          ref={facultyJumpInputRef}
-                          type="date"
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val) {
-                              const parsedDate = new Date(val);
-                              if (!isNaN(parsedDate.getTime())) {
-                                setCalViewDate(parsedDate);
+                      <p className="text-xs text-slate-400 font-semibold mt-1">Monthly calendar view showing academic schedules, holidays, and events.</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Semester:</span>
+                      <select
+                        value={calSemesterFilter}
+                        onChange={(e) => setCalSemesterFilter(e.target.value)}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 focus:border-indigo-500 focus:outline-none shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
+                      >
+                        <option value="All Semesters">All Semesters</option>
+                        {(semestersList.length > 0 ? semestersList.map(s => s.name) : ["1st Sem", "2nd Sem", "3rd Sem", "4th Sem", "5th Sem", "6th Sem", "7th Sem", "8th Sem"]).map(sem => (
+                          <option key={sem} value={sem}>{sem}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-200/60 text-center">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Current Month</span>
+                    <div className="flex items-center justify-between mt-1 max-w-[320px] mx-auto gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                        className="p-1.5 hover:bg-slate-200 rounded-full text-slate-600 transition cursor-pointer"
+                        title="Previous Month"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-2xl font-extrabold text-slate-800">
+                          {calViewDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
+                        </h3>
+                        <div className="relative flex items-center justify-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (facultyJumpInputRef.current) {
+                                try { facultyJumpInputRef.current.showPicker(); } catch (err) { facultyJumpInputRef.current.click(); }
                               }
-                            }
-                          }}
-                          className="absolute invisible w-0 h-0"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
-                      className="p-1.5 hover:bg-slate-200 rounded-full text-slate-600 transition cursor-pointer"
-                      title="Next Month"
-                    >
-                      <ChevronRight className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-7 gap-3 mt-6 text-xs text-slate-400 font-bold uppercase tracking-wider">
-                    <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
-                  </div>
-                  <div className="grid grid-cols-7 gap-3 mt-3 text-sm font-semibold text-slate-700">
-                    {(() => {
-                      const todayObj = new Date();
-                      const year = calViewDate.getFullYear();
-                      const month = calViewDate.getMonth();
-                      const firstDay = new Date(year, month, 1).getDay();
-                      const totalDays = new Date(year, month + 1, 0).getDate();
-                      
-                      const getParsedDate = (dateStr) => {
-                        if (!dateStr) return null;
-                        let match = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-                        if (match) {
-                          return {
-                            day: parseInt(match[1], 10),
-                            month: parseInt(match[2], 10),
-                            year: parseInt(match[3], 10)
-                          };
-                        }
-                        match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-                        if (match) {
-                          return {
-                            day: parseInt(match[3], 10),
-                            month: parseInt(match[2], 10),
-                            year: parseInt(match[1], 10)
-                          };
-                        }
-                        const d = new Date(dateStr);
-                        if (!isNaN(d.getTime())) {
-                          return {
-                            day: d.getDate(),
-                            month: d.getMonth() + 1,
-                            year: d.getFullYear()
-                          };
-                        }
-                        return null;
-                      };
-
-                      const daySlots = [];
-                      for (let i = 0; i < firstDay; i++) {
-                        daySlots.push(<div key={`empty-${i}`} className="w-8 h-11" />);
-                      }
-                      for (let day = 1; day <= totalDays; day++) {
-                        const isToday = day === todayObj.getDate() && month === todayObj.getMonth() && year === todayObj.getFullYear();
-                        const dayEvents = events.filter(evt => {
-                          const parsed = getParsedDate(evt.date);
-                          if (!parsed) return false;
-                          return parsed.day === day && parsed.month === (month + 1) && parsed.year === year;
-                        });
-
-                        const isHoliday = dayEvents.some(evt => evt.type?.toLowerCase().includes("holiday"));
-
-                        let eventClass = "";
-                        if (dayEvents.length > 0) {
-                          const primaryEvent = dayEvents[0];
-                          const type = primaryEvent.type?.toLowerCase() || "";
-                          if (type.includes("holiday")) {
-                            eventClass = "bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/20";
-                          } else if (type.includes("exam") || type.includes("test") || type.includes("ia") || type.includes("practical")) {
-                            eventClass = "bg-rose-500 text-white font-bold shadow-lg shadow-rose-500/20";
-                          } else if (type.includes("workshop") || type.includes("visit")) {
-                            eventClass = "bg-amber-500 text-white font-bold shadow-lg shadow-amber-500/20";
-                          } else {
-                            eventClass = "bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/20";
-                          }
-                        }
-
-                        let dayStyle = "text-slate-700 hover:bg-slate-200/50 cursor-pointer";
-                        if (isToday) {
-                          dayStyle = "bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/30";
-                        } else if (eventClass) {
-                          dayStyle = eventClass;
-                        }
-
-                        daySlots.push(
-                          <div
-                            key={`day-${day}`}
-                            className="flex flex-col items-center justify-center gap-0.5 mx-auto"
+                            }}
+                            className="p-1 hover:bg-slate-200 rounded-lg text-indigo-600 hover:text-indigo-500 transition cursor-pointer"
+                            title="Jump to date"
                           >
-                            <span
-                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${dayStyle}`}
+                            <Calendar className="h-4.5 w-4.5" />
+                          </button>
+                          <input
+                            ref={facultyJumpInputRef}
+                            type="date"
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val) {
+                                const parsedDate = new Date(val);
+                                if (!isNaN(parsedDate.getTime())) {
+                                  setCalViewDate(parsedDate);
+                                }
+                              }
+                            }}
+                            className="absolute invisible w-0 h-0"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                        className="p-1.5 hover:bg-slate-200 rounded-full text-slate-600 transition cursor-pointer"
+                        title="Next Month"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-7 gap-3 mt-6 text-xs text-slate-400 font-bold uppercase tracking-wider">
+                      <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                    </div>
+                    <div className="grid grid-cols-7 gap-3 mt-3 text-sm font-semibold text-slate-700">
+                      {(() => {
+                        const todayObj = new Date();
+                        const year = calViewDate.getFullYear();
+                        const month = calViewDate.getMonth();
+                        const firstDay = new Date(year, month, 1).getDay();
+                        const totalDays = new Date(year, month + 1, 0).getDate();
+                        
+                        const getParsedDate = (dateStr) => {
+                          if (!dateStr) return null;
+                          let match = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+                          if (match) {
+                            return {
+                              day: parseInt(match[1], 10),
+                              month: parseInt(match[2], 10),
+                              year: parseInt(match[3], 10)
+                            };
+                          }
+                          match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+                          if (match) {
+                            return {
+                              day: parseInt(match[3], 10),
+                              month: parseInt(match[2], 10),
+                              year: parseInt(match[1], 10)
+                            };
+                          }
+                          const d = new Date(dateStr);
+                          if (!isNaN(d.getTime())) {
+                            return {
+                              day: d.getDate(),
+                              month: d.getMonth() + 1,
+                              year: d.getFullYear()
+                            };
+                          }
+                          return null;
+                        };
+
+                        const daySlots = [];
+                        for (let i = 0; i < firstDay; i++) {
+                          daySlots.push(<div key={`empty-${i}`} className="w-8 h-11" />);
+                        }
+                        for (let day = 1; day <= totalDays; day++) {
+                          const isToday = day === todayObj.getDate() && month === todayObj.getMonth() && year === todayObj.getFullYear();
+                          const dayEvents = facultyFilteredEvents.filter(evt => {
+                            const parsed = getParsedDate(evt.date);
+                            if (!parsed) return false;
+                            return parsed.day === day && parsed.month === (month + 1) && parsed.year === year;
+                          });
+
+                          const isHoliday = dayEvents.some(evt => evt.type?.toLowerCase().includes("holiday"));
+
+                          let eventClass = "";
+                          if (dayEvents.length > 0) {
+                            const primaryEvent = dayEvents[0];
+                            const type = primaryEvent.type?.toLowerCase() || "";
+                            if (type.includes("holiday")) {
+                              eventClass = "bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-500/20";
+                            } else if (type.includes("exam") || type.includes("test") || type.includes("ia") || type.includes("practical")) {
+                              eventClass = "bg-rose-500 text-white font-bold shadow-lg shadow-rose-500/20";
+                            } else if (type.includes("workshop") || type.includes("visit")) {
+                              eventClass = "bg-amber-500 text-white font-bold shadow-lg shadow-amber-500/20";
+                            } else {
+                              eventClass = "bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/20";
+                            }
+                          }
+
+                          let dayStyle = "text-slate-700 hover:bg-slate-200/50 cursor-pointer";
+                          if (isToday) {
+                            dayStyle = "bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/30";
+                          } else if (eventClass) {
+                            dayStyle = eventClass;
+                          }
+
+                          daySlots.push(
+                            <div
+                              key={`day-${day}`}
+                              className="flex flex-col items-center justify-center gap-0.5 mx-auto"
                             >
-                              {day}
-                            </span>
-                            <span className="h-3 text-[9px] font-extrabold tracking-wider leading-none flex items-center justify-center">
-                              {isHoliday ? (
-                                <span className="text-emerald-600 dark:text-emerald-400">H</span>
-                              ) : (
-                                <span className="opacity-0">H</span>
-                              )}
-                            </span>
+                              <span
+                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${dayStyle}`}
+                              >
+                                {day}
+                              </span>
+                              <span className="h-3 text-[9px] font-extrabold tracking-wider leading-none flex items-center justify-center">
+                                {isHoliday ? (
+                                  <span className="text-emerald-600 dark:text-emerald-400">H</span>
+                                ) : (
+                                  <span className="opacity-0">H</span>
+                                )}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return daySlots;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Upcoming Campus Events list (2 columns) */}
+              <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200/50 lg:col-span-2 flex flex-col justify-between">
+                <div>
+                  <div className="border-b border-slate-100 pb-4 mb-6">
+                    <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                      <span>📅</span> Upcoming Deadlines & Events
+                    </h3>
+                    <p className="text-xs text-slate-400 font-semibold mt-1">Important schedules for the current academic month.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {facultyFilteredEvents.length === 0 ? (
+                      <div className="text-center py-12 text-slate-400 text-xs font-semibold">
+                        {calSemesterFilter === "All Semesters"
+                          ? "Select a semester to view academic schedules & events."
+                          : "No campus events scheduled."}
+                      </div>
+                    ) : (
+                      facultyFilteredEvents.map((evt, idx) => (
+                        <div key={evt._id || idx} className="flex gap-4 items-start p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                          <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 border ${
+                            evt.type?.toLowerCase().includes("exam") || evt.type?.toLowerCase().includes("test") || evt.type?.toLowerCase().includes("ia") || evt.type?.toLowerCase().includes("practical")
+                              ? "bg-rose-50 text-rose-700 border-rose-200" :
+                            evt.type?.toLowerCase().includes("holiday")
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                            evt.type?.toLowerCase().includes("workshop") || evt.type?.toLowerCase().includes("visit")
+                              ? "bg-amber-50 text-amber-700 border-amber-200" :
+                            "bg-blue-50 text-blue-700 border-blue-200"
+                          }`}>
+                            {evt.type}
                           </div>
-                        );
-                      }
-                      return daySlots;
-                    })()}
+                          <div className="space-y-1">
+                            <p className="text-xs font-bold text-slate-400">{evt.time ? `${evt.date} • ${evt.time}` : evt.date}</p>
+                            <h4 className="text-sm font-bold text-slate-800 leading-tight">{evt.title}</h4>
+                            <p className="text-xs text-slate-500 font-medium leading-relaxed">{evt.description}</p>
+                            {evt.location && <p className="text-[10px] text-slate-400 font-semibold">Venue: {evt.location}</p>}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
             </div>
-
-            {/* Upcoming Campus Events list (2 columns) */}
-            <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200/50 lg:col-span-2 flex flex-col justify-between">
-              <div>
-                <div className="border-b border-slate-100 pb-4 mb-6">
-                  <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
-                    <span>📅</span> Upcoming Deadlines & Events
-                  </h3>
-                  <p className="text-xs text-slate-400 font-semibold mt-1">Important schedules for the current academic month.</p>
-                </div>
-
-                <div className="space-y-4">
-                  {events.length === 0 ? (
-                    <div className="text-center py-12 text-slate-400 text-xs font-semibold">
-                      No campus events scheduled.
-                    </div>
-                  ) : (
-                    events.map((evt, idx) => (
-                      <div key={evt._id || idx} className="flex gap-4 items-start p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                        <div className={`h-7 w-24 flex items-center justify-center text-[10px] font-extrabold uppercase tracking-wider rounded-lg shrink-0 border ${
-                          evt.type?.toLowerCase().includes("exam") || evt.type?.toLowerCase().includes("test") || evt.type?.toLowerCase().includes("ia") || evt.type?.toLowerCase().includes("practical")
-                            ? "bg-rose-50 text-rose-700 border-rose-200" :
-                          evt.type?.toLowerCase().includes("holiday")
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                          evt.type?.toLowerCase().includes("workshop") || evt.type?.toLowerCase().includes("visit")
-                            ? "bg-amber-50 text-amber-700 border-amber-200" :
-                          "bg-blue-50 text-blue-700 border-blue-200"
-                        }`}>
-                          {evt.type}
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs font-bold text-slate-400">{evt.time ? `${evt.date} • ${evt.time}` : evt.date}</p>
-                          <h4 className="text-sm font-bold text-slate-800 leading-tight">{evt.title}</h4>
-                          <p className="text-xs text-slate-500 font-medium leading-relaxed">{evt.description}</p>
-                          {evt.location && <p className="text-[10px] text-slate-400 font-semibold">Venue: {evt.location}</p>}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* --- TAB 2: RECORD ATTENDANCE --- */}
         {activeTab === "attendance" && (

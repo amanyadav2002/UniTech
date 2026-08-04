@@ -25,6 +25,12 @@ const EventSchema = new mongoose.Schema(
     location: {
       type: String,
     },
+    department: {
+      type: String,
+    },
+    semester: {
+      type: String,
+    },
     registrations: [
       {
         user: {
