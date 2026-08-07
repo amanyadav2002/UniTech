@@ -43,6 +43,7 @@ import {
   FlaskConical,
   X,
   RefreshCw,
+  Menu,
 } from "lucide-react";
 
 import studentService from "../services/studentService";
@@ -53,6 +54,7 @@ export default function Students({ onOpenAuth }) {
   
   // Dashboard navigation tab
   const [activeTab, setActiveTab] = useState("overview");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [bookmarkFilter, setBookmarkFilter] = useState("all");
@@ -943,6 +945,35 @@ export default function Students({ onOpenAuth }) {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex flex-col lg:flex-row">
         
+        {/* Mobile Header Top Bar */}
+        <div className="lg:hidden flex items-center justify-between bg-white border-b border-slate-200/80 px-6 py-4 sticky top-0 z-30 shadow-sm shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shadow-sm">
+              <GraduationCap size={22} />
+            </div>
+            <div>
+              <h1 className="font-extrabold text-slate-800 text-base leading-none">UniTech</h1>
+              <span className="text-[10px] text-indigo-600 font-bold tracking-wider uppercase mt-1 block">Student Hub</span>
+            </div>
+          </div>
+          
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition duration-200"
+            aria-label="Open Menu"
+          >
+            <Menu size={24} />
+          </button>
+        </div>
+
+        {/* Mobile Menu Backdrop */}
+        {isMobileMenuOpen && (
+          <div 
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 animate-fadeIn"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+
         {/* Real-time Toast Notification overlay */}
         {realTimeNotification && (
           <div className="fixed top-6 right-6 z-[100] max-w-sm w-full bg-white rounded-2xl border border-indigo-600/20 shadow-2xl p-5 animate-slideIn flex items-start gap-4">
@@ -963,25 +994,37 @@ export default function Students({ onOpenAuth }) {
         )}
         
         {/* Dashboard Sidebar Navigation */}
-        <aside className="w-full lg:w-72 bg-white border-r border-slate-200/80 flex flex-col shrink-0">
+        <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200/80 flex flex-col shrink-0 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:h-auto ${
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}>
           
           {/* Dashboard User Head */}
-          <div className="p-6 border-b border-slate-100 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-lg border border-indigo-100">
-              {user.name ? user.name.split(" ").map(w=>w[0]).join("").toUpperCase().substring(0, 2) : "ST"}
+          <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-lg border border-indigo-100 shrink-0">
+                {user.name ? user.name.split(" ").map(w=>w[0]).join("").toUpperCase().substring(0, 2) : "ST"}
+              </div>
+              <div className="min-w-0">
+                <h4 className="font-bold text-slate-800 leading-tight truncate max-w-[140px]">{user.name}</h4>
+                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full inline-block mt-1 truncate max-w-full">
+                  USN: {studentProfile.usn || "NOT SET"}
+                </span>
+              </div>
             </div>
-            <div>
-              <h4 className="font-bold text-slate-800 leading-tight truncate max-w-[170px]">{user.name}</h4>
-              <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full inline-block mt-1">
-                USN: {studentProfile.usn || "NOT SET"}
-              </span>
-            </div>
+            
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="lg:hidden p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition duration-200 shrink-0"
+              aria-label="Close Menu"
+            >
+              <X size={18} />
+            </button>
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex-1 px-4 py-6 space-y-1.5">
+          <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
             <button
-              onClick={() => setActiveTab("overview")}
+              onClick={() => { setActiveTab("overview"); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
                 activeTab === "overview"
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
@@ -993,7 +1036,7 @@ export default function Students({ onOpenAuth }) {
             </button>
 
             <button
-              onClick={() => setActiveTab("courses")}
+              onClick={() => { setActiveTab("courses"); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
                 activeTab === "courses"
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
@@ -1005,7 +1048,7 @@ export default function Students({ onOpenAuth }) {
             </button>
 
             <button
-              onClick={() => setActiveTab("grades")}
+              onClick={() => { setActiveTab("grades"); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
                 activeTab === "grades"
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
@@ -1017,7 +1060,7 @@ export default function Students({ onOpenAuth }) {
             </button>
 
             <button
-              onClick={() => setActiveTab("notices")}
+              onClick={() => { setActiveTab("notices"); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
                 activeTab === "notices"
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
@@ -1035,7 +1078,7 @@ export default function Students({ onOpenAuth }) {
             </button>
 
             <button
-              onClick={() => setActiveTab("resources")}
+              onClick={() => { setActiveTab("resources"); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
                 activeTab === "resources"
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
@@ -1047,7 +1090,7 @@ export default function Students({ onOpenAuth }) {
             </button>
 
             <button
-              onClick={() => setActiveTab("bookmarks")}
+              onClick={() => { setActiveTab("bookmarks"); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
                 activeTab === "bookmarks"
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
@@ -1066,7 +1109,7 @@ export default function Students({ onOpenAuth }) {
             </button>
 
             <button
-              onClick={() => setActiveTab("calendar")}
+              onClick={() => { setActiveTab("calendar"); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
                 activeTab === "calendar"
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
@@ -1078,7 +1121,7 @@ export default function Students({ onOpenAuth }) {
             </button>
 
             <button
-              onClick={() => setActiveTab("profile")}
+              onClick={() => { setActiveTab("profile"); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
                 activeTab === "profile"
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
@@ -1124,9 +1167,9 @@ export default function Students({ onOpenAuth }) {
             </div>
             
             {/* Header Right Actions */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
               {/* Search Bar */}
-              <div className="relative min-w-[280px] flex-1 sm:flex-initial" id="search-container">
+              <div className="relative w-full md:w-80" id="search-container">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                   <Search size={18} />
                 </span>
@@ -1143,7 +1186,7 @@ export default function Students({ onOpenAuth }) {
 
                 {/* Dropdown Menu for Student Portal Search Results */}
                 {isSearchFocused && globalSearchQuery && (
-                  <div className="absolute left-0 right-0 sm:min-w-[340px] mt-2 z-[60] max-h-[380px] overflow-y-auto bg-white rounded-2xl border border-slate-200/80 shadow-2xl py-2 flex flex-col divide-y divide-slate-50">
+                  <div className="absolute left-0 right-0 md:min-w-[340px] mt-2 z-[60] max-h-[380px] overflow-y-auto bg-white rounded-2xl border border-slate-200/80 shadow-2xl py-2 flex flex-col divide-y divide-slate-50">
                     {searchResults.length > 0 ? (
                       searchResults.map((result, idx) => {
                         let icon = <Search className="h-4 w-4 text-indigo-500" />;
@@ -1187,36 +1230,39 @@ export default function Students({ onOpenAuth }) {
                 )}
               </div>
 
-              {/* Refresh Button */}
-              <button
-                onClick={handleRefresh}
-                disabled={isRefreshing || loadingPortal}
-                className="p-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 hover:bg-slate-50 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
-                title="Refresh Data"
-              >
-                <RefreshCw size={20} className={`${isRefreshing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
-              </button>
+              {/* Action Buttons and Badge Horizontal Row */}
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                {/* Refresh Button */}
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing || loadingPortal}
+                  className="p-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 hover:bg-slate-50 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95 w-12 h-12"
+                  title="Refresh Data"
+                >
+                  <RefreshCw size={20} className={`${isRefreshing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
+                </button>
 
-              {/* Notification Bell */}
-              <button
-                onClick={() => setActiveTab("notices")}
-                className="relative p-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 hover:bg-slate-50 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0"
-                title="Campus Notices"
-              >
-                <Bell size={20} />
-                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-4 ring-white">
-                  {noticesList.length}
-                </span>
-              </button>
+                {/* Notification Bell */}
+                <button
+                  onClick={() => setActiveTab("notices")}
+                  className="relative p-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 hover:bg-slate-50 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0 w-12 h-12"
+                  title="Campus Notices"
+                >
+                  <Bell size={20} />
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-4 ring-white">
+                    {noticesList.length}
+                  </span>
+                </button>
 
-              {/* Quick Live stats badge */}
-              <div className="flex items-center gap-3 bg-white p-2.5 px-4 rounded-2xl shadow-sm border border-slate-200/50 shrink-0">
-                <CalendarDays className="text-indigo-600 h-5 w-5" />
-                <div className="text-left">
-                  <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Date & Time</p>
-                  <p className="text-xs font-bold text-slate-700">
-                    {new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                  </p>
+                {/* Quick Live stats badge */}
+                <div className="flex-1 md:flex-initial flex items-center gap-3 bg-white p-2.5 px-4 rounded-2xl shadow-sm border border-slate-200/50 min-h-[48px]">
+                  <CalendarDays className="text-indigo-600 h-5 w-5" />
+                  <div className="text-left">
+                    <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Date & Time</p>
+                    <p className="text-xs font-bold text-slate-700 whitespace-nowrap">
+                      {new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
