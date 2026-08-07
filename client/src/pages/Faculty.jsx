@@ -41,7 +41,8 @@ import {
   Layers,
   Activity,
   DollarSign,
-  Folder
+  Folder,
+  Menu,
 } from "lucide-react";
 
 import facultyService from "../services/facultyService";
@@ -98,6 +99,7 @@ export default function Faculty({ onOpenAuth }) {
   
   // Dashboard active tab navigation
   const [activeTab, setActiveTab] = useState("overview");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [resourceSubTab, setResourceSubTab] = useState("materials");
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
@@ -1908,10 +1910,9 @@ export default function Faculty({ onOpenAuth }) {
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col lg:flex-row animate-fadeIn">
       
-      {/* Sidebar Navigation */}
-      <aside className="w-full lg:w-72 bg-black border-r border-zinc-900 flex flex-col shrink-0 text-zinc-300 font-sans">
-        {/* Logo/Branding Header */}
-        <div className="px-6 py-6 border-b border-zinc-900 flex items-center gap-3">
+      {/* Mobile Header Top Bar */}
+      <div className="lg:hidden flex items-center justify-between bg-zinc-950 px-6 py-4 sticky top-0 z-30 shadow-sm shrink-0 text-zinc-300">
+        <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-zinc-900 flex items-center justify-center text-blue-500 border border-zinc-800 shadow-sm shadow-blue-500/10">
             <GraduationCap size={20} />
           </div>
@@ -1919,6 +1920,48 @@ export default function Faculty({ onOpenAuth }) {
             <h1 className="text-base font-extrabold text-white tracking-tight leading-none">UniTech</h1>
             <span className="text-[10px] text-blue-500 font-bold tracking-wider uppercase mt-1.5 block">Faculty Hub</span>
           </div>
+        </div>
+        
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-xl transition duration-200"
+          aria-label="Open Menu"
+        >
+          <Menu size={24} />
+        </button>
+      </div>
+
+      {/* Mobile Menu Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 animate-fadeIn"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar Navigation */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-black border-r border-zinc-900 flex flex-col shrink-0 text-zinc-300 font-sans transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:h-auto ${
+        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+      }`}>
+        {/* Logo/Branding Header */}
+        <div className="px-6 py-6 border-b border-zinc-900 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-zinc-900 flex items-center justify-center text-blue-500 border border-zinc-800 shadow-sm shadow-blue-500/10">
+              <GraduationCap size={20} />
+            </div>
+            <div>
+              <h1 className="text-base font-extrabold text-white tracking-tight leading-none">UniTech</h1>
+              <span className="text-[10px] text-blue-500 font-bold tracking-wider uppercase mt-1.5 block">Faculty Hub</span>
+            </div>
+          </div>
+          
+          <button
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="lg:hidden p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition duration-200 shrink-0"
+            aria-label="Close Menu"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {/* User Profile Card */}
@@ -1936,9 +1979,9 @@ export default function Faculty({ onOpenAuth }) {
         </div>
 
         {/* Navigation Tabs */}
-        <nav className="flex-1 px-4 py-6 space-y-1">
+        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
           <button
-            onClick={() => setActiveTab("overview")}
+            onClick={() => { setActiveTab("overview"); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
               activeTab === "overview"
                 ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/15"
@@ -1950,7 +1993,7 @@ export default function Faculty({ onOpenAuth }) {
           </button>
 
           <button
-            onClick={() => setActiveTab("attendance")}
+            onClick={() => { setActiveTab("attendance"); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
               activeTab === "attendance"
                 ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/15"
@@ -1962,7 +2005,7 @@ export default function Faculty({ onOpenAuth }) {
           </button>
 
           <button
-            onClick={() => setActiveTab("resources")}
+            onClick={() => { setActiveTab("resources"); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
               activeTab === "resources"
                 ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/15"
@@ -1974,7 +2017,7 @@ export default function Faculty({ onOpenAuth }) {
           </button>
 
           <button
-            onClick={() => setActiveTab("assignments")}
+            onClick={() => { setActiveTab("assignments"); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
               activeTab === "assignments"
                 ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/15"
@@ -1986,7 +2029,7 @@ export default function Faculty({ onOpenAuth }) {
           </button>
 
           <button
-            onClick={() => setActiveTab("calendar")}
+            onClick={() => { setActiveTab("calendar"); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
               activeTab === "calendar"
                 ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/15"
@@ -2031,9 +2074,9 @@ export default function Faculty({ onOpenAuth }) {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
             {/* Search Input */}
-            <div className="relative min-w-[280px] flex-1 sm:flex-initial" id="search-container">
+            <div className="relative w-full md:w-80" id="search-container">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <Search size={18} />
               </span>
@@ -2051,7 +2094,7 @@ export default function Faculty({ onOpenAuth }) {
 
               {/* Dropdown Menu for Faculty Portal Search Results */}
               {isSearchFocused && globalSearchQuery && (
-                <div className="absolute left-0 right-0 sm:min-w-[340px] mt-2 z-[60] max-h-[380px] overflow-y-auto bg-white rounded-2xl border border-slate-200/80 shadow-2xl py-2 flex flex-col divide-y divide-slate-50">
+                <div className="absolute left-0 right-0 md:min-w-[340px] mt-2 z-[60] max-h-[380px] overflow-y-auto bg-white rounded-2xl border border-slate-200/80 shadow-2xl py-2 flex flex-col divide-y divide-slate-50">
                   {searchResults.length > 0 ? (
                     searchResults.map((result, idx) => {
                       let icon = <Search className="h-4 w-4 text-indigo-500" />;
@@ -2094,38 +2137,41 @@ export default function Faculty({ onOpenAuth }) {
               )}
             </div>
 
-            {/* Refresh Button */}
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing || loadingPortal}
-              className="p-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 hover:bg-slate-50 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95"
-              title="Refresh Data"
-            >
-              <RefreshCw size={20} className={`${isRefreshing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
-            </button>
+            {/* Action Buttons and Badge Horizontal Row */}
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              {/* Refresh Button */}
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing || loadingPortal}
+                className="p-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 hover:bg-slate-50 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95 w-12 h-12"
+                title="Refresh Data"
+              >
+                <RefreshCw size={20} className={`${isRefreshing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
+              </button>
 
-            {/* Notification Icon */}
-            <button
-              onClick={() => setActiveTab("notices")}
-              className="relative p-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 hover:bg-slate-50 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0"
-              title="Campus Notices"
-            >
-              <Bell size={20} />
-              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-4 ring-white">
-                {notices.length}
-              </span>
-            </button>
+              {/* Notification Icon */}
+              <button
+                onClick={() => setActiveTab("notices")}
+                className="relative p-3 bg-white rounded-2xl shadow-sm border border-slate-200/50 hover:bg-slate-50 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0 w-12 h-12"
+                title="Campus Notices"
+              >
+                <Bell size={20} />
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-4 ring-white">
+                  {notices.length}
+                </span>
+              </button>
 
-            {/* Date Badge */}
-            <div className="flex items-center gap-3 bg-white p-2.5 px-4 rounded-2xl shadow-sm border border-slate-200/50 shrink-0">
-              <CalendarDays className="text-indigo-600 h-5 w-5" />
-              <div className="text-left font-semibold">
-                <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Academic Date</p>
-                <p className="text-xs text-slate-700">
-                  {attendanceDate 
-                    ? new Date(attendanceDate + "T12:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
-                    : new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                </p>
+              {/* Date Badge */}
+              <div className="flex-1 md:flex-initial flex items-center gap-3 bg-white p-2.5 px-4 rounded-2xl shadow-sm border border-slate-200/50 min-h-[48px]">
+                <CalendarDays className="text-indigo-600 h-5 w-5" />
+                <div className="text-left font-semibold">
+                  <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Academic Date</p>
+                  <p className="text-xs text-slate-700 whitespace-nowrap">
+                    {attendanceDate 
+                      ? new Date(attendanceDate + "T12:00:00").toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+                      : new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
