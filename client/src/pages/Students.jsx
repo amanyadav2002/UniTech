@@ -67,8 +67,11 @@ export default function Students({ onOpenAuth }) {
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
-      const container = document.getElementById("search-container");
-      if (container && !container.contains(e.target)) {
+      const containerDesktop = document.getElementById("search-container-desktop");
+      const containerMobile = document.getElementById("search-container-mobile");
+      const clickedDesktop = containerDesktop && containerDesktop.contains(e.target);
+      const clickedMobile = containerMobile && containerMobile.contains(e.target);
+      if (!clickedDesktop && !clickedMobile) {
         setIsSearchFocused(false);
       }
     };
@@ -946,24 +949,123 @@ export default function Students({ onOpenAuth }) {
       <div className="min-h-screen bg-[#f8fafc] flex flex-col lg:flex-row">
         
         {/* Mobile Header Top Bar */}
-        <div className="lg:hidden flex items-center justify-between bg-white border-b border-slate-200/80 px-6 py-4 sticky top-0 z-30 shadow-sm shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shadow-sm">
-              <GraduationCap size={22} />
-            </div>
-            <div>
-              <h1 className="font-extrabold text-slate-800 text-base leading-none">UniTech</h1>
-              <span className="text-[10px] text-indigo-600 font-bold tracking-wider uppercase mt-1 block">Student Hub</span>
+        <div className="lg:hidden flex flex-col bg-white border-b border-slate-200/80 sticky top-0 z-30 shadow-sm shrink-0">
+          {/* Row 1: Brand Header */}
+          <div className="flex items-center justify-between px-6 py-2.5 bg-slate-50/40 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shadow-sm">
+                <GraduationCap size={18} />
+              </div>
+              <div>
+                <h1 className="font-extrabold text-slate-800 text-sm leading-none">UniTech</h1>
+                <span className="text-[9px] text-indigo-600 font-bold tracking-wider uppercase mt-0.5 block">Student Hub</span>
+              </div>
             </div>
           </div>
-          
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition duration-200"
-            aria-label="Open Menu"
-          >
-            <Menu size={24} />
-          </button>
+
+          {/* Row 2: Action Header (Hamburger Left, Search + Actions Right) */}
+          <div className="flex items-center justify-between px-4 py-2 bg-white gap-3" id="search-container-mobile">
+            {/* Hamburger on Left */}
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition duration-200 shrink-0"
+              aria-label="Open Menu"
+            >
+              <Menu size={22} />
+            </button>
+
+            {/* Actions on Right */}
+            <div className="flex items-center gap-1.5 xs:gap-2">
+              {/* Search Bar Input */}
+              <div className="relative w-28 xs:w-36">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                  <Search size={13} />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={globalSearchQuery}
+                  onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
+                  className="w-full rounded-xl border border-slate-200 pl-8 pr-2 py-1 text-xs bg-slate-50 focus:bg-white focus:border-indigo-500 focus:outline-none transition-all font-semibold text-slate-800 placeholder:text-slate-400 h-8"
+                />
+                {/* Search Results Dropdown */}
+                {isSearchFocused && globalSearchQuery && (
+                  <div className="absolute right-0 mt-2 w-72 z-[60] max-h-[300px] overflow-y-auto bg-white rounded-2xl border border-slate-200/80 shadow-2xl py-2 flex flex-col divide-y divide-slate-50">
+                    {searchResults.length === 0 ? (
+                      <div className="px-4 py-3 text-xs text-slate-400 font-semibold text-center">
+                        No results found for "{globalSearchQuery}"
+                      </div>
+                    ) : (
+                      searchResults.map((result, idx) => {
+                        let icon = <Search className="h-3.5 w-3.5 text-indigo-500" />;
+                        if (result.category === "Enrolled Courses") icon = <BookOpen className="h-3.5 w-3.5 text-indigo-500" />;
+                        else if (result.category === "Grades & Results") icon = <Award className="h-3.5 w-3.5 text-emerald-500" />;
+                        else if (result.category === "Study Materials") icon = <Laptop className="h-3.5 w-3.5 text-sky-500" />;
+                        else if (result.category === "Subject Assignments") icon = <FileText className="h-3.5 w-3.5 text-amber-500" />;
+                        else if (result.category === "Campus Notices") icon = <Bell className="h-3.5 w-3.5 text-rose-500" />;
+                        else if (result.category === "Class Schedule") icon = <Clock className="h-3.5 w-3.5 text-purple-500" />;
+                        else if (result.category === "Academic Checklist") icon = <CheckSquare className="h-3.5 w-3.5 text-teal-500" />;
+                        else if (result.category === "Saved Bookmarks") icon = <Bookmark className="h-3.5 w-3.5 text-indigo-500" />;
+                        else if (result.category === "Student Profile") icon = <User className="h-3.5 w-3.5 text-blue-500" />;
+
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={result.action}
+                            className="flex items-start gap-2.5 px-3 py-2 text-left hover:bg-slate-50 transition w-full group"
+                          >
+                            <div className="p-1 bg-slate-100 rounded-lg group-hover:bg-indigo-50 transition shrink-0 mt-0.5">
+                              {icon}
+                            </div>
+                            <div className="overflow-hidden flex-1">
+                              <p className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
+                                {result.title}
+                              </p>
+                              <span className="text-[9px] font-semibold text-slate-400 block mt-0.5 uppercase tracking-wide truncate">
+                                {result.category} &bull; {result.description}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Refresh Button */}
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing || loadingPortal}
+                className="w-8 h-8 bg-slate-50 rounded-xl border border-slate-200/50 hover:bg-slate-100 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                title="Refresh Data"
+              >
+                <RefreshCw size={14} className={`${isRefreshing ? "animate-spin" : ""}`} />
+              </button>
+
+              {/* Notification Bell */}
+              <button
+                onClick={() => setActiveTab("notices")}
+                className="relative w-8 h-8 bg-slate-50 rounded-xl border border-slate-200/50 hover:bg-slate-100 transition text-slate-500 hover:text-indigo-600 flex items-center justify-center shrink-0"
+                title="Campus Notices"
+              >
+                <Bell size={14} />
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white ring-2 ring-white">
+                  {noticesList.length}
+                </span>
+              </button>
+
+              {/* Date & Time badge */}
+              <div className="flex items-center gap-1 bg-slate-50 px-2 rounded-xl border border-slate-200/50 shrink-0 h-8">
+                <CalendarDays className="text-indigo-600 h-3 w-3" />
+                <span className="text-[9px] font-bold text-slate-700 whitespace-nowrap">
+                  {new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Mobile Menu Backdrop */}
@@ -1167,9 +1269,9 @@ export default function Students({ onOpenAuth }) {
             </div>
             
             {/* Header Right Actions */}
-            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
+            <div className="hidden lg:flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto" id="search-container-desktop">
               {/* Search Bar */}
-              <div className="relative w-full md:w-80" id="search-container">
+              <div className="relative w-full md:w-80">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                   <Search size={18} />
                 </span>
@@ -1299,8 +1401,8 @@ export default function Students({ onOpenAuth }) {
                     </p>
                   </div>
                   
-                  {/* Quick stats in card */}
-                  <div className="flex gap-4 md:gap-6 shrink-0 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15">
+                  {/* Quick stats in card (Desktop: flex layout, original styles) */}
+                  <div className="hidden sm:flex gap-4 md:gap-6 shrink-0 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15">
                     <div className="text-center">
                       <p className="text-[10px] uppercase font-bold text-indigo-200 flex items-center justify-center gap-1"><span>🎯</span> CGPA</p>
                       <p className="text-lg md:text-xl font-black text-white">{cgpa}</p>
@@ -1321,16 +1423,40 @@ export default function Students({ onOpenAuth }) {
                       </p>
                     </div>
                   </div>
+
+                  {/* Quick stats in card (Mobile: grid layout, simplified styles) */}
+                  <div className="flex sm:hidden grid-cols-3 gap-2 bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/15 w-full justify-around">
+                    <div className="text-center">
+                      <p className="text-[9px] uppercase font-bold text-indigo-200">CGPA</p>
+                      <p className="text-base font-black text-white">{cgpa}</p>
+                    </div>
+                    <div className="w-[1px] bg-white/20 self-stretch"></div>
+                    <div 
+                       onClick={() => setActiveTab("courses")}
+                       className="text-center cursor-pointer"
+                     >
+                       <p className="text-[9px] uppercase font-bold text-indigo-200">Attendance</p>
+                       <p className="text-base font-black text-white">{attendanceStats.overallPercent}%</p>
+                     </div>
+                    <div className="w-[1px] bg-white/20 self-stretch"></div>
+                    <div className="text-center">
+                      <p className="text-[9px] uppercase font-bold text-indigo-200">Tasks</p>
+                      <p className="text-base font-black text-white">
+                        {tasks.filter(t => !t.completed).length}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Quick Metrics Cards */}
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3.5 sm:gap-6 lg:grid-cols-4">
                 
-                {/* Card 1: Attendance Progress */}
+                {/* --- CARD 1: ATTENDANCE PROGRESS --- */}
+                {/* Desktop Version */}
                 <div 
                   onClick={() => setActiveTab("courses")}
-                  className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex items-center justify-between cursor-pointer hover:border-indigo-200 hover:shadow-md transition duration-150"
+                  className="hidden sm:flex bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 items-center justify-between cursor-pointer hover:border-indigo-200 hover:shadow-md transition duration-150"
                 >
                   <div className="space-y-2">
                     <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
@@ -1371,9 +1497,54 @@ export default function Students({ onOpenAuth }) {
                     </div>
                   </div>
                 </div>
+                {/* Mobile Version */}
+                <div 
+                  onClick={() => setActiveTab("courses")}
+                  className="flex sm:hidden bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/50 items-center justify-between cursor-pointer hover:border-indigo-200 hover:shadow-md transition duration-150 gap-2"
+                >
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold text-slate-500">
+                      Attendance
+                    </p>
+                    <h3 className="text-xl font-extrabold text-slate-800 leading-none">{attendanceStats.overallPercent}%</h3>
+                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full inline-block ${
+                      attendanceStats.overallPercent >= 75 
+                        ? "text-emerald-600 bg-emerald-50" 
+                        : "text-rose-600 bg-rose-50"
+                    }`}>
+                      {attendanceStats.overallPercent >= 75 ? "Excellent" : "Shortage"}
+                    </span>
+                  </div>
+                  
+                  {/* Attendance Ring */}
+                  <div className="relative h-10 w-10 shrink-0">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                      <path
+                        className="text-slate-100"
+                        strokeWidth="3.5"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                      <path
+                        className="text-indigo-600"
+                        strokeWidth="3.5"
+                        strokeDasharray={`${attendanceStats.overallPercent}, 100`}
+                        strokeLinecap="round"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-slate-700">
+                      {attendanceStats.overallPercent}%
+                    </div>
+                  </div>
+                </div>
 
-                {/* Card 2: GPA */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
+                {/* --- CARD 2: CURRENT GPA --- */}
+                {/* Desktop Version */}
+                <div className="hidden sm:flex bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 items-center justify-between">
                   <div className="space-y-2">
                     <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
                       <span>🎯</span> Current GPA
@@ -1387,9 +1558,25 @@ export default function Students({ onOpenAuth }) {
                     <TrendingUp size={28} />
                   </div>
                 </div>
+                {/* Mobile Version */}
+                <div className="flex sm:hidden bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/50 items-center justify-between gap-2">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold text-slate-500">
+                      GPA
+                    </p>
+                    <h3 className="text-xl font-extrabold text-slate-800 leading-none">{cgpa} / 4.0</h3>
+                    <span className="text-[9px] text-indigo-600 font-semibold bg-indigo-50 px-1.5 py-0.5 rounded-full inline-block">
+                      Grade {cgpa >= 3.6 ? "A" : "B"}
+                    </span>
+                  </div>
+                  <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600 shrink-0">
+                    <TrendingUp size={16} />
+                  </div>
+                </div>
 
-                {/* Card 3: Semester Credit Status */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex flex-col justify-between">
+                {/* --- CARD 3: SEMESTER CREDIT STATUS --- */}
+                {/* Desktop Version */}
+                <div className="hidden sm:flex bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex-col justify-between">
                   <div className="space-y-2 w-full">
                     <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
                       <span>📚</span> Graduation Credits
@@ -1406,9 +1593,28 @@ export default function Students({ onOpenAuth }) {
                     </span>
                   </div>
                 </div>
+                {/* Mobile Version */}
+                <div className="flex sm:hidden bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/50 flex-col justify-between">
+                  <div className="space-y-1 w-full">
+                    <p className="text-[10px] font-semibold text-slate-500">
+                      Credits
+                    </p>
+                    <div className="flex items-baseline justify-between">
+                      <h3 className="text-xl font-extrabold text-slate-800 leading-none">{totalEarnedCredits}</h3>
+                      <span className="text-[9px] text-slate-500">Goal: 120</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1 mt-1">
+                      <div className="bg-indigo-600 h-1 rounded-full" style={{ width: `${Math.min(100, Math.round((totalEarnedCredits / 120) * 100))}%` }}></div>
+                    </div>
+                    <span className="text-[9px] font-semibold text-slate-500 mt-1 inline-block">
+                      {Math.min(100, Math.round((totalEarnedCredits / 120) * 100))}%
+                    </span>
+                  </div>
+                </div>
 
-                {/* Card 4: Subject count */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
+                {/* --- CARD 4: REGISTERED COURSES --- */}
+                {/* Desktop Version */}
+                <div className="hidden sm:flex bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 items-center justify-between">
                   <div className="space-y-2">
                     <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
                       <span>📖</span> Registered Courses
@@ -1420,6 +1626,21 @@ export default function Students({ onOpenAuth }) {
                   </div>
                   <div className="p-3 bg-amber-50 rounded-xl text-amber-600 shrink-0">
                     <BookOpen size={28} />
+                  </div>
+                </div>
+                {/* Mobile Version */}
+                <div className="flex sm:hidden bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/50 items-center justify-between gap-2">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold text-slate-500">
+                      Courses
+                    </p>
+                    <h3 className="text-xl font-extrabold text-slate-800 leading-none">{coursesDetails.length} Courses</h3>
+                    <span className="text-[9px] text-slate-600 font-semibold bg-slate-100 px-1.5 py-0.5 rounded-full inline-block">
+                      {coursesDetails.reduce((acc, c) => acc + c.credits, 0)} Credits
+                    </span>
+                  </div>
+                  <div className="p-1.5 bg-amber-50 rounded-lg text-amber-600 shrink-0">
+                    <BookOpen size={16} />
                   </div>
                 </div>
 
@@ -2106,7 +2327,7 @@ export default function Students({ onOpenAuth }) {
                                     • Instructor: {course.teacher || "Faculty"}
                                   </span>
                                 </div>
-                                <h4 className="font-extrabold text-slate-800 text-[13px] mt-1.5 truncate max-w-[180px] md:max-w-[240px]" title={course.name}>
+                                <h4 className="font-extrabold text-slate-800 text-[13px] mt-1.5 truncate" title={course.name}>
                                   {course.name}
                                 </h4>
                               </div>
@@ -2408,10 +2629,10 @@ export default function Students({ onOpenAuth }) {
                                       const { period, time } = getPeriodAndTimeParts(record.period);
 
                                       return (
-                                        <div key={index} className="flex items-center justify-between py-2 px-4 bg-white hover:bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-indigo-100 transition duration-150 shadow-sm">
-                                          <div className="flex items-center gap-4 min-w-0">
+                                        <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white hover:bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-indigo-100 transition duration-150 shadow-sm gap-3 sm:gap-4">
+                                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 min-w-0">
                                             {/* Leftest: Sleek Horizontal Period & Time Badge */}
-                                            <div className="flex items-center gap-2 bg-indigo-50/40 rounded-xl border border-indigo-100/40 py-1.5 px-3 min-w-[170px] justify-between">
+                                            <div className="flex items-center gap-2 bg-indigo-50/40 rounded-xl border border-indigo-100/40 py-1 px-2.5 sm:py-1.5 sm:px-3 w-full sm:w-auto sm:min-w-[170px] justify-between text-slate-700">
                                               <span className="text-[9px] font-black text-indigo-600 uppercase tracking-wider whitespace-nowrap">
                                                 {period ? period.split(" (")[0] : ""}
                                               </span>
@@ -2425,14 +2646,14 @@ export default function Students({ onOpenAuth }) {
                                               <span className="text-[10px] font-black text-slate-600 font-mono tracking-wider">
                                                 {record.subjectCode || ""}
                                               </span>
-                                              <h4 className="font-extrabold text-slate-800 text-[13px] mt-0.5 truncate max-w-[200px] md:max-w-[280px]">
+                                              <h4 className="font-extrabold text-slate-800 text-[13px] mt-0.5 truncate w-full">
                                                 {record.subjectName || ""}
                                               </h4>
                                             </div>
                                           </div>
 
                                           {/* Attendance Status Circle Indicator */}
-                                          <div className="flex items-center gap-3">
+                                          <div className="flex items-center justify-between sm:justify-end gap-3 border-t border-slate-50 pt-2.5 sm:border-none sm:pt-0">
                                             <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${badgeColor}`}>
                                               {record.status || ""}
                                             </span>
@@ -2468,15 +2689,15 @@ export default function Students({ onOpenAuth }) {
             <div className="space-y-8 animate-fadeIn">
               
               {/* Header metrics */}
-              <div className="grid gap-6 md:grid-cols-3">
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50">
+              <div className="grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-3">
+                <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/50">
                   <p className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-1 flex items-center gap-1.5">
                     <span>🎯</span> Cumulative GPA (CGPA)
                   </p>
                   <h3 className="text-3xl font-extrabold text-slate-800">{cgpa} / 4.00</h3>
                   <p className="text-xs text-indigo-600 font-semibold mt-1">Class Rank: 14 / 280 students</p>
                 </div>
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50">
+                <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/50">
                   <p className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-1 flex items-center gap-1.5">
                     <span>📈</span> Previous Semester GPA
                   </p>
@@ -2484,10 +2705,10 @@ export default function Students({ onOpenAuth }) {
                     {gpaHistory.length > 0 ? gpaHistory[gpaHistory.length - 1].gpa : "3.91"}
                   </h3>
                   <p className="text-xs text-emerald-600 font-semibold mt-1">
-                    Semester {gpaHistory.length > 0 ? gpaHistory[gpaHistory.length - 1].semester : "5"} &bull; Outstanding Performance
+                    Semester {gpaHistory.length > 0 ? gpaHistory[gpaHistory.length - 1].semester : "5"} &bull; Outstanding
                   </p>
                 </div>
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50">
+                <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/50">
                   <p className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-1 flex items-center gap-1.5">
                     <span>📚</span> Total Earned Credits
                   </p>
@@ -2573,10 +2794,11 @@ export default function Students({ onOpenAuth }) {
                 </div>
 
                 {/* Internal marks / Grade history (3 columns) */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 lg:col-span-3">
+                <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/50 lg:col-span-3">
                   <h4 className="text-lg font-bold text-slate-800 mb-5">Latest Examination Marks</h4>
                   
-                  <div className="overflow-x-auto">
+                  {/* Desktop View Table */}
+                  <div className="overflow-x-auto hidden sm:block">
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -2616,6 +2838,42 @@ export default function Students({ onOpenAuth }) {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Mobile-optimized list of cards */}
+                  <div className="block sm:hidden space-y-4">
+                    {filteredGrades.length === 0 ? (
+                      <div className="text-center py-8 text-slate-400 text-sm font-semibold">
+                        No matching examination marks found for "{globalSearchQuery}".
+                      </div>
+                    ) : (
+                      filteredGrades.map((record, index) => (
+                        <div key={index} className="bg-slate-50/50 hover:bg-slate-50 border border-slate-100 p-4 rounded-2xl flex flex-col gap-3 transition">
+                          <div className="flex items-center justify-between">
+                            <span className="bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded font-bold">
+                              {record.code}
+                            </span>
+                            <span className="text-xs text-slate-500 font-medium">
+                              {record.type}
+                            </span>
+                          </div>
+                          
+                          <div>
+                            <h4 className="font-extrabold text-slate-800 text-sm leading-snug">{record.name}</h4>
+                          </div>
+
+                          <div className="flex justify-between items-center border-t border-slate-100/60 pt-2">
+                            <div>
+                              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Marks Obtained</p>
+                              <p className="text-base font-extrabold text-slate-800">{record.marks}</p>
+                            </div>
+                            <span className="text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-bold border border-emerald-100/50">
+                              {record.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
 
               </div>
@@ -2643,7 +2901,7 @@ export default function Students({ onOpenAuth }) {
                 </div>
 
                 {/* Filter tab */}
-                <div className="flex gap-1.5 p-1 bg-slate-100 rounded-xl shrink-0">
+                <div className="flex gap-1 sm:gap-1.5 p-1 bg-slate-100 rounded-xl overflow-x-auto sm:overflow-x-visible w-full sm:w-auto no-scrollbar shrink-0">
                   {["all", "academic", "exams", "events"].map((cat) => (
                     <button
                       key={cat}
@@ -2869,7 +3127,7 @@ export default function Students({ onOpenAuth }) {
                                 <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-4">{note.content}</p>
                               </div>
                               {note.link && note.link !== "#" && (
-                                <div className="mt-1 mb-4 p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                                <div className="mt-1 mb-4 p-3 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col xs:flex-row xs:items-center justify-between gap-3">
                                   <div className="flex items-center gap-2 truncate">
                                     <span className="text-base shrink-0">
                                       {note.link.match(/\.(pdf)$/i) ? "📕" : note.link.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? "🖼️" : "📁"}
@@ -2878,13 +3136,13 @@ export default function Students({ onOpenAuth }) {
                                       {note.link.substring(note.link.lastIndexOf('/') + 1) || "attachment"}
                                     </span>
                                   </div>
-                                  <div className="flex gap-2">
+                                  <div className="flex gap-2 w-full xs:w-auto">
                                     <button
                                       onClick={() => {
                                         setPreviewFileUrl(note.link);
                                         setPreviewFileName(note.title);
                                       }}
-                                      className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-100 transition"
+                                      className="flex-1 xs:flex-initial text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-100 transition"
                                     >
                                       Preview
                                     </button>
@@ -2893,7 +3151,7 @@ export default function Students({ onOpenAuth }) {
                                       download={note.title}
                                       target="_blank"
                                       rel="noreferrer"
-                                      className="text-[10px] font-extrabold text-slate-700 hover:text-slate-900 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 transition"
+                                      className="flex-1 xs:flex-initial text-center text-[10px] font-extrabold text-slate-700 hover:text-slate-900 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 transition"
                                     >
                                       Download
                                     </a>
@@ -2975,7 +3233,7 @@ export default function Students({ onOpenAuth }) {
                                 <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-4">{assign.content}</p>
                               </div>
                               {assign.link && assign.link !== "#" && (
-                                <div className="mt-1 mb-4 p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                                <div className="mt-1 mb-4 p-3 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col xs:flex-row xs:items-center justify-between gap-3">
                                   <div className="flex items-center gap-2 truncate">
                                     <span className="text-base shrink-0">
                                       {assign.link.match(/\.(pdf)$/i) ? "📕" : assign.link.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? "🖼️" : "📁"}
@@ -2984,13 +3242,13 @@ export default function Students({ onOpenAuth }) {
                                       {assign.link.substring(assign.link.lastIndexOf('/') + 1) || "attachment"}
                                     </span>
                                   </div>
-                                  <div className="flex gap-2">
+                                  <div className="flex gap-2 w-full xs:w-auto">
                                     <button
                                       onClick={() => {
                                         setPreviewFileUrl(assign.link);
                                         setPreviewFileName(assign.title);
                                       }}
-                                      className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-100 transition"
+                                      className="flex-1 xs:flex-initial text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-100 transition"
                                     >
                                       Preview
                                     </button>
@@ -2999,7 +3257,7 @@ export default function Students({ onOpenAuth }) {
                                       download={assign.title}
                                       target="_blank"
                                       rel="noreferrer"
-                                      className="text-[10px] font-extrabold text-slate-700 hover:text-slate-900 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 transition"
+                                      className="flex-1 xs:flex-initial text-center text-[10px] font-extrabold text-slate-700 hover:text-slate-900 bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 transition"
                                     >
                                       Download
                                     </a>
@@ -3066,7 +3324,7 @@ export default function Students({ onOpenAuth }) {
                 </div>
 
                 {/* Filter tabs */}
-                <div className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-xl shrink-0">
+                <div className="flex gap-1 sm:gap-1.5 sm:flex-wrap p-1 bg-slate-100 rounded-xl overflow-x-auto sm:overflow-x-visible w-full sm:w-auto no-scrollbar shrink-0">
                   {[
                     { key: "all", label: "All" },
                     { key: "note", label: "Notes" },
