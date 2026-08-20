@@ -16,8 +16,21 @@ import {
   Building,
   Droplet,
   BookOpen,
+  ChevronDown,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+
+const countriesList = [
+  { name: "India", code: "+91", iso: "in", length: 10 },
+  { name: "United States", code: "+1", iso: "us", length: 10 },
+  { name: "United Kingdom", code: "+44", iso: "gb", length: 10 },
+  { name: "Australia", code: "+61", iso: "au", length: 9 },
+  { name: "Canada", code: "+1", iso: "ca", length: 10 },
+  { name: "Germany", code: "+49", iso: "de", length: 11 },
+  { name: "France", code: "+33", iso: "fr", length: 9 },
+  { name: "Singapore", code: "+65", iso: "sg", length: 8 },
+  { name: "UAE", code: "+971", iso: "ae", length: 9 }
+];
 
 export default function AuthModal({ isOpen, onClose, defaultTab = "login", defaultRole = "student" }) {
   const navigate = useNavigate();
@@ -39,6 +52,9 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
   const [age, setAge] = useState("");
   const [phone, setPhone] = useState("");
   const [dob, setDob] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState(countriesList[0]);
+  const [rawPhoneNumber, setRawPhoneNumber] = useState("");
+  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
   
   // Custom DOB picker states
   const [dobDay, setDobDay] = useState("");
@@ -119,6 +135,12 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
     if (!/^\d+$/.test(val)) return;
     if (val.length > 4) return;
     setDobYear(val);
+  };
+
+  const handleCountryBlur = () => {
+    setTimeout(() => {
+      setIsCountryDropdownOpen(false);
+    }, 200);
   };
 
   // DOB Input Blur Handlers
@@ -254,6 +276,9 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
       setCustomId("");
       setAge("");
       setPhone("");
+      setSelectedCountry(countriesList[0]);
+      setRawPhoneNumber("");
+      setIsCountryDropdownOpen(false);
       setDob("");
       setDobDay("");
       setDobMonth("");
@@ -443,9 +468,15 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
     e.preventDefault();
     setLocalError(null);
 
-    if (tab === "signup" && password !== confirmPassword) {
-      setLocalError("Passwords do not match!");
-      return;
+    if (tab === "signup") {
+      if (password !== confirmPassword) {
+        setLocalError("Passwords do not match!");
+        return;
+      }
+      if (rawPhoneNumber.length !== selectedCountry.length) {
+        setLocalError(`Phone number must be exactly ${selectedCountry.length} digits for ${selectedCountry.name}.`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -459,8 +490,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
           password,
           role,
           id: customId,
-          age: Number(age),
-          phone,
+          phone: `${selectedCountry.code} ${rawPhoneNumber}`,
           dob,
         };
 
@@ -472,7 +502,6 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
           signupData.department = department;
         } else if (role === "faculty") {
           signupData.department = department;
-          signupData.salary = Number(salary);
         }
 
         await signup(signupData);
@@ -509,8 +538,6 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
         navigate("/faculty");
       } else if (role === "admin") {
         navigate("/admin");
-      } else if (role === "security") {
-        navigate("/security");
       }
     } catch (err) {
       setLocalError(err.message || "Authentication failed. Please check your inputs.");
@@ -535,15 +562,10 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
       label: "Admin",
       icon: <Shield className="h-5 w-5" />,
     },
-    {
-      id: "security",
-      label: "Security",
-      icon: <Shield className="h-5 w-5" />,
-    },
   ];
 
-  // Admin and Security are only selectable on Login, not Sign Up
-  const filteredRoles = tab === "login" ? roles : roles.filter((r) => r.id !== "admin" && r.id !== "security");
+  // Admin is only selectable on Login, not Sign Up
+  const filteredRoles = tab === "login" ? roles : roles.filter((r) => r.id !== "admin");
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
@@ -827,44 +849,78 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                     </div>
                   </div>
 
-                  {/* Age */}
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">
-                      Age
-                    </label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                        <Hash className="h-5 w-5" />
-                      </span>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        placeholder="e.g. 20"
-                        value={age}
-                        onChange={(e) => setAge(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
-                      />
-                    </div>
-                  </div>
+
 
                   {/* Phone */}
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">
                       Phone Number
                     </label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                        <Phone className="h-5 w-5" />
-                      </span>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="e.g. 9876543210"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
-                      />
+                    <div className="flex gap-2">
+                      {/* Country Selector */}
+                      <div className="relative shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
+                          onBlur={handleCountryBlur}
+                          className="flex items-center gap-1.5 h-full rounded-xl border border-slate-200 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-800 text-sm font-semibold transition-all focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          <img
+                            src={`https://flagcdn.com/${selectedCountry.iso}.svg`}
+                            alt=""
+                            className="w-5 h-3.5 object-cover rounded-sm border border-slate-150 shrink-0"
+                          />
+                          <span className="select-none">{selectedCountry.code}</span>
+                          <ChevronDown className="h-4 w-4 text-slate-400 select-none" />
+                        </button>
+                        
+                        {isCountryDropdownOpen && (
+                          <ul className="absolute left-0 mt-1 z-[110] w-64 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto scrollbar-thin py-1.5 animate-in fade-in slide-in-from-top-1 duration-100">
+                            {countriesList.map((c) => (
+                              <li
+                                key={c.name}
+                                onMouseDown={() => {
+                                  setSelectedCountry(c);
+                                  setIsCountryDropdownOpen(false);
+                                  if (rawPhoneNumber.length > c.length) {
+                                    setRawPhoneNumber(rawPhoneNumber.slice(0, c.length));
+                                  }
+                                }}
+                                className="flex items-center gap-2.5 px-3 py-2 hover:bg-blue-50 hover:text-blue-600 cursor-pointer text-sm font-semibold text-slate-700 transition-colors"
+                              >
+                                <img
+                                  src={`https://flagcdn.com/${c.iso}.svg`}
+                                  alt=""
+                                  className="w-5 h-3.5 object-cover rounded-sm border border-slate-150 shrink-0"
+                                />
+                                <span className="flex-1 truncate">{c.name}</span>
+                                <span className="text-slate-400 text-xs font-normal">{c.code}</span>
+                                <span className="text-slate-400 text-xs font-light">({c.length} digits)</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+
+                      {/* Phone Input */}
+                      <div className="relative flex-1">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                          <Phone className="h-5 w-5" />
+                        </span>
+                        <input
+                          type="tel"
+                          required
+                          pattern={`\\d{${selectedCountry.length}}`}
+                          maxLength={selectedCountry.length}
+                          placeholder={`e.g. ${"9".repeat(selectedCountry.length)}`}
+                          value={rawPhoneNumber}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "");
+                            setRawPhoneNumber(val);
+                          }}
+                          className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm font-semibold"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -873,7 +929,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                     <label className="block text-sm font-semibold text-slate-700 mb-1">
                       Date of Birth
                     </label>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-[0.8fr_1.4fr_0.8fr] gap-3">
                       {/* Day Input & Dropdown */}
                       <div className="relative">
                         <input
@@ -1142,26 +1198,7 @@ export default function AuthModal({ isOpen, onClose, defaultTab = "login", defau
                         </div>
                       </div>
 
-                      {/* Salary */}
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">
-                          Monthly Salary (INR)
-                        </label>
-                        <div className="relative">
-                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                            <Hash className="h-5 w-5" />
-                          </span>
-                          <input
-                            type="number"
-                            required
-                            min="0"
-                            placeholder="e.g. 85000"
-                            value={salary}
-                            onChange={(e) => setSalary(e.target.value)}
-                            className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
-                          />
-                        </div>
-                      </div>
+
                     </>
                   )}
                 </>
