@@ -76,24 +76,24 @@ export default function Home({ onOpenAuth }) {
 
       {/* Statistics */}
 
-      <section className="mx-auto grid max-w-7xl gap-6 px-6 py-16 md:grid-cols-4">
+      <section className="mx-auto grid max-w-7xl grid-cols-2 gap-4 sm:gap-6 px-6 py-16 md:grid-cols-4">
 
-        <div className="rounded-2xl bg-white p-8 text-center shadow">
+        <div className="rounded-2xl bg-white p-4 sm:p-8 text-center shadow">
           <h2 className="text-4xl font-bold text-blue-700">5000+</h2>
           <p className="mt-2 text-gray-600">Students</p>
         </div>
 
-        <div className="rounded-2xl bg-white p-8 text-center shadow">
+        <div className="rounded-2xl bg-white p-4 sm:p-8 text-center shadow">
           <h2 className="text-4xl font-bold text-blue-700">250+</h2>
           <p className="mt-2 text-gray-600">Faculty</p>
         </div>
 
-        <div className="rounded-2xl bg-white p-8 text-center shadow">
+        <div className="rounded-2xl bg-white p-4 sm:p-8 text-center shadow">
           <h2 className="text-4xl font-bold text-blue-700">100+</h2>
           <p className="mt-2 text-gray-600">Courses</p>
         </div>
 
-        <div className="rounded-2xl bg-white p-8 text-center shadow">
+        <div className="rounded-2xl bg-white p-4 sm:p-8 text-center shadow">
           <h2 className="text-4xl font-bold text-blue-700">95%</h2>
           <p className="mt-2 text-gray-600">Placement Rate</p>
         </div>
@@ -108,12 +108,12 @@ export default function Home({ onOpenAuth }) {
           Portal Features
         </h2>
 
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
 
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="rounded-2xl bg-white p-8 shadow transition hover:-translate-y-2 hover:shadow-xl"
+              className="rounded-2xl bg-white p-4 sm:p-8 shadow transition hover:-translate-y-2 hover:shadow-xl"
             >
               <div className="mb-5 text-blue-700">
                 {feature.icon}

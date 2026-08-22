@@ -3868,12 +3868,12 @@ export default function Students({ onOpenAuth }) {
 
       <section className="mx-auto max-w-7xl px-6 py-20">
 
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:gap-8 md:grid-cols-2 lg:grid-cols-4">
 
           {stats.map((item) => (
             <div
               key={item.title}
-              className="rounded-2xl bg-white p-8 text-center shadow-lg transition hover:-translate-y-2 hover:shadow-xl"
+              className="rounded-2xl bg-white p-4 sm:p-8 text-center shadow-lg transition hover:-translate-y-2 hover:shadow-xl"
             >
               <div className="mb-4 flex justify-center text-blue-600">
                 {item.icon}
@@ -3903,12 +3903,12 @@ export default function Students({ onOpenAuth }) {
             Student Services
           </h2>
 
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
 
             {services.map((service) => (
               <div
                 key={service.title}
-                className="rounded-2xl border bg-slate-50 p-8 transition hover:border-blue-600 hover:shadow-xl"
+                className="rounded-2xl border bg-slate-50 p-4 sm:p-8 transition hover:border-blue-600 hover:shadow-xl"
               >
                 <div className="mb-5 text-blue-600">
                   {service.icon}
@@ -3946,9 +3946,9 @@ export default function Students({ onOpenAuth }) {
           Student Life
         </h2>
 
-        <div className="grid gap-8 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:gap-8 md:grid-cols-3">
 
-          <div className="rounded-2xl bg-white p-8 shadow-lg">
+          <div className="rounded-2xl bg-white p-4 sm:p-8 shadow-lg">
             <FileText className="mb-4 text-blue-600" size={40} />
             <h3 className="text-2xl font-bold">
               Clubs & Activities
@@ -3959,7 +3959,7 @@ export default function Students({ onOpenAuth }) {
             </p>
           </div>
 
-          <div className="rounded-2xl bg-white p-8 shadow-lg">
+          <div className="rounded-2xl bg-white p-4 sm:p-8 shadow-lg">
             <Award className="mb-4 text-blue-600" size={40} />
             <h3 className="text-2xl font-bold">
               Scholarships
@@ -3970,7 +3970,7 @@ export default function Students({ onOpenAuth }) {
             </p>
           </div>
 
-          <div className="rounded-2xl bg-white p-8 shadow-lg">
+          <div className="rounded-2xl bg-white p-4 sm:p-8 shadow-lg">
             <Users className="mb-4 text-blue-600" size={40} />
             <h3 className="text-2xl font-bold">
               Career Support

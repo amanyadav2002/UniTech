@@ -1511,9 +1511,9 @@ export default function Faculty({ onOpenAuth }) {
 
         {/* Statistics */}
         <section className="mx-auto max-w-7xl px-6 py-20">
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:gap-8 md:grid-cols-2 lg:grid-cols-4">
             {stats.map((item) => (
-              <div key={item.title} className="rounded-2xl bg-white p-8 text-center shadow-md border border-slate-100 transition hover:-translate-y-1.5 hover:shadow-lg duration-200">
+              <div key={item.title} className="rounded-2xl bg-white p-4 sm:p-8 text-center shadow-md border border-slate-100 transition hover:-translate-y-1.5 hover:shadow-lg duration-200">
                 <div className="mb-4 flex justify-center text-indigo-600">{item.icon}</div>
                 <h2 className="text-4xl font-extrabold text-slate-800">{item.value}</h2>
                 <p className="mt-2 text-slate-500 font-semibold text-sm">{item.title}</p>
@@ -1526,9 +1526,9 @@ export default function Faculty({ onOpenAuth }) {
         <section className="bg-white py-20 border-y border-slate-200/50">
           <div className="mx-auto max-w-7xl px-6">
             <h2 className="mb-12 text-center text-4xl font-extrabold text-slate-800 tracking-tight">Faculty Services</h2>
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-4 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
               {services.map((service) => (
-                <div key={service.title} className="rounded-2xl border border-slate-200/60 bg-slate-50/50 p-8 hover:bg-white hover:border-indigo-600 hover:shadow-xl transition-all duration-300">
+                <div key={service.title} className="rounded-2xl border border-slate-200/60 bg-slate-50/50 p-4 sm:p-8 hover:bg-white hover:border-indigo-600 hover:shadow-xl transition-all duration-300">
                   <div className="mb-5 text-indigo-600">{service.icon}</div>
                   <h3 className="mb-3 text-2xl font-bold text-slate-800">{service.title}</h3>
                   <p className="text-slate-600 leading-relaxed font-medium text-sm">{service.description}</p>
@@ -1544,9 +1544,9 @@ export default function Faculty({ onOpenAuth }) {
         {/* Departments */}
         <section className="mx-auto max-w-7xl px-6 py-20">
           <h2 className="mb-12 text-center text-4xl font-extrabold text-slate-800 tracking-tight">Academic Departments</h2>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
             {departments.map((dept) => (
-              <div key={dept} className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200/60 hover:bg-indigo-600 hover:text-white group transition-all duration-200 cursor-pointer">
+              <div key={dept} className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm border border-slate-200/60 hover:bg-indigo-600 hover:text-white group transition-all duration-200 cursor-pointer">
                 <Building2 className="mb-4 text-indigo-600 group-hover:text-white transition duration-200" size={34} />
                 <h3 className="text-lg font-bold text-slate-800 group-hover:text-white transition duration-200">{dept}</h3>
               </div>
