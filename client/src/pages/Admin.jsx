@@ -41,12 +41,19 @@ export default function Admin() {
   const navigate = useNavigate();
 
   // Sidebar controls
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(typeof window !== "undefined" ? window.innerWidth >= 1024 : true);
   const [activeSection, setActiveSection] = useState("dashboard");
   const [expandedMenus, setExpandedMenus] = useState({
     userManagement: true,
     academics: true,
   });
+
+  // Close sidebar on section change in mobile layout
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  }, [activeSection]);
 
   // Global loading/error
   const [loading, setLoading] = useState(true);
@@ -647,9 +654,17 @@ export default function Admin() {
         )}
       </AnimatePresence>
 
+      {/* Sidebar Mobile Backdrop Overlay */}
+      {sidebarOpen && (
+        <div 
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 z-[140] lg:hidden backdrop-blur-sm transition-opacity duration-300"
+        />
+      )}
+
       {/* LEFT COLLAPSIBLE SIDEBAR */}
-      <aside className={`bg-slate-950 border-r border-slate-800 transition-all duration-300 flex flex-col shrink-0 ${
-        sidebarOpen ? "w-64" : "w-20"
+      <aside className={`bg-slate-950 border-r border-slate-800 transition-all duration-300 flex flex-col shrink-0 fixed inset-y-0 left-0 z-[150] lg:relative lg:translate-x-0 ${
+        sidebarOpen ? "w-64 translate-x-0" : "w-20 -translate-x-full lg:translate-x-0"
       }`}>
         {/* Header Branding */}
         <div className={`p-6 border-b border-slate-800 flex items-center ${
@@ -668,7 +683,7 @@ export default function Admin() {
               </div>
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded-lg hidden lg:block"
+                className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded-lg block"
                 title="Collapse Sidebar"
               >
                 <X className="h-5 w-5" />
@@ -690,27 +705,38 @@ export default function Admin() {
           {/* Dashboard */}
           <button
             onClick={() => setActiveSection("dashboard")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all relative group/item ${
               activeSection === "dashboard"
                 ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
                 : "text-slate-400 hover:bg-slate-900 hover:text-white"
             }`}
           >
-            <LayoutDashboard className="h-5 w-5" />
-            {sidebarOpen && <span>Dashboard</span>}
+            <LayoutDashboard className="h-5 w-5 shrink-0" />
+            {sidebarOpen ? (
+              <span>Dashboard</span>
+            ) : (
+              <span className="fixed left-[84px] px-3 py-1.5 bg-slate-950 text-slate-100 text-xs font-semibold rounded-lg border border-slate-800 opacity-0 pointer-events-none group-hover/item:opacity-100 transition-all duration-200 whitespace-nowrap shadow-xl translate-x-2 group-hover/item:translate-x-0 z-[160]">
+                Dashboard
+              </span>
+            )}
           </button>
 
           {/* Collapsible User Management */}
           <div>
             <button
               onClick={() => sidebarOpen ? toggleSubMenu("userManagement") : setActiveSection("students")}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:bg-slate-900 hover:text-white transition-all`}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:bg-slate-900 hover:text-white transition-all relative group/item"
             >
               <div className="flex items-center gap-3">
-                <Users className="h-5 w-5" />
+                <Users className="h-5 w-5 shrink-0" />
                 {sidebarOpen && <span>User Management</span>}
               </div>
               {sidebarOpen && (expandedMenus.userManagement ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
+              {!sidebarOpen && (
+                <span className="fixed left-[84px] px-3 py-1.5 bg-slate-950 text-slate-100 text-xs font-semibold rounded-lg border border-slate-800 opacity-0 pointer-events-none group-hover/item:opacity-100 transition-all duration-200 whitespace-nowrap shadow-xl translate-x-2 group-hover/item:translate-x-0 z-[160]">
+                  User Management
+                </span>
+              )}
             </button>
             {sidebarOpen && expandedMenus.userManagement && (
               <div className="pl-8 pr-2 py-1 space-y-1 bg-slate-950/40 rounded-lg">
@@ -741,13 +767,18 @@ export default function Admin() {
           <div>
             <button
               onClick={() => sidebarOpen ? toggleSubMenu("academics") : setActiveSection("departments")}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:bg-slate-900 hover:text-white transition-all`}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:bg-slate-900 hover:text-white transition-all relative group/item"
             >
               <div className="flex items-center gap-3">
-                <BookOpen className="h-5 w-5" />
+                <BookOpen className="h-5 w-5 shrink-0" />
                 {sidebarOpen && <span>Academics</span>}
               </div>
               {sidebarOpen && (expandedMenus.academics ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
+              {!sidebarOpen && (
+                <span className="fixed left-[84px] px-3 py-1.5 bg-slate-950 text-slate-100 text-xs font-semibold rounded-lg border border-slate-800 opacity-0 pointer-events-none group-hover/item:opacity-100 transition-all duration-200 whitespace-nowrap shadow-xl translate-x-2 group-hover/item:translate-x-0 z-[160]">
+                  Academics
+                </span>
+              )}
             </button>
             {sidebarOpen && expandedMenus.academics && (
               <div className="pl-8 pr-2 py-1 space-y-1 bg-slate-950/40 rounded-lg">
@@ -776,26 +807,32 @@ export default function Admin() {
 
           {/* Simple items */}
           {[
-            { id: "attendance", label: "Attendance", icon: <CheckSquare className="h-5 w-5" /> },
-            { id: "leaves", label: "Leave Requests", icon: <MessageSquare className="h-5 w-5" /> },
-            { id: "events", label: "Event Management", icon: <Calendar className="h-5 w-5" /> },
-            { id: "calendar", label: "Event Calendar", icon: <Calendar className="h-5 w-5" /> },
-            { id: "monitoring", label: "Security Monitoring", icon: <ShieldAlert className="h-5 w-5" /> },
-            { id: "reports", label: "Reports", icon: <FileText className="h-5 w-5" /> },
-            { id: "notifications", label: "Notice Broadcast", icon: <Bell className="h-5 w-5" /> },
-            { id: "settings", label: "Settings", icon: <Settings className="h-5 w-5" /> },
+            { id: "attendance", label: "Attendance", icon: <CheckSquare className="h-5 w-5 shrink-0" /> },
+            { id: "leaves", label: "Leave Requests", icon: <MessageSquare className="h-5 w-5 shrink-0" /> },
+            { id: "events", label: "Event Management", icon: <Calendar className="h-5 w-5 shrink-0" /> },
+            { id: "calendar", label: "Event Calendar", icon: <Calendar className="h-5 w-5 shrink-0" /> },
+            { id: "monitoring", label: "Security Monitoring", icon: <ShieldAlert className="h-5 w-5 shrink-0" /> },
+            { id: "reports", label: "Reports", icon: <FileText className="h-5 w-5 shrink-0" /> },
+            { id: "notifications", label: "Notice Broadcast", icon: <Bell className="h-5 w-5 shrink-0" /> },
+            { id: "settings", label: "Settings", icon: <Settings className="h-5 w-5 shrink-0" /> },
           ].map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveSection(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all relative group/item ${
                 activeSection === item.id
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
                   : "text-slate-400 hover:bg-slate-900 hover:text-white"
               }`}
             >
               {item.icon}
-              {sidebarOpen && <span>{item.label}</span>}
+              {sidebarOpen ? (
+                <span>{item.label}</span>
+              ) : (
+                <span className="fixed left-[84px] px-3 py-1.5 bg-slate-950 text-slate-100 text-xs font-semibold rounded-lg border border-slate-800 opacity-0 pointer-events-none group-hover/item:opacity-100 transition-all duration-200 whitespace-nowrap shadow-xl translate-x-2 group-hover/item:translate-x-0 z-[160]">
+                  {item.label}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -807,10 +844,16 @@ export default function Admin() {
               logout();
               navigate("/");
             }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-rose-400 hover:bg-rose-500/10 transition-all"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-rose-400 hover:bg-rose-500/10 transition-all relative group/item"
           >
-            <LogOut className="h-5 w-5" />
-            {sidebarOpen && <span>Logout</span>}
+            <LogOut className="h-5 w-5 shrink-0" />
+            {sidebarOpen ? (
+              <span>Logout</span>
+            ) : (
+              <span className="fixed left-[84px] px-3 py-1.5 bg-slate-950 text-slate-100 text-xs font-semibold rounded-lg border border-slate-800 opacity-0 pointer-events-none group-hover/item:opacity-100 transition-all duration-200 whitespace-nowrap shadow-xl translate-x-2 group-hover/item:translate-x-0 z-[160]">
+                Logout
+              </span>
+            )}
           </button>
         </div>
       </aside>
@@ -818,33 +861,39 @@ export default function Admin() {
       {/* MAIN CONTAINER */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         {/* Top Header */}
-        <header className="h-20 bg-slate-950/40 backdrop-blur-md border-b border-slate-800 px-8 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-bold text-white capitalize leading-none">
+        <header className="h-20 bg-slate-950/40 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="text-slate-400 hover:text-white p-2 hover:bg-slate-800 rounded-xl lg:hidden flex items-center justify-center transition-all"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+            <h2 className="text-base sm:text-xl font-bold text-white capitalize leading-none truncate max-w-[120px] sm:max-w-none">
               {activeSection === "calendar" ? "Event Calendar" : activeSection.replace(/([A-Z])/g, " $1")}
             </h2>
-            <span className="text-xs text-slate-500 bg-slate-800 px-2.5 py-1 rounded-full font-semibold">
-              ACADEMIC YEAR: 2026-27
+            <span className="text-[10px] sm:text-xs text-slate-500 bg-slate-800 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full font-semibold whitespace-nowrap">
+              <span className="hidden sm:inline">ACADEMIC YEAR: </span>2026-27
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             {/* Refresh Button */}
             <button
               onClick={handleRefresh}
               disabled={isRefreshing || loading}
-              className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 hover:bg-slate-800 transition-all duration-300 flex items-center justify-center group relative shadow-md disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 hover:bg-slate-800 transition-all duration-300 flex items-center justify-center group relative shadow-md disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shrink-0"
               title="Refresh Data"
             >
-              <RefreshCw className={`h-[18px] w-[18px] text-slate-400 group-hover:text-white transition-colors ${isRefreshing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
+              <RefreshCw className={`h-4 sm:h-[18px] w-4 sm:w-[18px] text-slate-400 group-hover:text-white transition-colors ${isRefreshing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
             </button>
 
             {/* Admin Profile */}
-            <div className="flex items-center gap-3 pl-4 border-l border-slate-800">
-              <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 text-white flex items-center justify-center font-bold">
+            <div className="flex items-center gap-3 pl-3 sm:pl-4 border-l border-slate-800 shrink-0">
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 text-white flex items-center justify-center font-bold text-sm sm:text-base">
                 A
               </div>
-              <div className="flex flex-col text-left">
+              <div className="hidden sm:flex flex-col text-left">
                 <span className="text-sm font-semibold text-white leading-tight">Admin System</span>
                 <span className="text-xs text-slate-400">admin@unitech.edu</span>
               </div>
@@ -853,7 +902,7 @@ export default function Admin() {
         </header>
 
         {/* Dynamic Panels container */}
-        <div className="flex-1 p-8 overflow-y-auto max-w-[1600px] w-full mx-auto space-y-8">
+        <div className="flex-1 p-4 sm:p-8 overflow-y-auto max-w-[1600px] w-full mx-auto space-y-8">
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-2xl flex items-center gap-3">
               <AlertTriangle className="h-5 w-5" />
@@ -883,7 +932,7 @@ export default function Admin() {
                 {activeSection === "dashboard" && (
                   <div className="space-y-8">
                     {/* STATS CARDS */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+                    <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                       {[
                         { title: "Total Students", value: stats.totalStudents, icon: <GraduationCap className="h-6 w-6 text-blue-400" />, desc: "Registered undergraduates", sectionId: "students" },
                         { title: "Total Faculty", value: stats.totalFaculty, icon: <Briefcase className="h-6 w-6 text-emerald-400" />, desc: "Teaching & professors", sectionId: "faculty" },
@@ -899,15 +948,15 @@ export default function Admin() {
                         <div
                           key={idx}
                           onClick={() => handleCardClick(item.sectionId)}
-                          className="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex items-start gap-4 hover:border-slate-700 hover:bg-slate-900/40 transition-all hover:-translate-y-1 duration-200 cursor-pointer select-none group/card"
+                          className="bg-slate-950 p-4 sm:p-6 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-2 sm:gap-4 hover:border-slate-700 hover:bg-slate-900/40 transition-all hover:-translate-y-1 duration-200 cursor-pointer select-none group/card"
                         >
-                          <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 group-hover/card:border-slate-700 transition-colors">
+                          <div className="p-2 sm:p-3 bg-slate-900 rounded-xl border border-slate-800 group-hover/card:border-slate-700 transition-colors shrink-0">
                             {item.icon}
                           </div>
-                          <div>
-                            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider group-hover/card:text-slate-400 transition-colors">{item.title}</p>
-                            <h3 className="text-2xl font-bold text-white mt-1">{item.value ?? 0}</h3>
-                            <p className="text-[10px] text-slate-400 mt-0.5">{item.desc}</p>
+                          <div className="flex flex-col items-center sm:items-start">
+                            <p className="text-[10px] sm:text-xs text-slate-500 font-semibold uppercase tracking-wider group-hover/card:text-slate-400 transition-colors">{item.title}</p>
+                            <h3 className="text-xl sm:text-2xl font-bold text-white mt-0.5 sm:mt-1">{item.value ?? 0}</h3>
+                            <p className="hidden sm:block text-[10px] text-slate-400 mt-0.5">{item.desc}</p>
                           </div>
                         </div>
                       ))}

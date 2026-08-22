@@ -96,17 +96,29 @@ export default function Navbar({ onOpenAuth }) {
           )}
         </div>
 
-        {/* Mobile Menu Button */}
-        <button
-          className="lg:hidden"
-          onClick={() => setMenuOpen(!menuOpen)}
-        >
-          {menuOpen ? (
-            <X className="h-7 w-7" />
-          ) : (
-            <Menu className="h-7 w-7" />
+        {/* Mobile Actions */}
+        <div className="flex items-center gap-2 lg:hidden">
+          {!user && (
+            <button
+              onClick={() => onOpenAuth("login")}
+              className="rounded-full p-2 hover:bg-gray-100 text-slate-700 hover:text-blue-600 transition-colors"
+              title="Account"
+            >
+              <UserCircle className="h-7 w-7" />
+            </button>
           )}
-        </button>
+
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="rounded-lg p-1 hover:bg-gray-100 transition-colors text-slate-700"
+          >
+            {menuOpen ? (
+              <X className="h-7 w-7" />
+            ) : (
+              <Menu className="h-7 w-7" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu */}
