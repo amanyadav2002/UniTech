@@ -25,6 +25,7 @@ const {
   deleteDepartment,
   getCourses,
   createCourse,
+  updateCourse,
   deleteCourse,
   getSubjects,
   createSubject,
@@ -107,6 +108,7 @@ router.delete("/departments/:id", deleteDepartment);
 
 router.get("/courses", getCourses);
 router.post("/courses", createCourse);
+router.put("/courses/:id", updateCourse);
 router.delete("/courses/:id", deleteCourse);
 
 router.get("/subjects", getSubjects);

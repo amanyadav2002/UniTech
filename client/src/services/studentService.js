@@ -65,6 +65,10 @@ const studentService = {
     const response = await API.get("/student/events");
     return response.data;
   },
+  getStudentCourses: async () => {
+    const response = await API.get("/student/courses");
+    return response.data;
+  },
 };
 
 export default studentService;

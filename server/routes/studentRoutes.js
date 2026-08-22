@@ -17,12 +17,14 @@ const {
   deleteTask,
   getSchedule,
   saveGPA,
+  getStudentCourses,
 } = require("../controllers/studentController");
 
 router.get("/profile", authMiddleware, getProfile);
 router.put("/profile", authMiddleware, updateProfile);
 router.get("/resources", authMiddleware, getResources);
 router.get("/attendance", authMiddleware, getAttendance);
+router.get("/courses", authMiddleware, getStudentCourses);
 router.get("/grades", authMiddleware, getGrades);
 router.get("/notices", authMiddleware, getNotices);
 router.get("/bookmarks", authMiddleware, getBookmarks);

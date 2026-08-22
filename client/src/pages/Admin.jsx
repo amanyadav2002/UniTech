@@ -103,6 +103,9 @@ export default function Admin() {
 
   // CRUD Modals
   const [crudModal, setCrudModal] = useState(null); // { type: 'student'|'faculty'|'security'|'admin'|'dept'|'course'|'subject'|'notice'|'event'|'visitor'|'material'|'assignment', mode: 'add'|'edit', data: {} }
+  const [syllabusState, setSyllabusState] = useState([]);
+  const [outcomesState, setOutcomesState] = useState([]);
+  const [programOutcomesState, setProgramOutcomesState] = useState([]);
   const [resetPassModal, setResetPassModal] = useState(null); // { userId, name }
 
   // Custom Event Date states
@@ -418,6 +421,17 @@ export default function Admin() {
       setIsEvMonthOpen(false);
       setIsEvYearOpen(false);
     }
+    if (crudModal && crudModal.type === "course") {
+      if (crudModal.mode === "edit" && crudModal.data) {
+        setSyllabusState(crudModal.data.syllabus || []);
+        setOutcomesState(crudModal.data.courseOutcomes || []);
+        setProgramOutcomesState(crudModal.data.programOutcomes || []);
+      } else {
+        setSyllabusState([]);
+        setOutcomesState([]);
+        setProgramOutcomesState([]);
+      }
+    }
   }, [crudModal]);
 
   // Load lookup values (departments, semesters) once on mount
@@ -470,6 +484,9 @@ export default function Admin() {
     if (crudModal.type === "course") {
       body.branches = crudModal.mode === "edit" ? (crudModal.data.branches || []) : [];
       body.semesters = body.semesters ? body.semesters.split(",").map(s => s.trim()) : [];
+      body.syllabus = syllabusState;
+      body.courseOutcomes = outcomesState;
+      body.programOutcomes = programOutcomesState;
     }
 
     if (crudModal.type === "notice") {
@@ -2101,7 +2118,13 @@ export default function Admin() {
                                       <div><span className="text-slate-500 font-semibold">Department: </span>{course.department}</div>
                                       <div><span className="text-slate-500 font-semibold">Semesters: </span>{course.semesters?.join(", ") || "All"}</div>
                                     </div>
-                                    <div className="pt-4 border-t border-slate-800 flex justify-end">
+                                    <div className="pt-4 border-t border-slate-800 flex justify-between items-center">
+                                      <button
+                                        onClick={() => setCrudModal({ type: "course", mode: "edit", data: course })}
+                                        className="text-blue-500 hover:text-blue-400 p-2 hover:bg-slate-800 rounded-lg flex items-center gap-1.5 text-xs font-semibold"
+                                      >
+                                        <Edit className="h-4 w-4" /> Edit Course
+                                      </button>
                                       <button
                                         onClick={() => handleDelete("course", course._id)}
                                         className="text-rose-500 hover:text-rose-400 p-2 hover:bg-slate-800 rounded-lg flex items-center gap-1.5 text-xs font-semibold"
@@ -3053,6 +3076,137 @@ export default function Admin() {
                         <option key={semName} value={semName}>{semName}</option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Syllabus Editor */}
+                  <div className="space-y-2 border-t border-slate-800 pt-4">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-bold uppercase text-slate-400">Syllabus (Modules)</label>
+                      <button
+                        type="button"
+                        onClick={() => setSyllabusState([...syllabusState, { module: `Module ${syllabusState.length + 1}`, description: "" }])}
+                        className="text-xs bg-blue-600/20 text-blue-400 border border-blue-500/30 px-2 py-1 rounded-lg hover:bg-blue-600/30 transition-all font-semibold"
+                      >
+                        + Add Module
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {syllabusState.map((mod, idx) => (
+                        <div key={idx} className="flex gap-2 items-start bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                          <div className="w-24 shrink-0">
+                            <input
+                              type="text"
+                              value={mod.module}
+                              onChange={(e) => {
+                                const newSyl = [...syllabusState];
+                                newSyl[idx].module = e.target.value;
+                                setSyllabusState(newSyl);
+                              }}
+                              className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white font-bold"
+                              placeholder="e.g. Module 1"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <textarea
+                              value={mod.description}
+                              onChange={(e) => {
+                                const newSyl = [...syllabusState];
+                                newSyl[idx].description = e.target.value;
+                                setSyllabusState(newSyl);
+                              }}
+                              rows={2}
+                              className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white"
+                              placeholder="Module topics/syllabus details..."
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSyllabusState(syllabusState.filter((_, i) => i !== idx))}
+                            className="text-red-500 hover:text-red-400 p-1 bg-slate-900 border border-slate-800 rounded-lg"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Course Outcomes Editor */}
+                  <div className="space-y-2 border-t border-slate-800 pt-4">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-bold uppercase text-slate-400">Course Outcomes (CO)</label>
+                      <button
+                        type="button"
+                        onClick={() => setOutcomesState([...outcomesState, ""])}
+                        className="text-xs bg-blue-600/20 text-blue-400 border border-blue-500/30 px-2 py-1 rounded-lg hover:bg-blue-600/30 transition-all font-semibold"
+                      >
+                        + Add Outcome
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {outcomesState.map((co, idx) => (
+                        <div key={idx} className="flex gap-2 items-center bg-slate-950 p-2 rounded-xl border border-slate-800">
+                          <span className="text-[10px] font-bold text-blue-400 px-1 font-mono shrink-0">CO{idx + 1}</span>
+                          <input
+                            type="text"
+                            value={co}
+                            onChange={(e) => {
+                              const newOut = [...outcomesState];
+                              newOut[idx] = e.target.value;
+                              setOutcomesState(newOut);
+                            }}
+                            className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white"
+                            placeholder="e.g. Understand the principles of network routing."
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setOutcomesState(outcomesState.filter((_, i) => i !== idx))}
+                            className="text-red-500 hover:text-red-400 p-1 bg-slate-900 border border-slate-800 rounded-lg"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Program Outcomes Editor */}
+                  <div className="space-y-2 border-t border-slate-800 pt-4">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-bold uppercase text-slate-400">Program Outcomes (PO)</label>
+                      <button
+                        type="button"
+                        onClick={() => setProgramOutcomesState([...programOutcomesState, ""])}
+                        className="text-xs bg-blue-600/20 text-blue-400 border border-blue-500/30 px-2 py-1 rounded-lg hover:bg-blue-600/30 transition-all font-semibold"
+                      >
+                        + Add Outcome
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {programOutcomesState.map((po, idx) => (
+                        <div key={idx} className="flex gap-2 items-center bg-slate-950 p-2 rounded-xl border border-slate-800">
+                          <span className="text-[10px] font-bold text-purple-400 px-1 font-mono shrink-0">PO{idx + 1}</span>
+                          <input
+                            type="text"
+                            value={po}
+                            onChange={(e) => {
+                              const newOut = [...programOutcomesState];
+                              newOut[idx] = e.target.value;
+                              setProgramOutcomesState(newOut);
+                            }}
+                            className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white"
+                            placeholder="e.g. Design computer systems to meet specifications."
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setProgramOutcomesState(programOutcomesState.filter((_, i) => i !== idx))}
+                            className="text-red-500 hover:text-red-400 p-1 bg-slate-900 border border-slate-800 rounded-lg"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </>
               )}
