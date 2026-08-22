@@ -617,3 +617,22 @@ exports.saveGPA = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.getStudentCourses = async (req, res) => {
+  try {
+    const student = await getStudentProfileHelper(req.user.id);
+    
+    // Exact or Regex match for department and semester
+    const deptRegex = student.department ? `^${student.department.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$` : "";
+    const semRegex = student.semester ? `^${student.semester.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$` : "";
+    
+    const courses = await Course.find({
+      department: { $regex: deptRegex, $options: "i" },
+      semesters: { $regex: semRegex, $options: "i" }
+    });
+    
+    res.json({ courses });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

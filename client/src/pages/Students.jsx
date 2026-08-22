@@ -65,6 +65,13 @@ export default function Students({ onOpenAuth }) {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const filterDateInputRef = useRef(null);
 
+  // Courses Overview Section states
+  const [studentCourses, setStudentCourses] = useState([]);
+  const [activeSemesters, setActiveSemesters] = useState([]);
+  const [selectedOverviewSem, setSelectedOverviewSem] = useState("");
+  const [selectedOverviewCourse, setSelectedOverviewCourse] = useState(null);
+  const [coursesOverviewTab, setCoursesOverviewTab] = useState("syllabus");
+
   useEffect(() => {
     const handleOutsideClick = (e) => {
       const containerDesktop = document.getElementById("search-container-desktop");
@@ -78,6 +85,12 @@ export default function Students({ onOpenAuth }) {
     window.addEventListener("mousedown", handleOutsideClick);
     return () => window.removeEventListener("mousedown", handleOutsideClick);
   }, []);
+
+  useEffect(() => {
+    if (user?.profile?.semester) {
+      setSelectedOverviewSem(user.profile.semester);
+    }
+  }, [user]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -421,6 +434,15 @@ export default function Students({ onOpenAuth }) {
       // Fetch schedule
       const sc = await studentService.getSchedule();
       setScheduleTimeline(sc);
+
+      // Fetch student courses overview
+      try {
+        const coursesData = await studentService.getStudentCourses();
+        setStudentCourses(coursesData.courses || []);
+        setActiveSemesters(coursesData.semesters || []);
+      } catch (err) {
+        console.error("Failed to load student courses overview", err);
+      }
 
     } catch (err) {
       console.error("Error loading student portal data:", err);
@@ -1146,6 +1168,18 @@ export default function Students({ onOpenAuth }) {
               }`}
             >
               <BookOpen size={20} />
+              Courses Overview
+            </button>
+
+            <button
+              onClick={() => { setActiveTab("attendance"); setIsMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
+                activeTab === "attendance"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/10"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              <CalendarCheck size={20} />
               Classes & Attendance
             </button>
 
@@ -1256,7 +1290,8 @@ export default function Students({ onOpenAuth }) {
               <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">
                 {activeTab === "overview" && "Dashboard Overview"}
                 {activeTab === "calendar" && "Event Calendar"}
-                {activeTab === "courses" && "Academics & Attendance"}
+                {activeTab === "courses" && "Courses & Syllabus Overview"}
+                {activeTab === "attendance" && "Classes & Attendance"}
                 {activeTab === "grades" && "Academics Performance"}
                 {activeTab === "notices" && "Campus Notification Desk"}
                 {activeTab === "resources" && "Study Materials & Resources"}
@@ -2239,8 +2274,208 @@ export default function Students({ onOpenAuth }) {
             );
           })()}
 
+          {/* TAB 2: COURSES OVERVIEW */}
+          {activeTab === "courses" && (() => {
+            // Courses are already filtered on the backend for the student's current semester and department
+            const totalCoursesCount = studentCourses.length;
+            const totalCreditsSum = studentCourses.reduce((sum, c) => sum + (c.credits || 0), 0);
+
+            // Ensure a course is selected or default to the first one in the list
+            const currentSelected = selectedOverviewCourse && studentCourses.some(c => c._id === selectedOverviewCourse._id)
+              ? selectedOverviewCourse
+              : (studentCourses.length > 0 ? studentCourses[0] : null);
+
+            return (
+              <div className="space-y-8 animate-fadeIn">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Card 1: Total Courses */}
+                  <div className="bg-white rounded-3xl border border-slate-200/50 p-6 flex items-center gap-5 shadow-sm">
+                    <div className="h-14 w-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                      <BookOpen size={28} />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Courses</span>
+                      <h3 className="text-2xl font-black text-slate-800 tracking-tight mt-0.5">{totalCoursesCount}</h3>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Total Credits */}
+                  <div className="bg-white rounded-3xl border border-slate-200/50 p-6 flex items-center gap-5 shadow-sm">
+                    <div className="h-14 w-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                      <Award size={28} />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Credits</span>
+                      <h3 className="text-2xl font-black text-slate-800 tracking-tight mt-0.5">{totalCreditsSum}</h3>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Main section */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  {/* Left panel: Courses list (4 columns) */}
+                  <div className="lg:col-span-4 space-y-4">
+                    {/* Courses List */}
+                    <div className="bg-white rounded-3xl border border-slate-200/50 p-5 space-y-3 shadow-sm min-h-[400px]">
+                      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">
+                        Courses List ({totalCoursesCount})
+                      </div>
+                      
+                      {studentCourses.length === 0 ? (
+                        <div className="text-center py-20 text-slate-400 font-semibold text-sm">
+                          No courses listed for your semester.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {studentCourses.map((course) => {
+                            const isCourseSelected = currentSelected && currentSelected._id === course._id;
+                            return (
+                              <button
+                                key={course._id}
+                                onClick={() => setSelectedOverviewCourse(course)}
+                                className={`w-full p-4 rounded-2xl border text-left transition-all duration-150 flex items-center justify-between gap-3 ${
+                                  isCourseSelected
+                                    ? "border-indigo-500 bg-indigo-50/10 shadow-md ring-2 ring-indigo-500/10"
+                                    : "border-slate-100 bg-white hover:bg-slate-50/55 hover:border-indigo-100 shadow-sm"
+                                }`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <h4 className="font-extrabold text-slate-800 text-[13px] truncate">
+                                    {course.name}
+                                  </h4>
+                                  <span className="text-[9px] font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wider font-mono inline-block mt-1">
+                                    {course.code}
+                                  </span>
+                                </div>
+                                <div className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${
+                                  isCourseSelected
+                                    ? "border-indigo-600 bg-indigo-600"
+                                    : "border-slate-200 bg-white"
+                                }`}>
+                                  {isCourseSelected && (
+                                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right panel: Syllabus & Outcomes Details (8 columns) */}
+                  <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/50 p-6 shadow-sm min-h-[460px] flex flex-col">
+                    {!currentSelected ? (
+                      <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                        <BookOpen size={48} className="text-slate-300 mb-3 animate-pulse" />
+                        <h4 className="font-bold text-slate-700">No Course Selected</h4>
+                        <p className="text-sm text-slate-400 mt-1 max-w-sm">
+                          Select a course from the left panel to view its detailed syllabus, course outcomes, and program outcomes.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex flex-col space-y-6">
+                        {/* Course header */}
+                        <div className="border-b border-slate-100 pb-4">
+                          <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider font-mono">
+                            {currentSelected.code} &bull; {currentSelected.credits} Credits
+                          </span>
+                          <h3 className="text-xl font-black text-slate-800 tracking-tight mt-1">
+                            {currentSelected.name}
+                          </h3>
+                        </div>
+
+                        {/* Tabs Bar */}
+                        <div className="flex border-b border-slate-100 gap-1 shrink-0">
+                          {[
+                            { id: "syllabus", label: "Syllabus", icon: "📖" },
+                            { id: "co", label: "Course Outcomes", icon: "🎯" },
+                            { id: "po", label: "Program Outcomes", icon: "🎓" }
+                          ].map(t => (
+                            <button
+                              key={t.id}
+                              onClick={() => setCoursesOverviewTab(t.id)}
+                              className={`px-5 py-3 text-xs font-black tracking-wider uppercase border-b-2 transition-all flex items-center gap-1.5 ${
+                                coursesOverviewTab === t.id
+                                  ? "border-indigo-600 text-indigo-600 font-extrabold"
+                                  : "border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-200"
+                              }`}
+                            >
+                              <span>{t.icon}</span>
+                              {t.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Dynamic content rendering */}
+                        <div className="flex-1 overflow-y-auto max-h-[500px] pr-2">
+                          {coursesOverviewTab === "syllabus" && (
+                            <div className="space-y-4">
+                              {!currentSelected.syllabus || currentSelected.syllabus.length === 0 ? (
+                                <p className="text-slate-400 italic text-sm py-8 text-center">Syllabus is not registered for this course yet.</p>
+                              ) : (
+                                <div className="space-y-3">
+                                  {currentSelected.syllabus.map((s, index) => (
+                                    <div key={index} className="flex gap-4 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+                                      <div className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 font-bold rounded-xl text-xs font-mono shrink-0 h-fit">
+                                        {s.module || `Module ${index + 1}`}
+                                      </div>
+                                      <div className="text-sm text-slate-600 leading-relaxed font-medium">
+                                        {s.description}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {coursesOverviewTab === "co" && (
+                            <div className="space-y-3">
+                              {!currentSelected.courseOutcomes || currentSelected.courseOutcomes.length === 0 ? (
+                                <p className="text-slate-400 italic text-sm py-8 text-center">Course Outcomes are not registered for this course yet.</p>
+                              ) : (
+                                <div className="space-y-2.5">
+                                  {currentSelected.courseOutcomes.map((co, index) => (
+                                    <div key={index} className="flex gap-3 items-start p-3 bg-indigo-50/10 border border-slate-100 rounded-2xl text-slate-700">
+                                      <span className="font-mono text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">CO{index + 1}</span>
+                                      <p className="text-sm font-medium">{co}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {coursesOverviewTab === "po" && (
+                            <div className="space-y-3">
+                              {!currentSelected.programOutcomes || currentSelected.programOutcomes.length === 0 ? (
+                                <p className="text-slate-400 italic text-sm py-8 text-center">Program Outcomes are not registered for this course yet.</p>
+                              ) : (
+                                <div className="space-y-2.5">
+                                  {currentSelected.programOutcomes.map((po, index) => (
+                                    <div key={index} className="flex gap-3 items-start p-3 bg-purple-50/10 border border-slate-100 rounded-2xl text-slate-700">
+                                      <span className="font-mono text-xs font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-lg">PO{index + 1}</span>
+                                      <p className="text-sm font-medium">{po}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* TAB 2: CLASSES & ATTENDANCE */}
-          {activeTab === "courses" && (
+          {activeTab === "attendance" && (
             <div className="space-y-8 animate-fadeIn">
               
               {/* Informative alert banner */}

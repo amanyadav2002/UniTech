@@ -36,6 +36,30 @@ const CourseSchema = new mongoose.Schema(
         trim: true,
       }
     ],
+    syllabus: [
+      {
+        module: {
+          type: String,
+          required: true,
+        },
+        description: {
+          type: String,
+          required: true,
+        }
+      }
+    ],
+    courseOutcomes: [
+      {
+        type: String,
+        trim: true,
+      }
+    ],
+    programOutcomes: [
+      {
+        type: String,
+        trim: true,
+      }
+    ],
   },
   {
     timestamps: true,

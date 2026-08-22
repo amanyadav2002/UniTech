@@ -608,10 +608,28 @@ exports.getCourses = async (req, res) => {
 
 exports.createCourse = async (req, res) => {
   try {
-    const { code, name, department, credits, branches, semesters } = req.body;
-    const newCourse = new Course({ code, name, department, credits, branches, semesters });
+    const { code, name, department, credits, branches, semesters, syllabus, courseOutcomes, programOutcomes } = req.body;
+    const newCourse = new Course({ code, name, department, credits, branches, semesters, syllabus, courseOutcomes, programOutcomes });
     await newCourse.save();
     res.status(201).json({ message: "Course created successfully", course: newCourse });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.updateCourse = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { code, name, department, credits, branches, semesters, syllabus, courseOutcomes, programOutcomes } = req.body;
+    const updatedCourse = await Course.findByIdAndUpdate(
+      id,
+      { code, name, department, credits, branches, semesters, syllabus, courseOutcomes, programOutcomes },
+      { new: true }
+    );
+    if (!updatedCourse) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+    res.json({ message: "Course updated successfully", course: updatedCourse });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
