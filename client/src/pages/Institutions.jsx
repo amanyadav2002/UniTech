@@ -117,12 +117,12 @@ export default function Institution() {
           University at a Glance
         </h2>
 
-        <div className="grid gap-6 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
 
           {stats.map((item) => (
             <div
               key={item.title}
-              className="rounded-2xl bg-white p-8 text-center shadow"
+              className="rounded-2xl bg-white p-4 sm:p-8 text-center shadow"
             >
               <h3 className="text-4xl font-bold text-blue-600">
                 {item.value}
@@ -147,12 +147,12 @@ export default function Institution() {
             Campus Facilities
           </h2>
 
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="grid grid-cols-2 gap-4 sm:gap-8 md:grid-cols-2">
 
             {facilities.map((facility) => (
               <div
                 key={facility.title}
-                className="rounded-2xl border bg-slate-50 p-8 transition hover:shadow-xl"
+                className="rounded-2xl border bg-slate-50 p-4 sm:p-8 transition hover:shadow-xl"
               >
                 <div className="mb-4 text-blue-600">
                   {facility.icon}
@@ -181,12 +181,12 @@ export default function Institution() {
           Leadership
         </h2>
 
-        <div className="grid gap-8 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:gap-8 md:grid-cols-3">
 
           {["Chancellor", "Vice Chancellor", "Principal"].map((role) => (
             <div
               key={role}
-              className="rounded-2xl bg-white p-8 text-center shadow"
+              className="rounded-2xl bg-white p-4 sm:p-8 text-center shadow"
             >
               <Users className="mx-auto mb-4 text-blue-600" size={48} />
 
