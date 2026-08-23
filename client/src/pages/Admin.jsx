@@ -91,6 +91,34 @@ export default function Admin() {
   const [visitorLogs, setVisitorLogs] = useState([]);
   const [reportsList, setReportsList] = useState([]);
   const [settingsData, setSettingsData] = useState({});
+  const [periods, setPeriods] = useState([]);
+
+  useEffect(() => {
+    if (settingsData && settingsData.periods) {
+      setPeriods(settingsData.periods);
+    }
+  }, [settingsData]);
+
+  const parseTimeStr = (timeStr) => {
+    const fallback = { hour: "09", minute: "00", ampm: "AM" };
+    if (!timeStr) return fallback;
+    const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return fallback;
+    return {
+      hour: match[1].padStart(2, "0"),
+      minute: match[2],
+      ampm: match[3].toUpperCase()
+    };
+  };
+
+  const handleTimeChange = (idx, type, field, val) => {
+    const list = [...periods];
+    const timeKey = type === "start" ? "startTime" : "endTime";
+    const currentVal = parseTimeStr(list[idx][timeKey]);
+    currentVal[field] = val;
+    list[idx][timeKey] = `${currentVal.hour}:${currentVal.minute} ${currentVal.ampm}`;
+    setPeriods(list);
+  };
 
   // Pagination & Filtering
   const [searchTerm, setSearchTerm] = useState("");
@@ -625,7 +653,8 @@ export default function Admin() {
       semesterDates: {
         start: fd.get("semStart"),
         end: fd.get("semEnd")
-      }
+      },
+      periods: periods
     };
     try {
       await apiFetch("/settings", {
@@ -2753,6 +2782,129 @@ export default function Admin() {
                               defaultValue={settingsData.semesterDates?.end}
                               className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
                             />
+                          </div>
+                        </div>
+
+                        {/* Dynamic Class Periods Management */}
+                        <div className="space-y-3 pt-6 border-t border-slate-800">
+                          <div className="flex justify-between items-center">
+                            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Class Periods & Timings</label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newId = "p" + (periods.length + 1) + "_" + Date.now();
+                                setPeriods([...periods, { id: newId, name: `${periods.length + 1}st Period`, startTime: "09:00 AM", endTime: "10:30 AM" }]);
+                              }}
+                              className="text-xs text-blue-500 hover:text-blue-400 font-semibold flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5"
+                            >
+                              <Plus className="h-3 w-3" /> Add Period Slot
+                            </button>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            {periods.length === 0 ? (
+                              <p className="text-xs text-slate-500 font-semibold py-2">No custom periods configured. Please add period slots.</p>
+                            ) : (
+                              <div className="grid gap-3">
+                                {periods.map((p, idx) => (
+                                  <div key={p.id} className="flex items-center gap-3 bg-slate-900/60 p-3 rounded-xl border border-slate-800/80">
+                                    {/* Period Order */}
+                                    <span className="text-xs font-black text-slate-500 w-6 text-center">{idx + 1}</span>
+                                    
+                                    {/* Period Name */}
+                                    <div className="flex-1">
+                                      <input
+                                        type="text"
+                                        placeholder="e.g. 1st Period"
+                                        value={p.name}
+                                        onChange={(e) => {
+                                          const list = [...periods];
+                                          list[idx].name = e.target.value;
+                                          setPeriods(list);
+                                        }}
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:border-blue-500 focus:outline-none font-semibold"
+                                      />
+                                    </div>
+                                    
+                                    {/* Start Time Dropdowns */}
+                                    <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 shrink-0">
+                                      <select
+                                        value={parseTimeStr(p.startTime).hour}
+                                        onChange={(e) => handleTimeChange(idx, "start", "hour", e.target.value)}
+                                        className="bg-transparent border-0 text-xs text-white focus:outline-none font-bold cursor-pointer"
+                                      >
+                                        {Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0")).map(h => (
+                                          <option key={h} value={h} className="bg-slate-900">{h}</option>
+                                        ))}
+                                      </select>
+                                      <span className="text-slate-600 font-bold text-xs">:</span>
+                                      <select
+                                        value={parseTimeStr(p.startTime).minute}
+                                        onChange={(e) => handleTimeChange(idx, "start", "minute", e.target.value)}
+                                        className="bg-transparent border-0 text-xs text-white focus:outline-none font-bold cursor-pointer max-h-40 overflow-y-auto"
+                                      >
+                                        {Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, "0")).map(m => (
+                                          <option key={m} value={m} className="bg-slate-900">{m}</option>
+                                        ))}
+                                      </select>
+                                      <select
+                                        value={parseTimeStr(p.startTime).ampm}
+                                        onChange={(e) => handleTimeChange(idx, "start", "ampm", e.target.value)}
+                                        className="bg-transparent border-0 text-xs text-white focus:outline-none font-bold cursor-pointer ml-1"
+                                      >
+                                        <option value="AM" className="bg-slate-900">AM</option>
+                                        <option value="PM" className="bg-slate-900">PM</option>
+                                      </select>
+                                    </div>
+
+                                    <span className="text-slate-600 text-xs font-bold shrink-0">to</span>
+
+                                    {/* End Time Dropdowns */}
+                                    <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 shrink-0">
+                                      <select
+                                        value={parseTimeStr(p.endTime).hour}
+                                        onChange={(e) => handleTimeChange(idx, "end", "hour", e.target.value)}
+                                        className="bg-transparent border-0 text-xs text-white focus:outline-none font-bold cursor-pointer"
+                                      >
+                                        {Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0")).map(h => (
+                                          <option key={h} value={h} className="bg-slate-900">{h}</option>
+                                        ))}
+                                      </select>
+                                      <span className="text-slate-600 font-bold text-xs">:</span>
+                                      <select
+                                        value={parseTimeStr(p.endTime).minute}
+                                        onChange={(e) => handleTimeChange(idx, "end", "minute", e.target.value)}
+                                        className="bg-transparent border-0 text-xs text-white focus:outline-none font-bold cursor-pointer max-h-40 overflow-y-auto"
+                                      >
+                                        {Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, "0")).map(m => (
+                                          <option key={m} value={m} className="bg-slate-900">{m}</option>
+                                        ))}
+                                      </select>
+                                      <select
+                                        value={parseTimeStr(p.endTime).ampm}
+                                        onChange={(e) => handleTimeChange(idx, "end", "ampm", e.target.value)}
+                                        className="bg-transparent border-0 text-xs text-white focus:outline-none font-bold cursor-pointer ml-1"
+                                      >
+                                        <option value="AM" className="bg-slate-900">AM</option>
+                                        <option value="PM" className="bg-slate-900">PM</option>
+                                      </select>
+                                    </div>
+                                    
+                                    {/* Remove button */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setPeriods(periods.filter((_, i) => i !== idx));
+                                      }}
+                                      className="text-slate-400 hover:text-red-500 p-1 hover:bg-slate-950 rounded-lg"
+                                      title="Remove Period Slot"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

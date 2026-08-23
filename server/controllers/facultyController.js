@@ -11,6 +11,7 @@ const Task = require("../models/Task");
 const Subject = require("../models/Subject");
 const AcademicResource = require("../models/AcademicResource");
 const PersonalizedCourse = require("../models/PersonalizedCourse");
+const Setting = require("../models/Setting");
 
 // Helper to get Teacher profile by user ID
 const getTeacherProfileHelper = async (userId) => {
@@ -143,6 +144,13 @@ exports.submitAttendance = async (req, res) => {
     const parsedHours = parseInt(hours, 10) || 1;
     const finalPeriod = period || "1st Period";
 
+    let periodsToSave = [finalPeriod];
+    if (typeof finalPeriod === "string" && finalPeriod.includes(",")) {
+      periodsToSave = finalPeriod.split(",").map(p => p.trim());
+    } else if (Array.isArray(finalPeriod)) {
+      periodsToSave = finalPeriod;
+    }
+
     const savedLogs = [];
     for (const record of records) {
       const { studentUsn, present, status } = record;
@@ -150,25 +158,25 @@ exports.submitAttendance = async (req, res) => {
       const student = await Student.findOne({ usn: studentUsn });
       if (!student) continue;
 
-      // Map boolean present to status if status is not explicitly passed
       const finalStatus = status || (present ? "Present" : "Absent");
 
-      // Upsert Attendance record with period in query
-      const log = await Attendance.findOneAndUpdate(
-        { student: student._id, subjectCode, date, period: finalPeriod },
-        {
-          student: student._id,
-          subjectCode,
-          subjectName,
-          faculty: teacher._id,
-          date,
-          status: finalStatus,
-          period: finalPeriod,
-          hours: parsedHours
-        },
-        { upsert: true, new: true }
-      );
-      savedLogs.push(log);
+      for (const singlePeriod of periodsToSave) {
+        const log = await Attendance.findOneAndUpdate(
+          { student: student._id, subjectCode, date, period: singlePeriod },
+          {
+            student: student._id,
+            subjectCode,
+            subjectName,
+            faculty: teacher._id,
+            date,
+            status: finalStatus,
+            period: singlePeriod,
+            hours: parsedHours
+          },
+          { upsert: true, new: true }
+        );
+        savedLogs.push(log);
+      }
     }
 
     res.json({ message: "Attendance submitted successfully", logsCount: savedLogs.length });
@@ -697,6 +705,27 @@ exports.markStudentAttendance = async (req, res) => {
     }
 
     res.json({ message: "Attendance marked successfully", log });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get system settings/periods for faculty
+// @route   GET /api/faculty/settings
+// @access  Private
+exports.getSettings = async (req, res) => {
+  try {
+    const configDoc = await Setting.findOne({ key: "systemConfig" });
+    if (!configDoc) {
+      return res.json({
+        periods: [
+          { id: "p1", name: "1st Period", startTime: "09:00 AM", endTime: "10:30 AM" },
+          { id: "p2", name: "2nd Period", startTime: "11:00 AM", endTime: "12:30 PM" },
+          { id: "p3", name: "3rd Period", startTime: "02:00 PM", endTime: "03:30 PM" }
+        ]
+      });
+    }
+    res.json(configDoc.value);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

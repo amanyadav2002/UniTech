@@ -782,7 +782,7 @@ export default function Students({ onOpenAuth }) {
             title: `${c.code} - ${c.name}`,
             description: `Teacher: ${c.teacher} | Attendance: ${c.attendance}% (${c.attended}/${c.held} Classes)`,
             action: () => {
-              setActiveTab("courses");
+              setActiveTab("attendance");
               setGlobalSearchQuery("");
               setIsSearchFocused(false);
             }
@@ -1444,7 +1444,7 @@ export default function Students({ onOpenAuth }) {
                     </div>
                     <div className="w-[1px] bg-white/20 self-stretch"></div>
                     <div 
-                       onClick={() => setActiveTab("courses")}
+                       onClick={() => setActiveTab("attendance")}
                        className="text-center cursor-pointer hover:opacity-80 transition"
                      >
                        <p className="text-[10px] uppercase font-bold text-indigo-200 flex items-center justify-center gap-1"><span>📊</span> Attendance</p>
@@ -1467,7 +1467,7 @@ export default function Students({ onOpenAuth }) {
                     </div>
                     <div className="w-[1px] bg-white/20 self-stretch"></div>
                     <div 
-                       onClick={() => setActiveTab("courses")}
+                       onClick={() => setActiveTab("attendance")}
                        className="text-center cursor-pointer"
                      >
                        <p className="text-[9px] uppercase font-bold text-indigo-200">Attendance</p>
@@ -1490,7 +1490,7 @@ export default function Students({ onOpenAuth }) {
                 {/* --- CARD 1: ATTENDANCE PROGRESS --- */}
                 {/* Desktop Version */}
                 <div 
-                  onClick={() => setActiveTab("courses")}
+                  onClick={() => setActiveTab("attendance")}
                   className="hidden sm:flex bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 items-center justify-between cursor-pointer hover:border-indigo-200 hover:shadow-md transition duration-150"
                 >
                   <div className="space-y-2">
@@ -1534,7 +1534,7 @@ export default function Students({ onOpenAuth }) {
                 </div>
                 {/* Mobile Version */}
                 <div 
-                  onClick={() => setActiveTab("courses")}
+                  onClick={() => setActiveTab("attendance")}
                   className="flex sm:hidden bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/50 items-center justify-between cursor-pointer hover:border-indigo-200 hover:shadow-md transition duration-150 gap-2"
                 >
                   <div className="space-y-1">
@@ -1649,7 +1649,10 @@ export default function Students({ onOpenAuth }) {
 
                 {/* --- CARD 4: REGISTERED COURSES --- */}
                 {/* Desktop Version */}
-                <div className="hidden sm:flex bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 items-center justify-between">
+                <div 
+                  onClick={() => setActiveTab("courses")}
+                  className="hidden sm:flex bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 items-center justify-between cursor-pointer hover:border-indigo-200 hover:shadow-md transition duration-150"
+                >
                   <div className="space-y-2">
                     <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
                       <span>📖</span> Registered Courses
@@ -1664,7 +1667,10 @@ export default function Students({ onOpenAuth }) {
                   </div>
                 </div>
                 {/* Mobile Version */}
-                <div className="flex sm:hidden bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/50 items-center justify-between gap-2">
+                <div 
+                  onClick={() => setActiveTab("courses")}
+                  className="flex sm:hidden bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/50 items-center justify-between gap-2 cursor-pointer hover:border-indigo-200 hover:shadow-md transition duration-150"
+                >
                   <div className="space-y-1">
                     <p className="text-[10px] font-semibold text-slate-500">
                       Courses

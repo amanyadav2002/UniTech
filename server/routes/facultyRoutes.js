@@ -21,8 +21,10 @@ const {
   getAllStudents,
   createPersonalizedCourse,
   markStudentAttendance,
+  getSettings,
 } = require("../controllers/facultyController");
 
+router.get("/settings", authMiddleware, getSettings);
 router.get("/profile", authMiddleware, getProfile);
 router.put("/profile", authMiddleware, updateProfile);
 router.get("/classes", authMiddleware, getClasses);
