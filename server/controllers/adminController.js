@@ -19,6 +19,7 @@ const Report = require("../models/Report");
 const Semester = require("../models/Semester");
 const Schedule = require("../models/Schedule");
 const Class = require("../models/Class");
+const Setting = require("../models/Setting");
 
 // Helper to get formatted date YYYY-MM-DD
 const getTodayDateString = () => {
@@ -1155,7 +1156,7 @@ exports.generateReport = async (req, res) => {
 // 10. SYSTEM SETTINGS
 // ==========================================
 
-let systemConfig = {
+const defaultSystemConfig = {
   collegeName: "UniTech Institute of Technology",
   academicYear: "2026-2027",
   semesterDates: {
@@ -1163,12 +1164,30 @@ let systemConfig = {
     end: "2026-12-15"
   },
   theme: "light",
-  backupStatus: "Last backup conducted on 2026-07-26"
+  backupStatus: "Last backup conducted on 2026-07-26",
+  periods: [
+    { id: "p1", name: "1st Period", startTime: "09:00 AM", endTime: "10:30 AM" },
+    { id: "p2", name: "2nd Period", startTime: "11:00 AM", endTime: "12:30 PM" },
+    { id: "p3", name: "3rd Period", startTime: "02:00 PM", endTime: "03:30 PM" }
+  ]
+};
+
+const getOrSeedSettings = async () => {
+  let doc = await Setting.findOne({ key: "systemConfig" });
+  if (!doc) {
+    doc = new Setting({
+      key: "systemConfig",
+      value: defaultSystemConfig
+    });
+    await doc.save();
+  }
+  return doc;
 };
 
 exports.getSystemSettings = async (req, res) => {
   try {
-    res.json(systemConfig);
+    const configDoc = await getOrSeedSettings();
+    res.json(configDoc.value);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1177,8 +1196,11 @@ exports.getSystemSettings = async (req, res) => {
 exports.updateSystemSettings = async (req, res) => {
   try {
     const updates = req.body;
-    systemConfig = { ...systemConfig, ...updates };
-    res.json({ message: "Settings updated successfully", settings: systemConfig });
+    const configDoc = await getOrSeedSettings();
+    configDoc.value = { ...configDoc.value, ...updates };
+    configDoc.markModified("value");
+    await configDoc.save();
+    res.json({ message: "Settings updated successfully", settings: configDoc.value });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

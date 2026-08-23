@@ -85,6 +85,10 @@ const facultyService = {
     const response = await API.get("/faculty/events");
     return response.data;
   },
+  getSettings: async () => {
+    const response = await API.get("/faculty/settings");
+    return response.data;
+  },
 };
 
 export default facultyService;

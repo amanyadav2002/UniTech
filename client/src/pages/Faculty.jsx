@@ -207,6 +207,9 @@ export default function Faculty({ onOpenAuth }) {
   const [attendanceCourse, setAttendanceCourse] = useState("");
   const [attendanceSemester, setAttendanceSemester] = useState("");
   const [attendancePeriod, setAttendancePeriod] = useState("1st Period (09:00 AM - 10:30 AM)");
+  const [periodsList, setPeriodsList] = useState([]);
+  const [selectedPeriods, setSelectedPeriods] = useState([]);
+  const [isPeriodDropdownOpen, setIsPeriodDropdownOpen] = useState(false);
   const [attendanceHours, setAttendanceHours] = useState("1");
   const [attendanceDate, setAttendanceDate] = useState(getLocalDateString());
   const [attendanceSuccess, setAttendanceSuccess] = useState("");
@@ -217,6 +220,25 @@ export default function Faculty({ onOpenAuth }) {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [errorStudents, setErrorStudents] = useState("");
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
+
+  // Auto-prune selected periods if hours limit is reduced
+  useEffect(() => {
+    const maxHours = parseInt(attendanceHours, 10) || 1;
+    if (selectedPeriods.length > maxHours) {
+      setSelectedPeriods(selectedPeriods.slice(0, maxHours));
+    }
+  }, [attendanceHours]);
+
+  const handleTogglePeriod = (periodStr) => {
+    const maxHours = parseInt(attendanceHours, 10) || 1;
+    if (selectedPeriods.includes(periodStr)) {
+      setSelectedPeriods(selectedPeriods.filter(p => p !== periodStr));
+    } else {
+      if (selectedPeriods.length < maxHours) {
+        setSelectedPeriods([...selectedPeriods, periodStr]);
+      }
+    }
+  };
 
   // Modals for Registered Students
   const [personalizedCourseModalOpen, setPersonalizedCourseModalOpen] = useState(false);
@@ -356,6 +378,46 @@ export default function Faculty({ onOpenAuth }) {
       // Fetch tasks
       const tk = await studentService.getTasks(); // Tasks collection is shared
       setTasks(tk);
+
+      // Fetch dynamic period settings
+      try {
+        const settings = await facultyService.getSettings();
+        if (settings && settings.periods && settings.periods.length > 0) {
+          setPeriodsList(settings.periods);
+          const formattedPeriods = settings.periods.map(p => `${p.name} (${p.startTime} - ${p.endTime})`);
+          if (formattedPeriods.length > 0) {
+            setAttendancePeriod(formattedPeriods[0]);
+            setSelectedPeriods([formattedPeriods[0]]);
+          }
+        } else {
+          const defaults = [
+            "1st Period (09:00 AM - 10:30 AM)",
+            "2nd Period (11:00 AM - 12:30 PM)",
+            "3rd Period (02:00 PM - 03:30 PM)"
+          ];
+          setPeriodsList([
+            { id: "p1", name: "1st Period", startTime: "09:00 AM", endTime: "10:30 AM" },
+            { id: "p2", name: "2nd Period", startTime: "11:00 AM", endTime: "12:30 PM" },
+            { id: "p3", name: "3rd Period", startTime: "02:00 PM", endTime: "03:30 PM" }
+          ]);
+          setAttendancePeriod(defaults[0]);
+          setSelectedPeriods([defaults[0]]);
+        }
+      } catch (err) {
+        console.error("Failed to load period settings in Faculty portal", err);
+        const defaults = [
+          "1st Period (09:00 AM - 10:30 AM)",
+          "2nd Period (11:00 AM - 12:30 PM)",
+          "3rd Period (02:00 PM - 03:30 PM)"
+        ];
+        setPeriodsList([
+          { id: "p1", name: "1st Period", startTime: "09:00 AM", endTime: "10:30 AM" },
+          { id: "p2", name: "2nd Period", startTime: "11:00 AM", endTime: "12:30 PM" },
+          { id: "p3", name: "3rd Period", startTime: "02:00 PM", endTime: "03:30 PM" }
+        ]);
+        setAttendancePeriod(defaults[0]);
+        setSelectedPeriods([defaults[0]]);
+      }
 
       // Fetch resources
       const res = await facultyService.getResources();
@@ -728,7 +790,7 @@ export default function Faculty({ onOpenAuth }) {
         subjectCode: attendanceCourse,
         subjectName: activeClass?.name || attendanceCourse,
         date: attendanceDate,
-        period: attendancePeriod,
+        period: selectedPeriods.length > 0 ? selectedPeriods.join(", ") : attendancePeriod,
         hours: attendanceHours,
         records
       });
@@ -2039,6 +2101,18 @@ export default function Faculty({ onOpenAuth }) {
             <Calendar size={18} className={activeTab === 'calendar' ? 'text-white' : 'text-zinc-400'} />
             <span>Event Calendar</span>
           </button>
+
+          <button
+            onClick={() => { setActiveTab("profile"); setIsMobileMenuOpen(false); }}
+            className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
+              activeTab === "profile"
+                ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/15"
+                : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
+            }`}
+          >
+            <User size={18} className={activeTab === 'profile' ? 'text-white' : 'text-zinc-400'} />
+            <span>Faculty Profile</span>
+          </button>
         </nav>
 
         {/* Sign Out */}
@@ -2864,26 +2938,110 @@ export default function Faculty({ onOpenAuth }) {
                 </div>
 
                 {/* Period Selection */}
-                <div className="lg:col-span-3">
+                <div className="lg:col-span-4 relative">
                   <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Period</label>
-                  <select
-                    value={attendancePeriod}
-                    onChange={(e) => setAttendancePeriod(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm"
+                  
+                  {/* Dropdown Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsPeriodDropdownOpen(!isPeriodDropdownOpen)}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-bold text-slate-800 text-left focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm flex justify-between items-center"
                   >
-                    <option value="1st Period (09:00 AM - 10:30 AM)">1st Period (09:00 AM - 10:30 AM)</option>
-                    <option value="2nd Period (11:00 AM - 12:30 PM)">2nd Period (11:00 AM - 12:30 PM)</option>
-                    <option value="3rd Period (02:00 PM - 03:30 PM)">3rd Period (02:00 PM - 03:30 PM)</option>
-                  </select>
+                    <span className="truncate">
+                      {selectedPeriods.length > 0
+                        ? selectedPeriods.map(p => p.split(" (")[0]).join(", ")
+                        : "Select Period"}
+                    </span>
+                    <span className="text-slate-400 text-xs font-black">▼</span>
+                  </button>
+
+                  {/* Dropdown Options Box */}
+                  {isPeriodDropdownOpen && (
+                    <>
+                      {/* Invisible click backdrop to auto-close */}
+                      <div className="fixed inset-0 z-10" onClick={() => setIsPeriodDropdownOpen(false)} />
+                      
+                      <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg py-2 max-h-60 overflow-y-auto">
+                        <div className="px-3 py-1.5 border-b border-slate-100 mb-1 flex justify-between items-center bg-slate-50/50">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                            Max Selectable: {attendanceHours} Hr{parseInt(attendanceHours) > 1 ? "s" : ""}
+                          </span>
+                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md">
+                            Checked: {selectedPeriods.length}
+                          </span>
+                        </div>
+
+                        {periodsList.length > 0 ? (
+                          periodsList.map((p) => {
+                            const optVal = `${p.name} (${p.startTime} - ${p.endTime})`;
+                            const isChecked = selectedPeriods.includes(optVal);
+                            const maxReached = selectedPeriods.length >= (parseInt(attendanceHours, 10) || 1);
+                            const isDisabled = !isChecked && maxReached;
+
+                            return (
+                              <label
+                                key={p.id || p._id}
+                                className={`flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors ${
+                                  isDisabled ? "opacity-50 cursor-not-allowed" : ""
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  disabled={isDisabled}
+                                  onChange={() => handleTogglePeriod(optVal)}
+                                  className="h-4.5 w-4.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                />
+                                <span className="text-xs font-bold text-slate-700">
+                                  {optVal}
+                                </span>
+                              </label>
+                            );
+                          })
+                        ) : (
+                          // Fallback default periods
+                          [
+                            "1st Period (09:00 AM - 10:30 AM)",
+                            "2nd Period (11:00 AM - 12:30 PM)",
+                            "3rd Period (02:00 PM - 03:30 PM)"
+                          ].map((optVal) => {
+                            const isChecked = selectedPeriods.includes(optVal);
+                            const maxReached = selectedPeriods.length >= (parseInt(attendanceHours, 10) || 1);
+                            const isDisabled = !isChecked && maxReached;
+
+                            return (
+                              <label
+                                key={optVal}
+                                className={`flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors ${
+                                  isDisabled ? "opacity-50 cursor-not-allowed" : ""
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  disabled={isDisabled}
+                                  onChange={() => handleTogglePeriod(optVal)}
+                                  className="h-4.5 w-4.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                />
+                                <span className="text-xs font-bold text-slate-700">
+                                  {optVal}
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Number of Hours (COMPRESSED) */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-1">
                   <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Hours</label>
                   <select
                     value={attendanceHours}
                     onChange={(e) => setAttendanceHours(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm"
+                    className="w-full rounded-xl border border-slate-200 px-2 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm"
                   >
                     <option value="1">1 Hr</option>
                     <option value="2">2 Hrs</option>
@@ -2896,9 +3054,9 @@ export default function Faculty({ onOpenAuth }) {
                 <div className="lg:col-span-3">
                   <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">Attendance Date</label>
                   <div className="flex items-center gap-2">
-                    <div className="grid grid-cols-3 gap-1.5 flex-1">
+                    <div className="grid grid-cols-4 gap-1.5 flex-1">
                       {/* Day Input & Dropdown */}
-                      <div className="relative">
+                      <div className="relative col-span-1">
                         <input
                           type="text"
                           required
@@ -2936,7 +3094,7 @@ export default function Faculty({ onOpenAuth }) {
                       </div>
 
                       {/* Month Input & Dropdown */}
-                      <div className="relative">
+                      <div className="relative col-span-2">
                         <input
                           type="text"
                           required
@@ -2978,7 +3136,7 @@ export default function Faculty({ onOpenAuth }) {
                       </div>
 
                       {/* Year Input & Dropdown */}
-                      <div className="relative">
+                      <div className="relative col-span-1">
                         <input
                           type="text"
                           required
@@ -4528,164 +4686,223 @@ export default function Faculty({ onOpenAuth }) {
 
         {/* --- TAB 7: FACULTY PROFILE --- */}
         {activeTab === "profile" && (
-          <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200/50 space-y-8 animate-fadeIn">
-            <div className="border-b border-slate-100 pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-extrabold text-slate-800">Faculty Core Profile</h3>
-                <p className="text-xs text-slate-400 font-semibold mt-1">Manage and edit your employment profile information.</p>
+          <div className="space-y-6 animate-fadeIn">
+            
+            {/* Header Cover Banner */}
+            <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 rounded-3xl p-6 md:p-8 shadow-md overflow-hidden min-h-[160px] flex flex-col md:flex-row md:items-end justify-between gap-6">
+              {/* Decorative light elements */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none -mr-16 -mt-16" />
+              <div className="absolute bottom-0 left-1/3 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl pointer-events-none" />
+
+              <div className="flex flex-col sm:flex-row items-center gap-5 z-10">
+                <div className="h-20 w-20 md:h-24 md:w-24 rounded-2xl bg-white/95 backdrop-blur text-indigo-700 flex items-center justify-center font-black text-2xl md:text-3xl shadow-xl border-4 border-white/20 shrink-0">
+                  {user.name ? user.name.split(" ").map(w => w[0]).join("").toUpperCase().substring(0, 2) : "FC"}
+                </div>
+                <div className="text-center sm:text-left space-y-1.5">
+                  <h3 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">{user.name}</h3>
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                    <span className="text-xs font-bold px-3 py-1 bg-white/15 text-white rounded-full border border-white/10">
+                      ID: {teacherProfile.id || "NOT SET"}
+                    </span>
+                    <span className="text-xs font-bold px-3 py-1 bg-indigo-500/30 text-white rounded-full border border-indigo-400/20">
+                      {teacherProfile.department || "Computer Science Department"}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {!isEditing && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="flex items-center gap-2 border border-slate-200 hover:border-indigo-600 text-slate-700 hover:text-indigo-600 text-xs font-bold px-4 py-2 rounded-xl transition"
+                  className="z-10 shrink-0 self-center sm:self-auto flex items-center justify-center gap-2 bg-white/15 hover:bg-white text-white hover:text-indigo-700 text-xs font-extrabold px-5 py-3 rounded-xl border border-white/15 hover:border-transparent transition-all shadow-md active:scale-95 animate-fadeIn"
                 >
                   <Edit size={14} />
-                  Edit Profile Info
+                  Edit Profile
                 </button>
               )}
             </div>
 
             {profileErrorMsg && (
-              <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-sm font-bold">
+              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-800 text-sm font-bold shadow-sm">
                 {profileErrorMsg}
               </div>
             )}
 
-            <form onSubmit={handleSaveProfile} className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
+            {profileSuccessMsg && (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-800 text-sm font-bold shadow-sm">
+                {profileSuccessMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveProfile} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* Left Column Summary Card */}
+              <div className="lg:col-span-4 bg-white rounded-3xl p-6 shadow-sm border border-slate-200/50 space-y-6">
+                <h4 className="font-extrabold text-slate-800 text-base border-b border-slate-100 pb-3">Core Credentials</h4>
                 
-                {/* Name */}
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Full Name</label>
-                  <input
-                    type="text"
-                    required
-                    disabled={!isEditing}
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-slate-50 disabled:text-slate-500 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition"
-                  />
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 shrink-0">
+                      <Mail size={16} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">Email Address</span>
+                      <span className="text-xs font-bold text-slate-700 truncate block">{user.email}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 shrink-0">
+                      <Award size={16} />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">Role & Position</span>
+                      <span className="text-xs font-bold text-slate-700">Educator & Researcher</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 shrink-0">
+                      <Building2 size={16} />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">Academic Office</span>
+                      <span className="text-xs font-bold text-slate-700">{teacherProfile.department || "Computer Science"} Dept</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 shrink-0">
+                      <CalendarDays size={16} />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">Date of Birth</span>
+                      <span className="text-xs font-bold text-slate-700">
+                        {teacherProfile.dob ? new Date(teacherProfile.dob).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : "NOT SET"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Email (Read Only always) */}
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Email Address</label>
-                  <input
-                    type="email"
-                    disabled
-                    value={user.email}
-                    className="w-full rounded-xl border border-slate-100 px-4 py-2.5 text-sm bg-slate-50 text-slate-400 font-bold select-none"
-                  />
+                <div className="pt-4 border-t border-slate-100 bg-slate-50/50 p-4 rounded-2xl border border-slate-100/50 text-center">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Verified System Profile
+                  </span>
                 </div>
+              </div>
 
-                {/* Employee ID */}
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Employee / Teacher ID</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={teacherProfile.id || "NOT SET"}
-                    className="w-full rounded-xl border border-slate-100 px-4 py-2.5 text-sm bg-slate-50 text-slate-400 font-bold select-none"
-                  />
-                </div>
-
-                {/* Phone */}
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Phone Number</label>
-                  <input
-                    type="tel"
-                    required
-                    disabled={!isEditing}
-                    value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-slate-50 disabled:text-slate-500 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition"
-                  />
-                </div>
-
-                {/* Age */}
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Age</label>
-                  <input
-                    type="number"
-                    required
-                    disabled={!isEditing}
-                    value={editAge}
-                    onChange={(e) => setEditAge(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-slate-50 disabled:text-slate-500 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition"
-                  />
-                </div>
-
-                {/* Department */}
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Department</label>
-                  {isEditing ? (
-                    <select
-                      value={editDepartment}
-                      onChange={(e) => setEditDepartment(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
-                    >
-                      <option value="Computer Science">Computer Science</option>
-                      <option value="Information Science">Information Science</option>
-                      <option value="Electronics & Communication">Electronics & Communication</option>
-                      <option value="Electrical & Electronics">Electrical & Electronics</option>
-                      <option value="Mechanical Engineering">Mechanical Engineering</option>
-                      <option value="Civil Engineering">Civil Engineering</option>
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      disabled
-                      value={teacherProfile.department || "NOT SET"}
-                      className="w-full rounded-xl border border-slate-100 px-4 py-2.5 text-sm bg-slate-50 text-slate-500 font-bold select-none"
-                    />
+              {/* Right Column Form Details */}
+              <div className="lg:col-span-8 bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200/50 space-y-6">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                  <h4 className="font-extrabold text-slate-800 text-base">Account details & preferences</h4>
+                  {isEditing && (
+                    <span className="text-xs text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg font-bold border border-indigo-100 animate-pulse">
+                      Editing Mode Active
+                    </span>
                   )}
                 </div>
 
-                {/* Date of Birth (Always Read Only after registration) */}
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Date of Birth</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={teacherProfile.dob ? new Date(teacherProfile.dob).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : "NOT SET"}
-                    className="w-full rounded-xl border border-slate-100 px-4 py-2.5 text-sm bg-slate-50 text-slate-400 font-bold select-none"
-                  />
+                <div className="grid gap-6 md:grid-cols-2">
+                  
+                  {/* Name */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider">Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      disabled={!isEditing}
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm bg-slate-50 disabled:bg-slate-50/40 disabled:text-slate-500 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition"
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider">Phone Number</label>
+                    <input
+                      type="tel"
+                      required
+                      disabled={!isEditing}
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm bg-slate-50 disabled:bg-slate-50/40 disabled:text-slate-500 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition"
+                    />
+                  </div>
+
+                  {/* Age */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider">Age</label>
+                    <input
+                      type="number"
+                      required
+                      disabled={!isEditing}
+                      value={editAge}
+                      onChange={(e) => setEditAge(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm bg-slate-50 disabled:bg-slate-50/40 disabled:text-slate-500 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition"
+                    />
+                  </div>
+
+                  {/* Department */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider">Department Assignment</label>
+                    {isEditing ? (
+                      <select
+                        value={editDepartment}
+                        onChange={(e) => setEditDepartment(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm bg-white font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="Computer Science">Computer Science</option>
+                        <option value="Information Science">Information Science</option>
+                        <option value="Electronics & Communication">Electronics & Communication</option>
+                        <option value="Electrical & Electronics">Electrical & Electronics</option>
+                        <option value="Mechanical Engineering">Mechanical Engineering</option>
+                        <option value="Civil Engineering">Civil Engineering</option>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        disabled
+                        value={teacherProfile.department || "NOT SET"}
+                        className="w-full rounded-xl border border-slate-100 px-4 py-2.5 text-sm bg-slate-50/40 text-slate-500 font-bold select-none"
+                      />
+                    )}
+                  </div>
+
+                  {/* Monthly Salary */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider">Monthly Remuneration (INR)</label>
+                    <input
+                      type="number"
+                      required
+                      disabled={!isEditing}
+                      value={editSalary}
+                      onChange={(e) => setEditSalary(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200/70 px-4 py-2.5 text-sm bg-slate-50 disabled:bg-slate-50/40 disabled:text-slate-500 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition"
+                    />
+                  </div>
+
                 </div>
 
-                {/* Monthly Salary */}
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2">Monthly Salary (INR)</label>
-                  <input
-                    type="number"
-                    required
-                    disabled={!isEditing}
-                    value={editSalary}
-                    onChange={(e) => setEditSalary(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm bg-slate-50 disabled:text-slate-500 font-bold text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition"
-                  />
-                </div>
-
+                {isEditing && (
+                  <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 animate-fadeIn">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      className="border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-5 py-2.5 rounded-xl transition text-xs uppercase tracking-wider"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={profileLoading}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl shadow-md transition disabled:opacity-50 text-xs uppercase tracking-wider"
+                    >
+                      {profileLoading ? "Saving Changes..." : "Save Details"}
+                    </button>
+                  </div>
+                )}
               </div>
-
-              {isEditing && (
-                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(false)}
-                    className="border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-5 py-2.5 rounded-xl transition text-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={profileLoading}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl shadow-md transition disabled:opacity-50 text-sm"
-                  >
-                    {profileLoading ? "Saving Changes..." : "Save Profile Details"}
-                  </button>
-                </div>
-              )}
             </form>
           </div>
         )}
