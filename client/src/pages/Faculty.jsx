@@ -121,7 +121,11 @@ export default function Faculty({ onOpenAuth }) {
   useEffect(() => {
     const handleClickOutside = (event) => {
       const container = document.getElementById("search-container");
-      if (container && !container.contains(event.target)) {
+      const containerMobile = document.getElementById("search-container-mobile");
+      if (
+        (container && !container.contains(event.target)) &&
+        (containerMobile && !containerMobile.contains(event.target))
+      ) {
         setIsSearchFocused(false);
       }
     };
@@ -1973,24 +1977,127 @@ export default function Faculty({ onOpenAuth }) {
     <div className="min-h-screen bg-[#f8fafc] flex flex-col lg:flex-row animate-fadeIn">
       
       {/* Mobile Header Top Bar */}
-      <div className="lg:hidden flex items-center justify-between bg-zinc-950 px-6 py-4 sticky top-0 z-30 shadow-sm shrink-0 text-zinc-300">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-zinc-900 flex items-center justify-center text-blue-500 border border-zinc-800 shadow-sm shadow-blue-500/10">
-            <GraduationCap size={20} />
-          </div>
-          <div>
-            <h1 className="text-base font-extrabold text-white tracking-tight leading-none">UniTech</h1>
-            <span className="text-[10px] text-blue-500 font-bold tracking-wider uppercase mt-1.5 block">Faculty Hub</span>
+      <div className="lg:hidden flex flex-col bg-white border-b border-slate-200/80 sticky top-0 z-30 shadow-sm shrink-0">
+        {/* Row 1: Brand Header */}
+        <div className="flex items-center justify-between px-6 py-2.5 bg-slate-50/40 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 font-bold border border-blue-100 shadow-sm">
+              <GraduationCap size={18} />
+            </div>
+            <div>
+              <h1 className="font-extrabold text-slate-800 text-sm leading-none">UniTech</h1>
+              <span className="text-[9px] text-blue-600 font-bold tracking-wider uppercase mt-0.5 block">Faculty Hub</span>
+            </div>
           </div>
         </div>
-        
-        <button
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-xl transition duration-200"
-          aria-label="Open Menu"
-        >
-          <Menu size={24} />
-        </button>
+
+        {/* Row 2: Action Header (Hamburger Left, Search + Actions Right) */}
+        <div className="flex items-center justify-between px-4 py-2 bg-white gap-3" id="search-container-mobile">
+          {/* Hamburger on Left */}
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition duration-200 shrink-0"
+            aria-label="Open Menu"
+          >
+            <Menu size={22} />
+          </button>
+
+          {/* Actions on Right */}
+          <div className="flex items-center gap-1.5 xs:gap-2">
+            {/* Search Bar Input */}
+            <div className="relative w-28 xs:w-36">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                <Search size={13} />
+              </span>
+              <input
+                type="text"
+                placeholder="Search..."
+                value={globalSearchQuery}
+                onChange={(e) => {
+                  setGlobalSearchQuery(e.target.value);
+                  setNoticeSearch(e.target.value);
+                }}
+                onFocus={() => setIsSearchFocused(true)}
+                className="w-full rounded-xl border border-slate-200 pl-8 pr-2 py-1 text-xs bg-slate-50 focus:bg-white focus:border-blue-500 focus:outline-none transition-all font-semibold text-slate-800 placeholder:text-slate-400 h-8"
+              />
+              {/* Search Results Dropdown */}
+              {isSearchFocused && globalSearchQuery && (
+                <div className="absolute right-0 mt-2 w-72 z-[60] max-h-[300px] overflow-y-auto bg-white rounded-2xl border border-slate-200/80 shadow-2xl py-2 flex flex-col divide-y divide-slate-50">
+                  {searchResults.length === 0 ? (
+                    <div className="px-4 py-3 text-xs text-slate-400 font-semibold text-center">
+                      No results found for "{globalSearchQuery}"
+                    </div>
+                  ) : (
+                    searchResults.map((result, idx) => {
+                      let icon = <Search className="h-3.5 w-3.5 text-blue-500" />;
+                      if (result.category === "Teaching Courses") icon = <BookOpen className="h-3.5 w-3.5 text-blue-500" />;
+                      else if (result.category === "Attendance" || result.category === "Class Roster") icon = <ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" />;
+                      else if (result.category === "Digital Classroom") icon = <Laptop className="h-3.5 w-3.5 text-sky-500" />;
+                      else if (result.category === "Grading Hub" || result.category === "Student Submission") icon = <FileText className="h-3.5 w-3.5 text-amber-500" />;
+                      else if (result.category === "Research Publications") icon = <FlaskConical className="h-3.5 w-3.5 text-purple-500" />;
+                      else if (result.category === "Announcements Board") icon = <Bell className="h-3.5 w-3.5 text-rose-500" />;
+                      else if (result.category === "Academic Checklist") icon = <CheckSquare className="h-3.5 w-3.5 text-teal-500" />;
+                      else if (result.category === "Faculty Profile") icon = <User className="h-3.5 w-3.5 text-blue-500" />;
+
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={result.action}
+                          className="flex items-start gap-2.5 px-3 py-2 text-left hover:bg-slate-50 transition w-full group"
+                        >
+                          <div className="p-1 bg-slate-100 rounded-lg group-hover:bg-blue-50 transition shrink-0 mt-0.5">
+                            {icon}
+                          </div>
+                          <div className="overflow-hidden flex-1">
+                            <p className="text-xs font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors">
+                              {result.title}
+                            </p>
+                            <span className="text-[9px] font-semibold text-slate-400 block mt-0.5 uppercase tracking-wide truncate">
+                              {result.category} &bull; {result.subtitle}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing || loadingPortal}
+              className="w-8 h-8 bg-slate-50 rounded-xl border border-slate-200/50 hover:bg-slate-100 transition text-slate-500 hover:text-blue-600 flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+              title="Refresh Data"
+            >
+              <RefreshCw size={14} className={`${isRefreshing ? "animate-spin" : ""}`} />
+            </button>
+
+            {/* Notification Bell */}
+            <button
+              onClick={() => setActiveTab("notices")}
+              className="relative w-8 h-8 bg-slate-50 rounded-xl border border-slate-200/50 hover:bg-slate-100 transition text-slate-500 hover:text-blue-600 flex items-center justify-center shrink-0"
+              title="Campus Notices"
+            >
+              <Bell size={14} />
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white ring-2 ring-white">
+                {notices.length}
+              </span>
+            </button>
+
+            {/* Date & Time badge */}
+            <div className="flex items-center gap-1 bg-slate-50 px-2 rounded-xl border border-slate-200/50 shrink-0 h-8">
+              <CalendarDays className="text-blue-600 h-3 w-3" />
+              <span className="text-[9px] font-bold text-slate-700 whitespace-nowrap">
+                {attendanceDate 
+                  ? new Date(attendanceDate + "T12:00:00").toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                  : new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Mobile Menu Backdrop */}
@@ -2144,11 +2251,14 @@ export default function Faculty({ onOpenAuth }) {
               {activeTab === "profile" && "Faculty Core Profile"}
             </h2>
             <p className="text-slate-500 mt-1 text-sm font-semibold">
-              Department: <strong className="text-slate-700">{teacherProfile.department || "Computer Science"} </strong> &bull; Employment Role: <strong className="text-slate-700">Educator & Researcher</strong>
+              Department: <strong className="text-slate-700">{teacherProfile.department || "Computer Science"} </strong>
+              <span className="hidden sm:inline">&bull; </span>
+              <br className="sm:hidden" />
+              Employment Role: <strong className="text-slate-700">Educator & Researcher</strong>
             </p>
           </div>
 
-          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
+          <div className="hidden lg:flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
             {/* Search Input */}
             <div className="relative w-full md:w-80" id="search-container">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
@@ -2305,77 +2415,82 @@ export default function Faculty({ onOpenAuth }) {
             </div>
 
             {/* Quick Workload Stats Cards Grid */}
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3.5 sm:gap-6 lg:grid-cols-4">
               
               {/* Card 1: Monthly Salary */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
-                <div className="space-y-1.5">
-                  <p className="text-sm font-bold text-slate-500 flex items-center gap-1.5">
-                    <DollarSign size={16} /> Monthly Salary (INR)
+              <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
+                <div className="space-y-1 sm:space-y-1.5 overflow-hidden">
+                  <p className="text-[10px] sm:text-sm font-bold text-slate-500 flex items-center gap-1 sm:gap-1.5 truncate">
+                    <DollarSign size={14} className="sm:hidden" />
+                    <DollarSign size={16} className="hidden sm:inline" />
+                    <span className="truncate">Monthly Salary</span>
                   </p>
-                  <h3 className="text-3xl font-extrabold text-slate-800">
+                  <h3 className="text-lg sm:text-3xl font-extrabold text-slate-800 truncate">
                     ₹{teacherProfile.salary ? Number(teacherProfile.salary).toLocaleString() : "85,000"}
                   </h3>
-                  <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full inline-block">
-                    Direct Credit Profile
+                  <span className="text-[9px] sm:text-xs text-emerald-600 font-bold bg-emerald-50 px-2 sm:px-2.5 py-0.5 rounded-full inline-block truncate max-w-full">
+                    Direct Credit
                   </span>
                 </div>
-                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl shrink-0">
-                  <DollarSign size={26} />
+                <div className="p-2 sm:p-3 bg-emerald-50 text-emerald-600 rounded-xl sm:rounded-2xl shrink-0">
+                  <DollarSign size={20} className="sm:hidden" />
+                  <DollarSign size={26} className="hidden sm:inline" />
                 </div>
               </div>
 
               {/* Card 2: Average Class Attendance */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
-                <div className="space-y-1.5">
-                  <p className="text-sm font-bold text-slate-500 flex items-center gap-1.5">
-                    <span>📊</span> Avg Class Attendance
+              <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
+                <div className="space-y-1 sm:space-y-1.5 overflow-hidden">
+                  <p className="text-[10px] sm:text-sm font-bold text-slate-500 flex items-center gap-1 sm:gap-1.5 truncate">
+                    <span>📊</span> <span className="truncate">Avg Attendance</span>
                   </p>
-                  <h3 className="text-3xl font-extrabold text-slate-800">84.5%</h3>
-                  <span className="text-xs text-indigo-600 font-bold bg-indigo-50 px-2.5 py-0.5 rounded-full inline-block">
+                  <h3 className="text-lg sm:text-3xl font-extrabold text-slate-800 truncate">84.5%</h3>
+                  <span className="text-[9px] sm:text-xs text-indigo-600 font-bold bg-indigo-50 px-2 sm:px-2.5 py-0.5 rounded-full inline-block truncate max-w-full">
                     Healthy engagement
                   </span>
                 </div>
-                <div className="relative h-14 w-14 shrink-0">
+                <div className="relative h-10 w-10 sm:h-14 sm:w-14 shrink-0">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                     <path className="text-slate-100" strokeWidth="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                     <path className="text-indigo-600" strokeWidth="3.5" strokeDasharray="84, 100" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                   </svg>
-                  <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-slate-700">84%</div>
+                  <div className="absolute inset-0 flex items-center justify-center text-[8px] sm:text-[10px] font-black text-slate-700">84%</div>
                 </div>
               </div>
 
               {/* Card 3: Research Papers Pinned */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
-                <div className="space-y-1.5">
-                  <p className="text-sm font-bold text-slate-500 flex items-center gap-1.5">
-                    <span>📝</span> Research Publications
+              <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
+                <div className="space-y-1 sm:space-y-1.5 overflow-hidden">
+                  <p className="text-[10px] sm:text-sm font-bold text-slate-500 flex items-center gap-1 sm:gap-1.5 truncate">
+                    <span>📝</span> <span className="truncate">Research Pubs</span>
                   </p>
-                  <h3 className="text-3xl font-extrabold text-slate-800">{researchPapers.length} Entries</h3>
-                  <span className="text-xs text-amber-600 font-bold bg-amber-50 px-2.5 py-0.5 rounded-full inline-block">
+                  <h3 className="text-lg sm:text-3xl font-extrabold text-slate-800 truncate">{researchPapers.length} Entries</h3>
+                  <span className="text-[9px] sm:text-xs text-amber-600 font-bold bg-amber-50 px-2 sm:px-2.5 py-0.5 rounded-full inline-block truncate max-w-full">
                     {researchPapers.filter(p => p.status === "published").length} Published
                   </span>
                 </div>
-                <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl shrink-0">
-                  <FlaskConical size={26} />
+                <div className="p-2 sm:p-3 bg-amber-50 text-amber-600 rounded-xl sm:rounded-2xl shrink-0">
+                  <FlaskConical size={20} className="sm:hidden" />
+                  <FlaskConical size={26} className="hidden sm:inline" />
                 </div>
               </div>
 
               {/* Card 4: Hours per week workload */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
-                <div className="space-y-1.5">
-                  <p className="text-sm font-bold text-slate-500 flex items-center gap-1.5">
-                    <span>⏰</span> Lecture Workload
+              <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200/50 flex items-center justify-between">
+                <div className="space-y-1 sm:space-y-1.5 overflow-hidden">
+                  <p className="text-[10px] sm:text-sm font-bold text-slate-500 flex items-center gap-1 sm:gap-1.5 truncate">
+                    <span>⏰</span> <span className="truncate">Lecture Workload</span>
                   </p>
-                  <h3 className="text-3xl font-extrabold text-slate-800">
+                  <h3 className="text-lg sm:text-3xl font-extrabold text-slate-800 truncate">
                     {coursesList.length * 4} hrs/wk
                   </h3>
-                  <span className="text-xs text-slate-500 font-semibold bg-slate-100 px-2.5 py-0.5 rounded-full inline-block">
-                    Excludes research & grading
+                  <span className="text-[9px] sm:text-xs text-slate-500 font-semibold bg-slate-100 px-2 sm:px-2.5 py-0.5 rounded-full inline-block truncate max-w-full">
+                    Excludes grading
                   </span>
                 </div>
-                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl shrink-0">
-                  <Clock size={26} />
+                <div className="p-2 sm:p-3 bg-indigo-50 text-indigo-600 rounded-xl sm:rounded-2xl shrink-0">
+                  <Clock size={20} className="sm:hidden" />
+                  <Clock size={26} className="hidden sm:inline" />
                 </div>
               </div>
 
